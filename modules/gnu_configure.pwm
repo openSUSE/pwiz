@@ -23,6 +23,7 @@ case $1 in
 # configure_fallback_check is reserved for last-in-resort failure check.
 # FIXME: wait for pwiz_error_checkpoint implementation
 	pwiz_phase_new configure_fallback_check after configure
+	pwiz_debug_feature gnu_configure_paths "paths in Makefiles" "This feature turns on verbose displaying of results of searching for standard GNU paths in Makefiles."
 
 	gnu_configure_args=
 	pwiz_phase_add_callme configure_check
@@ -100,28 +101,56 @@ function gnu_configure_configure_check {
 
 # FIXME: Better we should parse generated file list in configure.{ac,in}
 function gnu_configure_add_path_arg_opt_add {
-    local arg_name=--${1/-/_}
+    local arg_name=--${1/_/-}
     eval local arg_val\=\"\$$1\"
-    if test "$arg_val" != "$2" ; then
-	if gnu_configure_path_is_used $1 ; then
-	    gnu_configure_add_arg $arg_name=$arg_val
-	fi
+    eval "local arg_used=\$gnu_configure_path_is_needed_$1"
+    if $arg_used ; then
+	gnu_configure_add_arg $arg_name=$arg_val
     fi
 }
 
 #@ gnu_configure_add_path_is_used arg_name
 # arg_name: name of path argument
-# returns: 0: is used, 1: is not used
+# returns $gnu_configure_path_is_used_{arg_name}: is used, 1: is not used
 #
 # Checks, whether named argument:
-# - is cited in any *.in file except Makefile.in
+# - is cited (or pkg{arg_name}) in any *.in file except Makefile.in or
+#- Makefile.am
 # or
-# - is used cited in any Makefile.in (it is used there nearly all times)
-# (internal function)
+# - is used (or pkg{arg_name}) in any Makefile.in (it is used there
+#nearly all times) (internal function)
 function gnu_configure_path_is_used {
-	if ! find -type f -name 'Makefile*.in' -print0 | xargs --null fgrep -ql '$('$1')' ; then
-	    find -type f -name '*.in' -a \! -name Makefile*.in -print0 | xargs --null fgrep -ql '@'$1'@'
+    eval gnu_configure_path_is_used_$1\=true
+    if ! find -type f -name 'Makefile.am' -print0 | xargs --null grep -ql '\(\$(\|@\)'$1'\()\|@\)' ; then
+	if ! find -type f -name '*.in' -a \! -name Makefile*.in -print0 | xargs --null fgrep -ql '@'$1'@' ; then
+	    if test -z "$(find -type f -name 'Makefile.in' -print0 | xargs --null cat 2>/dev/null | sed '\%^\(pkg\|\)'$1' = \(\$(\|@\)'$1'\()\|@\)%d' | grep -l '\(\$(\|@\)\(pkg\|\)'$1'\()\|@\)' )" ; then
+		eval gnu_configure_path_is_used_$1\=false
+		decho_gnu_configure_paths "no meaningful occurrence of $1 in Makefiles"
+	    fi
 	fi
+    fi
+}
+
+#@ gnu_configure_path_default_check arg_name default_dir dep_arg
+# arg_name: name of path argument
+# default_dir: default directory in GNU tools
+# dep_arg: name of path argument, on which arg_name depends
+# returns gnu_configure_path_is_used_*: alters values if needed
+# returns gnu_configure_path_is_needed_{arg_name}: needed for configure?
+#
+# Check, whether path is set to GNU tools default. If yes, mark
+#dep_arg as used and mark argument for inclusion to configure.
+#(internal)
+function gnu_configure_path_default_check {
+    eval : \${gnu_configure_path_is_needed_$1:=false}
+    eval local arg_val\=\"\$$1\"
+    if test "$arg_val" = "$2" ; then
+	eval gnu_configure_path_is_used_$3\=true
+    else
+	eval "if \$gnu_configure_path_is_used_$1 ; then
+	    gnu_configure_path_is_needed_$1=true
+	fi"
+    fi
 }
 
 #@ gnu_configure_args
@@ -129,6 +158,35 @@ function gnu_configure_path_is_used {
 # Complete arguments for configure. (internal)
 function gnu_configure_args {
 # FIXME: dependent on $ac_default_prefix in $CONFIG_SITE (to be sure on defaults, we should resource $CONFIG_SITE).
+	gnu_configure_path_is_used prefix
+	gnu_configure_path_is_used exec_prefix
+	gnu_configure_path_is_used bindir
+	gnu_configure_path_is_used sbindir
+	gnu_configure_path_is_used libexecdir
+	gnu_configure_path_is_used datadir
+	gnu_configure_path_is_used sysconfdir
+	gnu_configure_path_is_used sharedstatedir
+	gnu_configure_path_is_used localstatedir
+	gnu_configure_path_is_used libdir
+	gnu_configure_path_is_used includedir
+# FIXME: oldincludedir probably not needed
+	gnu_configure_path_is_used infodir
+	gnu_configure_path_is_used mandir
+
+	gnu_configure_path_default_check bindir "$prefix/bin" exec_prefix
+	gnu_configure_path_default_check sbindir "$prefix/sbin" exec_prefix
+	gnu_configure_path_default_check libexecdir "$prefix/libexec" exec_prefix
+	gnu_configure_path_default_check datadir "$prefix/share" prefix
+	gnu_configure_path_default_check sysconfdir "$prefix/etc" prefix
+	gnu_configure_path_default_check sharedstatedir "$prefix/com" prefix
+	gnu_configure_path_default_check localstatedir "$prefix/var" prefix
+	gnu_configure_path_default_check libdir "$prefix/lib" exec_prefix
+	gnu_configure_path_default_check includedir "$prefix/include" prefix
+	gnu_configure_path_default_check infodir "$prefix/info" prefix
+	gnu_configure_path_default_check mandir "$prefix/man" prefix
+	gnu_configure_path_default_check exec_prefix "$prefix" prefix
+	gnu_configure_path_default_check prefix "/usr/local"
+
 	gnu_configure_add_path_arg_opt_add prefix /usr/local
 	gnu_configure_add_path_arg_opt_add exec_prefix "$prefix"
 	gnu_configure_add_path_arg_opt_add bindir "$prefix/bin"
