@@ -1,7 +1,7 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_INIT([pwiz], [0.02], [sbrabec@suse.cz])
+AC_INIT([pwiz], [0.03], [sbrabec@suse.cz])
 AC_CONFIG_SRCDIR([pwiz.gopts.in])
 AM_CONFIG_HEADER([config.h])
 AM_INIT_AUTOMAKE([dist-bzip2])

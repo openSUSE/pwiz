@@ -727,11 +727,12 @@ alias pwiz_reset_vtags='unset ${!pwiz_vtag_*} ; pwiz_default_vtags'
 #recurse, there is no chance for simple predefining default value for
 #tag as global variable. You have to use this function.
 # Register default tag value.
-
-# FIXME: WARNING: dual expansion
 function pwiz_register_tag_default {
-    pwiz_array_add pwiz_tagreset "pwiz_tag_$1"
-    pwiz_array_add pwiz_vtagreset "pwiz_vtag_$1"
+    pwiz_tag="$1"
+    pwiz_tag=${pwiz_tag//\'/\'\\\'\'}\'
+    pwiz_tag=${pwiz_tag/=/=\'}
+    pwiz_array_add pwiz_tagreset "pwiz_tag_$pwiz_tag"
+    pwiz_array_add pwiz_vtagreset "pwiz_vtag_$pwiz_tag"
 }
 declare -a pwiz_tagreset
 declare -a pwiz_vtagreset
@@ -749,6 +750,10 @@ pwiz_register_tag_default item_type=string
 pwiz_register_tag_default valid=exact
 pwiz_register_tag_default knowledge=general
 pwiz_register_tag_default importance=25
+pwiz_register_tag_default askmenu_hook=:
+pwiz_register_tag_default callback=pwiz_question_enter_string
+pwiz_register_tag_default callback_prompt="Your value: "
+pwiz_register_tag_default multiline=false
 
 #@ pwiz_default_tags
 #
@@ -1066,16 +1071,18 @@ pwiz_engine_interface pkgdb what_owns
 #not use these functions directly. Use @pwiz_ask_{function} instead.
 #Those functions do additional answer caching and guess evaluation.
 
+#@ pwiz_question_enter_string initial_value
+# initial_value: initial value of string
+# returns $pwiz_answer: user's answer
+# can use tag prompt: prompt for manual answer (default "Your value: ")
+#
+# Prompt user for string.
+
 #@ pwiz_question_string desc longdesc [ tags ... ]
 # returns $pwiz_answer: user's answer
 # returns $pwiz_fallback_answer: user selected default answer (default false)
-# uses tag yesno: tag for boolean questions (default false)
-# uses tag allow_new: if set to false, "enter manually" is disabled
-#(default true)
 # uses tag no_default: no preselected default - user have to respond
 #(default false)
-# uses tag callback: callback function for "enter manually" (returns
-#$pwiz_answer) (default string)
 # can use tag multiline: allow multiple-line strings (default false)
 #
 # Interface to ask user for string. Alternating this interface, you
@@ -1086,6 +1093,8 @@ pwiz_engine_interface pkgdb what_owns
 # returns $pwiz_fallback_answer: user selected default answer (default false)
 # uses tag allow_new: if set to false, "enter manually" is disabled
 #(default true)
+# uses tag askmenu_hook: hook function for adding items to askmenu
+#(default is nop)
 # uses tag no_default: no preselected default - user have to respond
 #(default false)
 # uses tag callback: callback function for "enter manually" (returns
@@ -1095,19 +1104,14 @@ pwiz_engine_interface pkgdb what_owns
 #
 # Interface to ask user for a selection from list.
 
-# FIXME: those are probably obsolete
-# pwiz_question_yesno desc longdesc [ tags ... ]
-# Returns: 0: yes
-# Returns: 1: false
 # pwiz_question_radio desc longdesc [ tags ... ]
 # Returns: $pwiz_answer with selection.
 # pwiz_question_selection desc longdesc [ tags ... ]
 # Returns: FIXME
 
-# FIXME: obsolete yesno
 # FIXME: pwiz_ask_radio is obsolete use ask_string with allow_new=false
 #pwiz_engine_interface question radio selection string list
-pwiz_engine_interface question yesno radio selection string list auto_answer
+pwiz_engine_interface question enter_string question radio selection string list auto_answer
 
 # Question engine is in most cases used through ask interface. It
 # accomplishes question, caching answer and querying for reasonable
@@ -1521,6 +1525,370 @@ function pwiz_key_parse {
     done
 }
 
+#@@ Askmenu
+# Askmenu is a structure between question interface and question
+#backend. It helps with menu construction and processing answer.
+# Expanation of variables:
+# @${pwiz_askmenu_callbacks[@@]}: Callbacks, called when menu item is
+#selected. Used internally. Must be defined.
+# @${pwiz_askmenu_ids[@@]}: id for preselection and postselection
+#callbacks (can be empty string)
+# @${pwiz_askmenu_strings[@@]}: Strings to be displayed by question
+#back-end. Should not be empty.
+# @${pwiz_askmenu_hotkeys[@@]}: Hotkeys. Displayed by question
+#back-end. Used by @pwiz_preselection_callback_default for hotkey
+#(abbreviation) recognition. Other preselection callbacks can use it
+#in other way (or not at all), but string contents can be still
+#displayed by question back-end.
+# @${pwiz_askmenu_preselection_callbacks[@@]}: Callback called to
+#decide, whether user selected this menu item. Default is
+# @${pwiz_askmenu_preselection_numbers[@@]}: Order numbers for ordered
+#items.
+# @${pwiz_askmenu_preselection_number_indexes[@@]}: Reverse index,
+#which maps ordered list index to askmenu index.
+# Minimal example of building menu with menu hook and processing
+#answer:
+#@<
+#function help_func {
+#    echo "This is a help text for $1."
+#    # We want to display question again.
+#    return 1
+#}
+#function help_hook {
+#    pwiz_askmenu_add help_func test_dialog Help   h
+#}
+#pwiz_askmenu_add_hook help_hook
+#
+#pwiz_askmenu_reset
+#pwiz_askmenu_add echo reply_was_bottom   Bottom   ""
+#pwiz_askmenu_add echo reply_was_fallback Fallback "" pwiz_preselection_callback_fallback_default tail
+#pwiz_askmenu_add echo reply_was_1        One      a  ""     head
+#pwiz_askmenu_add echo reply_was_2        Two      b  ""     is_default head
+#pwiz_askmenu_add echo reply_was_3        Strange  cc ""     head no_number
+#pwiz_askmenu_complete
+#
+#for (( count=0 ; count < ${#pwiz_askmenu_callbacks[@]} ; count++ )) ; do
+#    echo -n "$count, ${pwiz_askmenu_hotkeys[count]}: ${pwiz_askmenu_strings[count]}"
+#    if test $count = $pwiz_askmenu_default ; then
+#	echo -n " (default)"
+#    fi
+#    echo
+#done
+#read -p "Please answer: "
+#pwiz_askmenu_process "$REPLY"
+#case $? in
+#    0 )
+#	echo OK
+#	;;
+#    1 )
+#	echo menu should be displayed again
+#	;;
+#    2 )
+#	echo failed
+#esac
+#@>
+
+declare -a pwiz_askmenu_build_callbacks
+declare -a pwiz_askmenu_build_ids
+declare -a pwiz_askmenu_build_strings
+declare -a pwiz_askmenu_build_hotkeys
+declare -a pwiz_askmenu_build_preselection_callbacks
+declare -a pwiz_askmenu_build_flags
+
+declare -a pwiz_askmenu_build_hooks
+
+declare -a pwiz_askmenu_callbacks
+declare -a pwiz_askmenu_ids
+declare -a pwiz_askmenu_strings
+declare -a pwiz_askmenu_hotkeys
+declare -a pwiz_askmenu_preselection_callbacks
+declare -a pwiz_askmenu_numbers
+declare -a pwiz_askmenu_number_indexes
+
+#@ pwiz_askmenu_add {pwiz_askmenu_function} id string hotkey {preselection_callback} [ flags ... ]
+# {pwiz_askmenu_function}: function, which will be called, if user
+#selects this item
+# id: identification of askmenu item (can be empty string,
+#if @{pwiz_askmenu_function} does not require it)
+# string: short description of feature (must not be empty)
+# hotkey: guess hotkey (can be empty string)
+# {preselection_callback}: callback called while evaluating answer
+#(can be empty string, then @pwiz_preselection_callback_default is
+#used; can be @pwiz_preselection_callback_fallback_default, then all
+#answers will be accepted - useful only for tail element)
+# flags: "is_default": this menu entry is default, "head": show in
+#first part of the list, "tail": show in last part of the list,
+#"no_number": entry is not numbered
+#
+# Add an item to ask menu. If item is selected by
+#user, @{pwiz_askmenu_function} is called.
+
+#@ {pwiz_askmenu_function} id answer
+# id: identification of askmenu item from @pwiz_askmenu_add (can be
+#empty string)
+# answer: user's answer
+# returns: 0: processed, 1: menu should be displayed again
+#
+# This function is called, if user selects this item.
+
+#@ {preselection_callback} id index answer
+# id: identification of askmenu item from @pwiz_askmenu_add (can be
+#empty string)
+# index: current index in following arrays: @${pwiz_askmenu_callbacks[@@]}, @${pwiz_askmenu_ids[@@]}, @${pwiz_askmenu_strings[@@]}, @${pwiz_askmenu_hotkeys[@@]}, @${pwiz_askmenu_numbers[@@]}, @${pwiz_askmenu_preselection_callbacks[@@]}
+# answer: user's answer
+# returns: 0: it is item selected by user, 1: it is not item selected by user
+#
+# Callback function, called during evaluation of user answer. Default
+#callback is @pwiz_preselection_callback_default.
+
+function pwiz_askmenu_add {
+    local i hotkey_free=true
+    pwiz_array_add pwiz_askmenu_build_callbacks "$1"
+    pwiz_array_add pwiz_askmenu_build_ids "$2"
+    pwiz_array_add pwiz_askmenu_build_strings "$3"
+    for (( i=0 ; i < ${#pwiz_askmenu_build_hotkeys[@]} ; i++ )) ; do
+	if test "$4" = "${#pwiz_askmenu_build_hotkeys[@]}" ; then
+	    hotkey_free=false
+	    break
+	fi
+    done
+    if $hotkey_free ; then
+	pwiz_array_add pwiz_askmenu_build_hotkeys "$4"
+    else
+	# FIXME: Maybe implement alternative hotkey
+	pwiz_array_add pwiz_askmenu_build_hotkeys ""
+    fi
+    pwiz_array_add pwiz_askmenu_build_preselection_callbacks "${5:-pwiz_preselection_callback_default}"
+    if test $# -gt 4 ; then
+	shift 5
+	pwiz_array_add pwiz_askmenu_build_flags "$*"
+    else
+	pwiz_array_add pwiz_askmenu_build_flags ""
+    fi
+}
+
+#@ pwiz_askmenu_add_hook {pwiz_askmenu_hook}
+# {pwiz_askmenu_hook}: hook function, which calls @pwiz_askmenu_add on its own
+#
+# Add hook function, which is called every time pwiz wants to create
+#ask menu.
+
+#@ {pwiz_askmenu_hook}
+#
+# uses: $pwiz_tags_{tag}: tags are already read to variables
+#using @pwiz_read_tags.
+#
+# This function is called every time ask menu is created. Hook
+#function can look at tags and decide, whether to display any menu
+#item and call @pwiz_askmenu_add.
+
+function pwiz_askmenu_add_hook {
+    pwiz_array_add pwiz_askmenu_build_hooks "$1"
+}
+
+#@ pwiz_askmenu_reset
+#
+# Reset ask menu values. Called before building ask menu, Then
+#appropriate @pwiz_askmenu_add are called. Process is finished
+#by @pwiz_askmenu_complete.
+function pwiz_askmenu_reset {
+    unset pwiz_askmenu_build_callbacks
+    unset pwiz_askmenu_build_strings
+    unset pwiz_askmenu_build_hotkeys
+    unset pwiz_askmenu_build_flags
+    unset pwiz_askmenu_build_preselection_callbacks
+}
+
+#@ pwiz_askmenu_complete [ "no_hooks" ]
+# "no_hooks": set if hooks should not be executed
+# returns ${pwiz_askmenu_strings[@@]}: array of ask menu strings
+# returns ${pwiz_askmenu_hotkeys[@@]}: array of ask menu hotkeys
+# returns ${pwiz_askmenu_callbacks[@@]}: array of ask menu callbacks (internal)
+# returns ${pwiz_askmenu_ids[@@]}: ids for ask menu callbacks and preselection callbacks
+# returns ${pwiz_askmenu_preselection_callbacks[@@]}: array of ask menu preselection callbacks (internal)
+# returns ${pwiz_askmenu_numbers[@@]}: array of ordered item numbers
+# returns ${pwiz_askmenu_number_indexes[@@]}: reverse mapping of item numbers to askmenu indexes
+# returns $pwiz_askmenu_default: index of default ask menu item
+# returns $pwiz_askmenu_count: number of last numbered item plus 1
+#
+# Finishes ask menu building process. Called after @pwiz_askmenu_reset
+#and all appropriate @pwiz_askmenu_add.
+function pwiz_askmenu_complete {
+    local count dcount=0 tmp tmp2
+
+    unset pwiz_askmenu_callbacks
+    unset pwiz_askmenu_ids
+    unset pwiz_askmenu_strings
+    unset pwiz_askmenu_hotkeys
+    unset pwiz_askmenu_numbers
+    unset pwiz_askmenu_number_indexes
+    unset pwiz_askmenu_preselection_callbacks
+    pwiz_askmenu_count=0
+
+    if test "$1" != "no_hooks" ; then
+	for (( count=0 ; count < ${#pwiz_askmenu_build_callbacks[@]} ; count++ )) ; do
+	    ${pwiz_askmenu_build_hooks[count]}
+	done
+    fi
+
+# FIXME: Verify unique hotkeys, create hotarray
+    for (( count=0 ; count < ${#pwiz_askmenu_build_callbacks[@]} ; count++ )) ; do
+	tmp=" ${pwiz_askmenu_build_flags[count]} "
+	tmp2=${tmp/ head / }
+	if test "$tmp" != "$tmp2" ; then
+	    pwiz_askmenu_callbacks[dcount]=${pwiz_askmenu_build_callbacks[count]}
+	    pwiz_askmenu_ids[dcount]=${pwiz_askmenu_build_ids[count]}
+	    pwiz_askmenu_strings[dcount]=${pwiz_askmenu_build_strings[count]}
+	    pwiz_askmenu_hotkeys[dcount]=${pwiz_askmenu_build_hotkeys[count]}
+	    pwiz_askmenu_preselection_callbacks[dcount]=${pwiz_askmenu_build_preselection_callbacks[count]}
+	    if test "$tmp" != "${tmp/ is_default /}" ; then
+		pwiz_askmenu_default=$dcount
+	    fi
+	    if test "$tmp" = "${tmp/ no_number /}" ; then
+		pwiz_askmenu_numbers[dcount]=$pwiz_askmenu_count
+		pwiz_askmenu_number_indexes[pwiz_askmenu_count]=$dcount
+		let pwiz_askmenu_count++
+	    fi
+	    let dcount++
+	fi
+    done
+    for (( count=0 ; count < ${#pwiz_askmenu_build_callbacks[@]} ; count++ )) ; do
+	tmp=" ${pwiz_askmenu_build_flags[count]} "
+	tmp2=${tmp/ head / }
+	tmp2=${tmp2/ tail / }
+	if test "$tmp" = "$tmp2" ; then
+	    pwiz_askmenu_callbacks[dcount]=${pwiz_askmenu_build_callbacks[count]}
+	    pwiz_askmenu_ids[dcount]=${pwiz_askmenu_build_ids[count]}
+	    pwiz_askmenu_strings[dcount]=${pwiz_askmenu_build_strings[count]}
+	    pwiz_askmenu_hotkeys[dcount]=${pwiz_askmenu_build_hotkeys[count]}
+	    pwiz_askmenu_preselection_callbacks[dcount]=${pwiz_askmenu_build_preselection_callbacks[count]}
+	    if test "$tmp" != "${tmp/ is_default /}" ; then
+		pwiz_askmenu_default=$dcount
+	    fi
+	    if test "$tmp" = "${tmp/ no_number /}" ; then
+		pwiz_askmenu_numbers[dcount]=$pwiz_askmenu_count
+		pwiz_askmenu_number_indexes[pwiz_askmenu_count]=$dcount
+		let pwiz_askmenu_count++
+	    fi
+	    let dcount++
+	fi
+    done
+    for (( count=0 ; count < ${#pwiz_askmenu_build_callbacks[@]} ; count++ )) ; do
+	tmp=" ${pwiz_askmenu_build_flags[count]} "
+	tmp2=${tmp/ tail / }
+	if test "$tmp" != "$tmp2" ; then
+	    pwiz_askmenu_callbacks[dcount]=${pwiz_askmenu_build_callbacks[count]}
+	    pwiz_askmenu_ids[dcount]=${pwiz_askmenu_build_ids[count]}
+	    pwiz_askmenu_strings[dcount]=${pwiz_askmenu_build_strings[count]}
+	    pwiz_askmenu_hotkeys[dcount]=${pwiz_askmenu_build_hotkeys[count]}
+	    pwiz_askmenu_preselection_callbacks[dcount]=${pwiz_askmenu_build_preselection_callbacks[count]}
+	    if test "$tmp" != "${tmp/ is_default /}" ; then
+		pwiz_askmenu_default=$dcount
+	    fi
+	    if test "$tmp" = "${tmp/ no_number /}" ; then
+		pwiz_askmenu_numbers[dcount]=$pwiz_askmenu_count
+		pwiz_askmenu_number_indexes[pwiz_askmenu_count]=$dcount
+		let pwiz_askmenu_count++
+	    fi
+	    let dcount++
+	fi
+    done
+}
+
+#@ pwiz_preselection_callback_default id index answer
+# id: identification of askmenu item from @pwiz_askmenu_add (can be
+#empty string, usused)
+# index: current index in following arrays: @${pwiz_askmenu_callbacks[@@]}, @${pwiz_askmenu_ids[@@]}, @${pwiz_askmenu_strings[@@]}, @${pwiz_askmenu_hotkeys[@@]}, @${pwiz_askmenu_numbers[@@]}, @${pwiz_askmenu_preselection_callbacks[@@]}
+# answer: user's answer
+# returns: 0: it is item selected by user, 1: it is not item selected by user
+#
+# Default @{preselection_callback} function. If user answers proper
+#number or hotkey or answer is default and string is empty, answer is accepted.
+function pwiz_preselection_callback_default {
+    if test "$3" = "" ; then
+	if test $2 = "$pwiz_askmenu_default" ; then
+	    return 0
+	fi
+    else
+	if test "$3" = "${pwiz_askmenu_numbers[$2]}" ; then
+	    return 0
+	else
+	    if test "$3" = "${pwiz_askmenu_hotkeys[$2]}" ; then
+		return 0
+	    fi
+	fi
+    fi
+    return 1
+}
+
+# FIXME: documentation of function @{function} -> @{{function}} to be displayed as italic "{function}".
+# Also FIXME half italic ${pwiz_askmenu_callbacks[@]}, should be @{${pwiz_askmenu_callbacks[@]}} or so
+
+#@ pwiz_preselection_callback_cnumber id index answer
+# id: identification of askmenu item from @pwiz_askmenu_add (can be
+#empty string)
+# index: current index in following arrays: @${pwiz_askmenu_callbacks[@@]}, @${pwiz_askmenu_ids[@@]}, @${pwiz_askmenu_strings[@@]}, @${pwiz_askmenu_hotkeys[@@]}, @${pwiz_askmenu_numbers[@@]}, @${pwiz_askmenu_preselection_callbacks[@@]}
+#(unused)
+# answer: user's answer
+# id: identification of askmenu item from @pwiz_askmenu_add (can be
+#empty string, usused)
+# uses $pwiz_preselection_callback_cnumber_maxval: maximal number,
+#which is acccepted plus 1 (-1=no limit)
+# returns: 0: it is item selected by user, 1: it is not item selected by user
+#
+# This @{preselection_callback} allows to use hotkeys in form
+#@{{character}{number}}. function. If user answers proper number,
+#answer is accepted. Number must be non-negative integer. Answer
+#cannot be default (default does not contain number).
+function pwiz_preselection_callback_cnumber {
+    shopt -s extglob
+    local tmp
+    if test "${3:0:1}" = "${pwiz_askmenu_hotkeys[$2]:0:1}" ; then
+	tmp="${3:1}"
+	if test "${tmp%%*([0-9])}" = "" ; then
+	    if test $tmp -lt $pwiz_preselection_callback_cnumber_maxval -o\
+		$pwiz_preselection_callback_cnumber_maxval = -1 ; then
+		shopt -u extglob
+		return 0
+	    fi
+	fi
+    fi
+    shopt -u extglob
+    return 1
+}
+pwiz_preselection_callback_cnumber_maxval=-1
+
+#@ pwiz_preselection_callback_fallback_default index answer
+# index: current index in following arrays: @${pwiz_askmenu_callbacks[@@]}, @${pwiz_askmenu_ids[@@]}, @${pwiz_askmenu_strings[@@]}, @${pwiz_askmenu_hotkeys[@@]}, @${pwiz_askmenu_numbers[@@]}, @${pwiz_askmenu_preselection_callbacks[@@]}
+# answer: user's answer
+# returns: 0: it is item selected by user
+#
+# Fallback @{preselection_callback}, which accepts all answers. Useful
+#only for tail menu element.
+function pwiz_preselection_callback_fallback_default {
+    return 0
+}
+
+# FIXME: maybe index is number or hotkey
+
+#@ pwiz_askmenu_process answer
+# answer: answer from backend
+# returns: 0: OK, 1: menu should be displayed again, 2: unknown selection
+#
+# After returning from backend, pwiz_askmenu_process is started to
+#process selected value.
+function pwiz_askmenu_process {
+    local index=$1
+
+    for (( index=0 ; index < ${#pwiz_askmenu_callbacks[@]} ; index++ )) ; do
+	if ${pwiz_askmenu_preselection_callbacks[index]} "${pwiz_askmenu_ids[$index]}" $index "$1" ; then
+	    ${pwiz_askmenu_callbacks[index]} "${pwiz_askmenu_ids[index]}" "$1"
+	    return $?
+	fi
+    done
+    return 2
+}
+
 #@@ Asking user
 
 #@ pwiz_ask_{function} desc longdesc [ tags ]
@@ -1540,9 +1908,6 @@ function pwiz_ask_none {
     :
 }
 
-# FIXME: The backend can use two ways: special yesno function or use it via string input.
-
-
 #@ pwiz_ask_yesno desc longdesc [ tags ]
 # desc: short description of feature
 # longdesc: long description of feature
@@ -1557,8 +1922,6 @@ function pwiz_ask_none {
 alias pwiz_ask_yesno="set -o noglob ; pwiz_ask_yesno_f"
 function pwiz_ask_yesno_f {
     set +o noglob
-    local rc
-#FIXME: remove:    pwiz_ask_core pwiz_question_yesno "$@"
     local desc="$1"
     local longdesc="$2"
     shift 2
@@ -1578,6 +1941,8 @@ function pwiz_ask_yesno_f {
 #$pwiz_answer) (default string)
 # uses tag allow_new: if set to false, "enter manually" is disabled
 #(default true)
+# uses tag askmenu_hook: hook function for adding items to askmenu
+#(default is nop)
 # uses tag no_default: no preselected default - user have to respond
 #(default false)
 #
@@ -1623,6 +1988,8 @@ function pwiz_ask_radio_f {
 #$pwiz_answer) (default string)
 # uses tag allow_new: if set to false, "enter manually" is disabled
 #(default true)
+# uses tag askmenu_hook: hook function for adding items to askmenu
+#(default is nop)
 # uses tag no_default: no preselected default - user have to respond
 #(default false)
 # uses tags knowledge: knowledge type required for answer (default
@@ -1632,7 +1999,7 @@ function pwiz_ask_radio_f {
 # Internal core function for making a guess and asking user. Used by
 #@pwiz_ask_{function}. Uses @pwiz_guess.
 function pwiz_ask_core {
-    local question_function desc longdesc rc=0 count hotkey credit_threshold answer_credit guesslevel knowledge pwiz_answer_save nocred_string nocred_help nocred_no
+    local question_function desc longdesc rc count hotkey credit_threshold answer_credit guesslevel knowledge pwiz_answer_save nocred_string nocred_help nocred_no
 
     # Local variables for use in guess and question engines:
     local -a pwiz_guesses pwiz_credits pwiz_strings pwiz_hotkeys
@@ -1693,43 +2060,46 @@ function pwiz_ask_core {
 	decho_guess "PWIZ auto answer: $pwiz_answer"
 	pwiz_question_auto_answer "$desc" "$longdesc" "$pwiz_guess_best"
 	pwiz_answer="$pwiz_guess_best_value"
-	if $pwiz_tag_yesno ; then
-	    if $pwiz_answer ; then
-		rc=0
-	    else
-		rc=1
-	    fi
-	fi
 	# We cannot give any credit to automatic answer.
 	# FIXME: In multiple-cache source mode, we can copy item from remote cache to local.
 	guesslevel=0
     else
-	local pwiz_hotarray
-	# Search for unique hotkeys.
-# FIXME: elsewhere???
-#    pwiz_hotarray[64#h]=h
-	# hotkey for manual is currently reserved (maybe others want to be reserved)
+	local is_default
+	pwiz_askmenu_reset
 	if $pwiz_tag_allow_new ; then
-	    pwiz_hotarray[64#m]=m
+	    # FIXME: Implement tag quick_enter (any unknown reply is considered as string for "enter manually").
+	    pwiz_askmenu_add pwiz_ask_core_enter_manually "" "enter manually" m "" no_number
+	    pwiz_askmenu_add pwiz_ask_core_edit_manually "" "edit manually" 'e{number}' pwiz_preselection_callback_cnumber no_number
 	fi
+	$pwiz_tag_askmenu_hook
+
 	for (( count=0 ; count < ${#pwiz_guesses[@]} ; count++ )) ; do
-	    hotkey="${pwiz_hotkeys[$count]}"
-	    if ! test -z "$hotkey" ; then
-		if test -z "${pwiz_hotarray[64#$hotkey]}" ; then
-		    pwiz_hotarray[64#$hotkey]=$count
-		else
-		# FIXME: unsetting local array variables is bad idea and Bask segfaults in some situations.
-		# But this maybe can work.
-#		unset pwiz_hotkeys[$count]
-		    pwiz_hotkeys[$count]=
-		fi
+	    if test $count = $pwiz_guess_best ; then
+		is_default=" is_default"
+	    else
+		is_default=
+	    fi
+	    if test -z "${pwiz_strings[count]}" ; then
+		pwiz_askmenu_add pwiz_ask_core_askmenu_reply $count "\"${pwiz_guesses[count]}\" (${pwiz_credits[count]}c)" "${pwiz_hotkeys[count]}" "" head$is_default
+	    else
+		pwiz_askmenu_add pwiz_ask_core_askmenu_reply $count "${pwiz_strings[count]} (${pwiz_credits[count]}c)" "${pwiz_hotkeys[count]}" "" head$is_default
 	    fi
 	done
+	pwiz_askmenu_complete
+	pwiz_preselection_callback_cnumber_maxval=$pwiz_askmenu_count
 
-	pwiz_fallback_answer=false
-	# Use arguments for question_function, to be able to ask inside ant revert tags.
-	$question_function "$desc" "$longdesc" "$@"
-	rc=$?
+	rc=1
+	until test $rc -eq 0 ; do
+	    pwiz_fallback_answer=false
+	    # Use arguments for question_function, to be able to ask inside ant revert tags.
+	    $question_function "$desc" "$longdesc" "$@"
+	    pwiz_askmenu_process "$pwiz_answer"
+	    rc=$?
+	    # FIXME: Unknown selection back-end
+#	    if test $rc -gt 1 ; then
+#		pwiz_fatal "Unknown selection"
+#	    fi
+	done
 
 	if ! test -z "$pwiz_tag_q" ; then
 	    if test -z "$pwiz_tag_guesslevel" ; then
@@ -1813,8 +2183,49 @@ function pwiz_ask_core {
 	fi
 	eval $pwiz_tag_q\=\"\$pwiz_answer\"
     fi
+}
 
-    return $rc
+#@ pwiz_ask_core_askmenu_reply id answer (internal)
+# id: identification of askmenu item from @pwiz_askmenu_add
+#(@${pwiz_guesses[@@]})
+# answer: user's answer (unused)
+# returns: 0
+#
+# Call question function for enter manually (internal function
+#for @pwiz_ask_core).
+function pwiz_ask_core_askmenu_reply {
+    pwiz_answer="${pwiz_guesses[$1]}"
+}
+
+#@ pwiz_ask_core_enter_manually id answer (internal)
+# id: identification of askmenu item from @pwiz_askmenu_add (unused)
+# answer: user's answer (unused)
+# returns $pwiz_answer: user's answer
+# returns: 0
+#
+# Call question function for enter manually (internal function
+#for @pwiz_ask_core).
+function pwiz_ask_core_enter_manually {
+    $pwiz_tag_callback
+}
+
+#@ pwiz_ask_core_edit_manually id answer (internal)
+# id: identification of askmenu item from @pwiz_askmenu_add
+# answer: user's answer
+# returns $pwiz_answer: user's answer
+# returns: 0: OK, 1: Uses selected numbered item not corresponding to
+#guess.
+#
+# Call question function for enter manually (internal function
+#for @pwiz_ask_core).
+function pwiz_ask_core_edit_manually {
+    local index
+    index=${pwiz_askmenu_number_indexes[${2:1}]}
+    if test ${pwiz_askmenu_callbacks[index]} != pwiz_ask_core_askmenu_reply ; then
+	return 1
+    fi
+    index=${pwiz_askmenu_ids[index]}
+    $pwiz_tag_callback "${pwiz_guesses[index]}"
 }
 
 #@ pwiz_patchlevel_set [ incr ]
@@ -1913,8 +2324,7 @@ function pwiz_get_guesslevel {
 
 # FIXME: implement pwiz_ask_selection === unordered list
 
-#@ pwiz_ask_list question_function desc longdesc [ tags ]
-# question_function: function from question engine
+#@ pwiz_ask_list desc longdesc [ tags ]
 # desc: short description of feature
 # longdesc: long description of feature
 # tags: optional tags

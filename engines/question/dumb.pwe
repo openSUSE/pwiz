@@ -59,178 +59,66 @@ function pwiz_engine_question_dumb_quit {
     :
 }
 
-# pwiz_question_yesno desc longdesc
-# FIXME: Probably obsolete - replaced by special case of ask_string
+# pwiz_question_string desc longdesc
+function pwiz_engine_question_dumb_enter_string {
+    echo -n "$pwiz_tag_callback_prompt"
+# FIXME: Implement single line entry with initial value
+    if ! test -z "$1" ; then
+	rm -f $PWIZ_TMPDIR/dumb_answer
+	pwiz_tag_multiline=true
+	echo -n "$1" >$PWIZ_TMPDIR/dumb_answer
+    fi
+    if $pwiz_tag_multiline ; then
+# FIXME: document file $PWIZ_TMPDIR/pwiz_answer
+	${EDITOR:-vi} $PWIZ_TMPDIR/dumb_answer
+	pwiz_answer="$(<$PWIZ_TMPDIR/dumb_answer)"
+	rm $PWIZ_TMPDIR/dumb_answer
+    else
+	read
+	pwiz_answer="$REPLY"
+    fi
+}
+
 # pwiz_question_string desc longdesc
 function pwiz_engine_question_dumb_string {
-    local desc longdesc guesses_count selection bdefault edefault default REPLY
+    local desc longdesc guesses_count selection bdefault edefault default REPLY contstring
 
     desc="$1"
     longdesc="$2"
     shift 2
-    while : ; do
-	echo "$pwiz_engine_question_dumb_desc_begin$desc$pwiz_engine_question_dumb_desc_end"
-	for (( guesses_count=0 ; guesses_count < ${#pwiz_guesses[*]} ; guesses_count++ )) ; do
-	    if test $guesses_count = "$pwiz_guess_best" ; then
-		bdefault="$pwiz_engine_question_dumb_default_begin"
-		edefault="$pwiz_engine_question_dumb_default_end"
-		default=", default"
-	    else
-		bdefault=
-		edefault=
-		default=
-	    fi
-	    if test -z "${pwiz_hotkeys[guesses_count]}" ; then
-		selection="$guesses_count"
-	    else
-		selection="$guesses_count, ${pwiz_hotkeys[guesses_count]}"
-	    fi
-	    if test -z "${pwiz_strings[guesses_count]}" ; then
-		echo "$selection) \"$bdefault${pwiz_guesses[guesses_count]}$edefault\" (${pwiz_credits[guesses_count]}c$default)"
-	    else
-		echo "$selection) $bdefault${pwiz_strings[guesses_count]}$edefault (${pwiz_credits[guesses_count]}c$default)"
-	    fi
-	done
-	if $pwiz_tag_allow_new ; then
-	    echo "m) enter manually"
-	    echo "e[number]) edit manually (start with answer number)"
+    echo "$pwiz_engine_question_dumb_desc_begin$desc$pwiz_engine_question_dumb_desc_end"
+    for (( guesses_count=0 ; guesses_count < ${#pwiz_askmenu_callbacks[guesses_count]} ; guesses_count++ )) ; do
+	if test $guesses_count = "$pwiz_guess_best" ; then
+	    bdefault="$pwiz_engine_question_dumb_default_begin"
+	    edefault="$pwiz_engine_question_dumb_default_end"
+	    default="->"
+	else
+	    bdefault=
+	    edefault=
+	    default="  "
 	fi
-	echo -n "$pwiz_engine_question_dumb_question_end"
-	echo "$longdesc" | fmt -w $(tput cols)
-	read -p "PWIZ:$PWIZ_PHASE_CURRENT[$PWIZ_STAGE_CURRENT]${pwiz_tag_q:+@$pwiz_tag_q}> "
-	case "$REPLY" in
-	    "" )
-		if test "$pwiz_guess_best_value" = @@PWIZ_UNDEFINED@@ ; then
-		    echo "This question has no default."
-		    continue
-		fi
-		pwiz_answer="$pwiz_guess_best_value";
-		pwiz_fallback_answer=true
-		break
-		;;
-# FIXME: sometimes m and h can have other meaning
-# probably entirely rewrite to have h and m as pluggable answers
-# FIXME: support m[number] to start editing with value
-	    m )
-		if $pwiz_tag_allow_new ; then
-		    if test -z "$pwiz_tag_callback" ; then
-			echo -n "Your value: "
-			if $pwiz_tag_multiline ; then
-# FIXME: document file $PWIZ_TMPDIR/pwiz_answer
-			    ${EDITOR:-vi} $PWIZ_TMPDIR/dumb_answer
-			    pwiz_answer="$(<$PWIZ_TMPDIR/dumb_answer)"
-			    rm $PWIZ_TMPDIR/dumb_answer
-			else
-			    read
-			    pwiz_answer="$REPLY"
-			fi
-		    else
-			$pwiz_tag_callback "$@"
-		    fi
-		    break
-		else
-		    echo "Invalid choice!"
-		fi
-		;;
-	    e* )
-		if $pwiz_tag_allow_new ; then
-		    selection="${REPLY#?}"
-		    if ! test -z "$selection" ; then
-# FIXME: integer checker, remove initial file, if exists.
-			if test "$selection" -ge ${#pwiz_guesses[*]} ; then
-			    echo "Invalid guess number!"
-			    continue
-			fi
-			echo -n "${pwiz_guesses[$selection]}" >$PWIZ_TMPDIR/dumb_answer
-		    fi
-		    ${EDITOR:-vi} $PWIZ_TMPDIR/dumb_answer
-		    pwiz_answer="$(<$PWIZ_TMPDIR/dumb_answer)"
-		    rm $PWIZ_TMPDIR/dumb_answer
-		    break
-		else
-		    echo "Invalid choice!"
-		fi
-		;;
-	    # FIXME: Limit is 1000 guesses.
-	    [0-9] | [0-9][0-9] | [0-9][0-9][0-9] )
-		if test $REPLY -ge ${#pwiz_guesses[*]} ; then
-		    echo "Invalid choice!"
-		    continue
-		fi
-		pwiz_answer="${pwiz_guesses[$REPLY]}"
-		break
-		;;
-	    [a-z] )
-		if test -z "${pwiz_hotarray[64#$REPLY]}" ; then
-		    echo "No such hotkey!"
-		    continue
-		else
-		    pwiz_answer="${pwiz_guesses[${pwiz_hotarray[64#$REPLY]}]}"
-		    break
-		fi
-		;;
-	    * )
-		echo "Invalid choice!"
-		;;
-	esac
+	contstring=
+	selection=
+	if ! test -z "${pwiz_askmenu_numbers[$guesses_count]}" ; then
+	    selection="${pwiz_askmenu_numbers[$guesses_count]}"
+	    contstring=", "
+	fi
+	if ! test -z "${pwiz_askmenu_hotkeys[guesses_count]}" ; then
+	    selection="$selection$contstring${pwiz_askmenu_hotkeys[guesses_count]}"
+	fi
+	echo "$default$selection) $bdefault${pwiz_askmenu_strings[guesses_count]}$edefault"
     done
+    echo -n "$pwiz_engine_question_dumb_question_end"
+    echo "$longdesc" | fmt -w $(tput cols)
+    read -p "PWIZ:$PWIZ_PHASE_CURRENT[$PWIZ_STAGE_CURRENT]${pwiz_tag_q:+@$pwiz_tag_q}> "
+    # User pressed only Return, this is a fallbask situation.
+    if test "$REPLY" = "" ; then
+	pwiz_fallback_answer=true
+    fi
+    pwiz_answer="$REPLY"
 }
 
-# pwiz_question_radio desc longdesc
-# FIXME: obsolete, should be removed
-function pwiz_engine_question_dumb_radio_remove_me {
-    local desc longdesc guesses_count bdefault edefault default REPLY
-    desc="$1"
-    longdesc="$2"
-    shift 2
-    while : ; do
-	echo "$pwiz_engine_question_dumb_desc_begin$desc$pwiz_engine_question_dumb_desc_end"
-	for (( guesses_count=0 ; guesses_count < ${#pwiz_guesses[*]} ; guesses_count++ )) ; do
-	    if test $guesses_count = "$pwiz_guess_best" ; then
-		bdefault="$pwiz_engine_question_dumb_default_begin"
-		edefault="$pwiz_engine_question_dumb_default_end"
-		default=", default"
-	    else
-		bdefault=
-		edefault=
-		default=
-	    fi
-	    if test -z "${pwiz_strings[guesses_count]}" ; then
-		echo "$guesses_count) \"$bdefault${pwiz_guesses[guesses_count]}$edefault\" (${pwiz_credits[guesses_count]}c$default)"
-	    else
-		echo "$guesses_count) $bdefault${pwiz_strings[guesses_count]}$edefault (${pwiz_credits[guesses_count]}c$default)"
-	    fi
-	done
-	echo -n "$pwiz_engine_question_dumb_question_end"
-	echo "$longdesc" | fmt -w $(tput cols)
-	read -p "PWIZ:$PWIZ_PHASE_CURRENT[$PWIZ_STAGE_CURRENT]${pwiz_tag_q:+@$pwiz_tag_q}> "
-	case "$REPLY" in
-	    "" )
-		if test "$pwiz_guess_best_value" = @@PWIZ_UNDEFINED@@ ; then
-		    echo "This question has no default."
-		    continue
-		fi
-		pwiz_answer="$pwiz_guess_best_value";
-		break
-		;;
-	    # FIXME: Limit is 1000 guesses.
-	    [0-9] | [0-9][0-9] | [0-9][0-9][0-9] )
-		if test $REPLY -ge ${#pwiz_guesses[*]} ; then
-		    echo "Invalid choice!"
-		    continue
-		fi
-		pwiz_answer="${pwiz_guesses[$REPLY]}"
-		break
-		;;
-	    * )
-		echo "Invalid choice!"
-		;;
-	esac
-    done
-}
-
-# FIXME: implement pwiz_engine_question_dumb_selection
-
+# FIXME: Use askmenu
 function pwiz_engine_question_dumb_list {
     local desc longdesc list_off list_item items_count count_off menu_mode="" bdefault edefault default REPLY pwiz_answer_save string
     local -a items
@@ -249,7 +137,7 @@ function pwiz_engine_question_dumb_list {
     fi
     for (( items_count=0 ; items_count < ${#pwiz_list_all[@]} ; items_count++ )) ; do
 	if ! test -z "${pwiz_list_strings[items_count]}" ; then
-	    eval "local list__${pwiz_list_all[items_count]}=\"\${pwiz_list_strings[items_count]}\""
+	    eval "local list__${pwiz_list_all[items_count]}=\${pwiz_list_strings[items_count]}"
 	fi
     done
     while : ; do
@@ -418,7 +306,6 @@ Formal type for this is a list. Now you have a chance to add new item to this li
     pwiz_answer="${pwiz_answer# }"
     pwiz_answer="${pwiz_answer% }"
 }
-pwiz_register_tag_default multiline=false
 
 function pwiz_engine_question_dumb_auto_answer {
     local string
