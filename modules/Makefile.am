@@ -42,7 +42,7 @@ distclean-local:
 
 pwizhelperdir=$(libexecdir)/pwiz
 pwizhelper_SCRIPTS=\
-	freshmeat_xml_parse
+	freshmeat_xml_parse\
 	http_html_printurls
 
 installwatch_cleandir=$(libexecdir)/pwiz
