@@ -1,3 +1,10 @@
+2004-11-26  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/gnu_configure.pwm, modules/manual.pwm,
+	modules/package.pwm, modules/rpm.pwm, modules/split_devel.pwm,
+	pwiz.gopts.in: Implemented delayed caching, phase engine backstep,
+	revert arrays.
+
 2004-11-19  Stanislav Brabec  <sbrabec@suse.cz>
 
 	* engines/question/dumb.pwe, configure.in, pwiz.gopts.in:
