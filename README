@@ -24,3 +24,20 @@ cd pwiz
 ./pwiz
 
 That's all.
+
+LIMITATIONS
+
+Current implementation has following limitations. I am working on its
+fixing:
+
+- No support for manual actions/patches available.
+- No error processing.
+- No support for neededforbuild, Requires etc.
+- No support for %pre, %post, %postun, %preun phase splitting to
+  subpackages.
+- Not back steps nad random access support.
+- Lots of FIXME in code. For user are visible deprecated calls.
+
+WARNING
+
+Code is subject to big changes.
