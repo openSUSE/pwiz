@@ -12,6 +12,8 @@ except question. Promarilly it is tested on GNOME related stuff.
 
 INSTALL
 
+Before installation, please install a package installwatch.
+
 copy pwiz and all related files into ~/pwiz.
 
 Then do:
