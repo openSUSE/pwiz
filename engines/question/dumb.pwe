@@ -104,7 +104,6 @@ function pwiz_engine_question_dumb_string {
 		    ${EDITOR:-vi} $PWIZ_TMPDIR/dumb_answer
 		    pwiz_answer="$(<$PWIZ_TMPDIR/dumb_answer)"
 		    rm $PWIZ_TMPDIR/dumb_answer
-		    pwiz_answer="${pwiz_guesses[$REPLY]}"
 		    break
 		else
 		    echo "Invalid choice!"
