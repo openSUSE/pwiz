@@ -223,7 +223,7 @@ function filelist_read_item {
 function filelist_split_candidate {
     local sub
     for sub in "$@" ; do
-	filelist_split_candidates[${#filelist_split_candidates[@]}]="$sub"
+	pwiz_array_add filelist_split_candidates "$sub"
     done
 }
 

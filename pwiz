@@ -72,7 +72,7 @@ function pwiz_redirect_stderr_close {
 # initialize work directories for project.
 # Call it every time you change $pwiz_project_* variables
 function pwiz_projectdirs_init {
-    local dir
+    local dir callback
     if test "$pwiz_project_project" = "" ; then
 	dir=
     else
@@ -107,7 +107,9 @@ function pwiz_projectdirs_init {
     PWIZ_INSTALLROOT=~/pwiz/install$dir
 #@ Directory for PWIZ results: $PWIZ_RESULTDIR
     PWIZ_RESULTDIR=~/pwiz/results$dir
-    pwiz_projectdirs_init_callback "$dir"
+    for callback in ${pwiz_projectdirs_init_callback[@]} ; do
+	$callback "$dir"
+    done
     mkdir -p $PWIZ_CACHEDIR
     rm -rf $PWIZ_TMPDIR/*
     mkdir -p $PWIZ_TMPDIR
@@ -126,10 +128,14 @@ function pwiz_projectdirs_init {
 
 # pwiz_projectdirs_init_callback
 # initialize work directories for project callback hook.
-# Can be redefined by module.
 # Can redefine following variables: $PWIZ_SOURCESDIR, $PWIZ_SRCDIR, $PWIZ_BUILDDIR, $PWIZ_INSTALLROOT
-function pwiz_projectdirs_init_callback {
-    :
+
+#@ pwiz_array_add array_name item
+# Add an item as last element of array.
+# This is only simplification of array[${#array[@]}]=item
+# NOTE: array_name is without leading $.
+function pwiz_array_add {
+    eval $1'[${#'$1'[@]}]="$2"'
 }
 
 #@ pwiz_set_rc return_code
@@ -568,7 +574,7 @@ pwiz_tag_inherit=80
 #@tags valid: Validity range.
 #@tags id, after, before: Tags for ordered lists.
 function pwiz_guess {
-    local key_found is_new tags count guesses_count v_total v_default v_p v_string
+    local key_found is_new tags count guesses_count v_total v_default v_p v_string callback
 
     pwiz_read_tags
     pwiz_keys_set
@@ -592,10 +598,10 @@ function pwiz_guess {
 
     if ! test -z "$pwiz_tag_q" ; then
 
-	# functional callback of pwiz_guess_callback_{q}
-	if test "$(type -t "pwiz_guess_callback_$pwiz_tag_q")" = function ; then
-	    eval \$pwiz_guess_callback_$pwiz_tag_q
-	fi
+	# callback of pwiz_guess_callback_{q}[*]
+	eval 'for callback in ${pwiz_guess_callback_'"$pwiz_tag_q"'[@]} ; do
+	    $callback
+	done'
 
 	# parse guesses in environment variables pwiz_guess_default_{q} pwiz_guess_p_{q} and pwiz_guess_string_{q}
 	# WARNING: Those quesses does not recomputed p
@@ -620,7 +626,7 @@ function pwiz_guess {
 		if ! test -z "$v_string" ; then
 		    pwiz_strings[${#pwiz_guesses[*]}]="$v_string"
 		fi
-		pwiz_guesses[${#pwiz_guesses[*]}]="$v_default"
+		pwiz_array_add pwiz_guesses "$v_default"
 	    fi
 	    echo "********* result=$pwiz_result"
 	    echo "********* pwiz_trust=$pwiz_trust"
@@ -648,7 +654,7 @@ function pwiz_guess {
 	    done
 	    if $is_new ; then
 		pwiz_trusts[${#pwiz_guesses[*]}]=$pwiz_trust
-		pwiz_guesses[${#pwiz_guesses[*]}]="$pwiz_result"
+		pwiz_array_add pwiz_guesses "$pwiz_result"
 	    fi
 	    echo "********* result=$pwiz_result"
 	    echo "********* pwiz_trust=$pwiz_trust"
@@ -913,7 +919,7 @@ function pwiz_phase_add {
     if test "$tmp_phase" = "" ; then
 	pwiz_fatal "cannot add to phase $1 - phase does not exist"
     fi
-    eval PWIZ_STAGE_$1\[\${#PWIZ_STAGE_$1\[\*\]}]=\"\$2\"
+    pwiz_array_add PWIZ_STAGE_$1 "$2"
 }
 
 #@ pwiz_phase_add_callme phase [ arg ]
@@ -1039,7 +1045,7 @@ function pwiz_phase_add_rem_eval {
 #@ pwiz_phase_check phase arguments
 # Special command for init
 function pwiz_phase_check {
-    eval PWIZ_STAGE_$1\[\${#PWIZ_STAGE_$1\[\*\]}]=\"\$pwiz_module_current $2\"
+    pwiz_array_add PWIZ_STAGE_$1 "$pwiz_module_current $2"
 }
 
 #@ pwiz_phase_clean phase
@@ -1414,7 +1420,7 @@ for rpm_subpackage in "" $rpm_subpackage_list ; do
 	eval echo \"\${rpm_preamble__$rpm_subpackage\[i\]}\"
     done
     echo ""
-    echo "%description $rpm_subpackage"
+    echo "%description${rpm_subpackage:+ $rpm_subpackage}"
     eval echo \"\$rpm_description__$rpm_subpackage\"
 done
 while pwiz_step query ; do

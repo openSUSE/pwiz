@@ -10,6 +10,7 @@ case $1 in
 	return
 	;;
     init )
+	pwiz_projectdirs_init_callback=rpm_projectdirs_init_callback
 	pwiz_module_needs package version unpack
 	pwiz_module_uses filelist unpack
 # FIXME: after package or after SOURCE?
@@ -218,7 +219,7 @@ echo \"\$PWD\" >$PWIZ_TMPDIR/pwd"
 }
 # FIXME ^ save set unparset to separate file, and parse if required. Use set +x for parsing.
 
-function pwiz_projectdirs_init_callback {
+function rpm_projectdirs_init_callback {
     PWIZ_SOURCESDIR=/usr/src/packages/SOURCES
     PWIZ_SRCDIR=/usr/src/packages/BUILD
     PWIZ_BUILDDIR=/usr/src/packages/BUILD
@@ -286,7 +287,7 @@ rpm_subpackage_list=
 
 # rpm_add_preamble_line line subpackage
 function rpm_add_preamble_line {
-    eval 'rpm_preamble__'$2'[${#rpm_preamble__'$2'[@]}]="$1"'
+    pwiz_array_add rpm_preamble__$2 "$1"
 }
 
 # rpm_add_preamble atribute value subpackage

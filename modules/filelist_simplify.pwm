@@ -227,7 +227,7 @@ cp -a $filelist_file_tmp $filelist_file_tmp.sim2
 function filelist_simplify_add_callback {
     local func
     for func in "$@" ; do
-	filelist_simplify_callbacks[${#filelist_simplify_callbacks[@]}]=$func
+	pwiz_array_add filelist_simplify_callbacks $func
     done
 }
 
@@ -238,7 +238,7 @@ function filelist_simplify_add_callback {
 function filelist_simplify_add_pattern {
     local patt
     for patt in "$@" ; do
-	filelist_simplify_patterns[${#filelist_simplify_patterns[@]}]="/$patt"
+	pwiz_array_add filelist_simplify_patterns "/$patt"
     done
 }
 
@@ -252,7 +252,7 @@ function filelist_simplify_add_pattern {
 function filelist_simplify_add_fallback_pattern {
     local patt
     for patt in "$@" ; do
-	filelist_simplify_fallback_patterns[${#filelist_simplify_fallback_patterns[@]}]="/$patt"
+	pwiz_array_add filelist_simplify_fallback_patterns "/$patt"
     done
 }
 
