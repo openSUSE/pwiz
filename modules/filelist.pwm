@@ -21,25 +21,6 @@ case $1 in
 # FIXME: do not register twice for subsequent packages
         pwiz_run_wrapper_register installwatch_run_wrapper
 	;;
-    filelist_install )
-	filelist_generate
-	;;
-    filelist_raw )
-	#@ Raw file list name for list creator process.
-	filelist_raw_file=$PWIZ_TMPDIR/filelist_raw.lst
-	pwiz_module_exec $filelist_raw_provider_module filelist_raw
-	return
-	;;
-    filelist_clean )
-	#@ File list name for inspect processes.
-	filelist_file=$PWIZ_TMPDIR/filelist.lst
-	#@ Temporary file name for inspect processes.
-	filelist_file_tmp=$PWIZ_TMPDIR/filelist.lst~
-	# dual uniq makes sorting faster in many cases
-	# FIXME: remove temporaries
-	uniq <$filelist_raw_file | tee $filelist_raw_file.0 | filelist_raw_clean_1 | tee $filelist_raw_file.1 | LC_ALL=C sort | filelist_raw_clean_2 | uniq | tee $filelist_raw_file.2 >$filelist_file
-	return
-	;;
     version )
 	echo "0.1"
 	return
@@ -49,14 +30,33 @@ case $1 in
 	;;
 esac
 
+function filelist_install {
+    filelist_generate
+}
+
+function filelist_raw {
+    #@ Raw file list name for list creator process.
+    filelist_raw_file=$PWIZ_TMPDIR/filelist_raw.lst
+    $filelist_raw_provider_function
+}
+
+function filelist_clean {
+    #@ File list name for inspect processes.
+    filelist_file=$PWIZ_TMPDIR/filelist.lst
+    #@ Temporary file name for inspect processes.
+    filelist_file_tmp=$PWIZ_TMPDIR/filelist.lst~
+    # dual uniq makes sorting faster in many cases
+    # FIXME: remove temporaries
+    # fixme: sort -i
+    uniq <$filelist_raw_file | tee $filelist_raw_file.0 | filelist_raw_clean_1 | tee $filelist_raw_file.1 | LC_ALL=C sort -u | filelist_raw_clean_2 | tee $filelist_raw_file.2 >$filelist_file
+}
+
 #@ filelist_raw_add file type (internal)
 #@ echo an item for raw filelist
 #@ WARNING: to add an item to raw filelist, you need filelist_raw_open, filelist_raw_close
 # FIXME: implement no install root
 function filelist_raw_clean_1 {
-    local line
-    while read line ; do
-	filelist_read_item "$line"
+    while filelist_read_item 0 ; do
 	case $filelist_tag_name in
 # FIXME: not fixed list
 	    $PWIZ_SRCDIR/* | $PWIZ_BUILDDIR/* | $PWIZ_SOURCESDIR/* | $PWIZ_TMPDIR/* )
@@ -87,10 +87,8 @@ function filelist_raw_clean_1 {
 }
 
 function filelist_raw_clean_2 {
-    local line
     local pkg sub owned
-    while read line ; do
-	filelist_read_item "$line"
+    while filelist_read_item 0 ; do
 	if test $filelist_tag_type = dir ; then
 # FIXME: remove redirection
 # FIXME: implement and ask more files at once
@@ -142,7 +140,7 @@ function filelist_raw_close {
 #@ function for init of modules providing filelist_raw argument and functionality.
 #@ filelist_raw_provider should call filelist_raw_add
 function filelist_raw_provider {
-    filelist_raw_provider_module=$pwiz_module_current
+    filelist_raw_provider_function=${pwiz_module_current}_filelist_raw
 }
 
 # FIXME: Maybe filelist_inspect_callback can be more efficient.
@@ -164,35 +162,56 @@ function filelist_install_provider {
 #@ Clean list is generated, but no inspectors are called.
 # FIXME: Incremental list generation can save time
 function filelist_generate {
-    pwiz_module_exec filelist filelist_raw
-    pwiz_module_exec filelist filelist_clean
+    filelist_raw
+    filelist_clean
+}
+
+#@ filelist_read_open [stream#]
+#@ function for filelist_read_item
+#@ filelist_read_close [stream#]
+#@ function for filelist_read_item
+# ba default uses stream 3
+function filelist_read_open {
+    local stream=${1:-3}
+    eval exec $stream\<$filelist_file
+}
+function filelist_read_close {
+    local stream=${1:-3}
+    eval exec $stream\<\&-
 }
 
 # FIXME: can be alias?
 # FIXME: tag oriented?
-#@ filelist_read_item line
+#@ filelist_read_item [stream#]
 #@ Input: filelist line
 #@ Returns:
 #@ filelist_tag_type
 #@ filelist_tagline line containing all characters defining tags and type (for special purposes only)
 #@ $filelist_tag_{key}
 #@ Currently known keys: cat (filelist category - doc...), attr (attributes), sub (subpackage)
+# FIXME: include read command here
+# NOTE: Works with stream 3
 function filelist_read_item {
+    local stream=${1:-3}
     local var
-    for var in ${!filelist_tag_*} ; do
-	unset $var
-    done
-    filelist_tagline="${1##* }"
-    filelist_tag_name="${1% *}"
-    filelist_tag_type="${filelist_tagline%%@*}"
-    filelist_tag_attr=
-    filelist_tag_sub=
-    local IFS="${IFS}@"
-    local tag val
-    for tag in ${filelist_tagline#*@} ; do
-	val="${tag#*=}"
-	eval 'filelist_tag_'${tag%%=*}'="$val"'
-    done
+    if read -u$stream filelist_line ; then
+	for var in ${!filelist_tag_*} ; do
+	    unset $var
+	done
+	filelist_tagline="${filelist_line##* }"
+	filelist_tag_name="${filelist_line% *}"
+	filelist_tag_type="${filelist_tagline%%@*}"
+	filelist_tag_attr=
+	filelist_tag_sub=
+	local IFS="${IFS}@"
+	local tag val
+	for tag in ${filelist_tagline#*@} ; do
+	    val="${tag#*=}"
+	    eval 'filelist_tag_'${tag%%=*}'="$val"'
+	done
+    else
+	return 1
+    fi
 }
 
 # FIXME implement function filelist_write_item

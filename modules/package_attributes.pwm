@@ -12,3 +12,5 @@ case $1 in
     init )
 ;;
 esac
+
+echo "FIXME: Module $pwiz_module_current is empty."

@@ -13,73 +13,9 @@ case $1 in
 	pwiz_module_needs filelist
 	pwiz_module_uses rpm
 	filelist_inspect_provider
+# FIXME: use pwiz_phase_new_callme
 	pwiz_phase_new find_lang after filelist_install
 	pwiz_phase_add_callme find_lang
-	;;
-    find_lang )
-	exec 3<$filelist_file
-	rm -f $PWIZ_TMPDIR/find_lang_list
-	pwiz_redirect_stdout $PWIZ_TMPDIR/find_lang_list
-# FIXME: This is not exact implementation of /usr/lib/rpm/find-lang.sh
-	while read -u3 find_lang_file ; do
-	    find_lang_name="${find_lang_file% *}"
-	    case "$find_lang_name" in
-		*/share/locale/*/LC_MESSAGES/*.mo )
-		    find_lang_name=${find_lang_name#*/share/locale/*/LC_MESSAGES/}
-		    find_lang_name=${find_lang_name%.mo}
-		    echo "$find_lang_name"
-		    ;;
-# FIXME:
-		*/gnome/help/* )
-		    find_lang_name=${find_lang_name#*/gnome/help/}
-		    find_lang_name=${find_lang_name%%/*}
-		    echo "$find_lang_name"
-		    ;;
-# FIXME: KDE
-	    esac
-	done
-	pwiz_redirect_stdout_close
-# FIXME find_lang_cat can be more generic structure
-	exec 3<&-
-	if test -s $PWIZ_TMPDIR/find_lang_list ; then
-	    find_lang_list="$(cat $PWIZ_TMPDIR/find_lang_list | LANG=C sort | uniq)"
-# FIXME: wc -l can be replaced by Bash commands.
-	    find_lang_cat="cat"
-	    find_lang_count=0
-	    for find_lang_name in $find_lang_list ; do
-		rpm_subst_names "$find_lang_name"
-		pwiz_phase_add_run find_lang "%find_lang $pwiz_result"
-		find_lang_cat="$find_lang_cat $pwiz_result.lang"
-		let find_lang_count++
-	    done
-	    if test $find_lang_count -gt 1 ; then
-		pwiz_phase_add_run find_lang "$find_lang_cat >%{name}-all.lang"
-		rpm_files_args="$rpm_files_args -f %{name}-all.lang"
-	    else
-		rpm_files_args="$rpm_files_args -f $pwiz_result.lang"
-	    fi
-	fi
-	return
-	;;
-    filelist_inspect )
-	exec 3<$filelist_file
-	pwiz_redirect_stdout $filelist_file_tmp
-	while read -u3 find_lang_file ; do
-	    case "${find_lang_file% *}" in
-# FIXME: GNOME KDE
-# FIXME: Special case for packages installing special files there
-		*/share/locale/* | */gnome/help/* )
-#		*/share/locale/* )
-		    ;;
-		* )
-		    echo "$find_lang_file"
-		    ;;
-	    esac
-	done
-	exec 3<&-
-	pwiz_redirect_stdout_close
-	mv $filelist_file_tmp $filelist_file
-	return
 	;;
     version )
 	echo "0.1"
@@ -89,3 +25,68 @@ case $1 in
 	return
 	;;
 esac
+
+function find_lang {
+    local item list cat
+    local -i count
+    exec 3<$filelist_file
+    rm -f $PWIZ_TMPDIR/find_lang_list
+    pwiz_redirect_stdout $PWIZ_TMPDIR/find_lang_list
+# FIXME: This is not exact implementation of /usr/lib/rpm/find-lang.sh
+    while filelist_read_item ; do
+	case "$filelist_tag_name" in
+	    */share/locale/*/LC_MESSAGES/*.mo )
+		item=${filelist_tag_name#*/share/locale/*/LC_MESSAGES/}
+		item=${item%.mo}
+		echo "$item"
+		;;
+# FIXME:
+	    */gnome/help/* )
+		item=${filelist_tag_name#*/gnome/help/}
+		item=${item%%/*}
+		echo "$item"
+		;;
+# FIXME: KDE
+	esac
+    done
+    pwiz_redirect_stdout_close
+# FIXME cat can be more generic structure
+    exec 3<&-
+    if test -s $PWIZ_TMPDIR/find_lang_list ; then
+	list="$(cat $PWIZ_TMPDIR/find_lang_list | LANG=C sort -u)"
+	cat="cat"
+	count=0
+	for item in $list ; do
+	    rpm_subst_names "$item"
+	    pwiz_phase_add_run find_lang "%find_lang $pwiz_result"
+	    cat="$cat $pwiz_result.lang"
+	    let count++
+	done
+	if test $count -gt 1 ; then
+	    pwiz_phase_add_run find_lang "$cat >%{name}-all.lang"
+	    rpm_files_args="$rpm_files_args -f %{name}-all.lang"
+	else
+	    rpm_files_args="$rpm_files_args -f $pwiz_result.lang"
+	fi
+    fi
+}
+
+function find_lang_filelist_inspect {
+    filelist_read_open
+    pwiz_redirect_stdout $filelist_file_tmp
+    while filelist_read_item ; do
+	case "$filelist_tag_name" in
+# FIXME: GNOME KDE
+# FIXME: Special case for packages installing special files there
+	    */share/locale/* | */gnome/help/* )
+#	    */share/locale/* )
+		;;
+	    * )
+		echo "$filelist_line"
+		;;
+	esac
+    done
+    filelist_read_close
+    pwiz_redirect_stdout_close
+    mv $filelist_file_tmp $filelist_file
+}

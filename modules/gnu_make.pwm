@@ -13,47 +13,14 @@ case $1 in
 	pwiz_module_needs check_unpacked patch
 	pwiz_phase_new make after BUILD
 # gnu_make_fallback_check is reserved for last-in-resort failure check.
-	pwiz_phase_new make_fallback_check after make
+	pwiz_phase_new fallback_check after make
 # FIXME: install_default. If none, use "make install"
 	pwiz_phase_new install_action after INSTALL
 	pwiz_phase_new install_before_action before install_action
 	pwiz_phase_new install_after_action  after  install_action
+# FIXME: pwiz_phase_add_callme
 	pwiz_phase_add_callme make
 	check_unpacked_init_provider
-	;;
-    check_unpacked_init )
-	gnu_make_args=
-	return
-	;;
-    make )
-# FIXME: gnu_make_known - do not use default, if gnu_configure is able to guess better.
-	if test -f GNUmakefile -o -f makefile -o -f Makefile ; then
-	    if pwiz_ask_yesno \
-		"This package contains make file for GNU make. Call it now?" \
-		"GNU make is tool for checking dependences and building project. Most current packages uses make file based build." \
-		q=gnu_make_use knowledge=build default=true p=95 inherit=95
-	    then
-		pwiz_phase_add_run_eval make "make$gnu_make_vars"
-		pwiz_phase_add make 'gnu_make_rc=$pwiz_run_rc'
-		pwiz_phase_add_callme make_fallback_check
-	    fi
-	fi
-	return
-	;;
-    make_fallback_check )
-	if test $gnu_make_rc -ge 1 ; then
-	    pwiz_ask_radio \
-		"GNU make failed and there is no known way fo fix the problem. What to do now?" \
-		"PWIZ modules can have detection of some types of errors. None of these checks was successfull. It means: You must fix it manually!" \
-		q=gnu_make_fallback_check default[0]=repatch string[0]="Go back to patch phase." p[0]=30
-	    case $pwiz_answer in
-		repatch )
-# FIXME to which phase?
-		    pwiz_phase_goto check_unpacked
-		    ;;
-	    esac
-	fi
-	return
 	;;
     version )
 	echo "0.1"
@@ -63,6 +30,39 @@ case $1 in
 	return
 	;;
 esac
+
+function gnu_make_check_unpacked_init {
+    gnu_make_args=
+}
+
+function gnu_make {
+# FIXME: gnu_make_known - do not use default, if gnu_configure is able to guess better.
+    if test -f GNUmakefile -o -f makefile -o -f Makefile ; then
+	if pwiz_ask_yesno \
+	    "This package contains make file for GNU make. Call it now?" \
+	    "GNU make is tool for checking dependences and building project. Most current packages uses make file based build." \
+	    q=gnu_make_use knowledge=build default=true p=95 inherit=95 ; then
+	    pwiz_phase_add_run_eval make "make$gnu_make_vars"
+	    pwiz_phase_add make 'gnu_make_rc=$pwiz_run_rc'
+	    pwiz_phase_add_callme make_fallback_check
+	fi
+    fi
+}
+
+function gnu_make_fallback_check {
+    if test $gnu_make_rc -ge 1 ; then
+	pwiz_ask_radio \
+	    "GNU make failed and there is no known way fo fix the problem. What to do now?" \
+	    "PWIZ modules can have detection of some types of errors. None of these checks was successfull. It means: You must fix it manually!" \
+	    q=gnu_make_fallback_check default[0]=repatch string[0]="Go back to patch phase." p[0]=30
+	case $pwiz_answer in
+	    repatch )
+# FIXME to which phase?
+		pwiz_phase_goto check_unpacked
+		;;
+	esac
+    fi
+}
 
 function gnu_make_add_vars {
     gnu_make_vars=" $gnu_make_vars $1"

@@ -21,3 +21,4 @@ case $1 in
 esac
 
 # FIXME
+echo "FIXME: module $pwiz_module_current is empty"

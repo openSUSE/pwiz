@@ -20,37 +20,37 @@ case $1 in
 	echo "0.1"
 	return
 	;;
-    package )
-	# FIXME: More archives.
-	unpack_prepare
-	return
-	;;
-    unpack )
-# FIXME: URI / name .tar.gz can be .tar.bz2. More archives to unpack.
-	cp -a "$PWIZ_CACHEDIR/${package_uri##*/}" $PWIZ_SOURCESDIR
-	cd $PWIZ_SRCDIR
-	return
-	;;
-# FIXME: Make a function
-    search_dirname )
-	unpack_dirname=
-	for unpack_name in * ; do
-	    if test -d "$unpack_name" ; then
-		if test -z "$unpack_dirname" ; then
-		    unpack_dirname="$unpack_name"
-		else
-		    pwiz_fatal "FIXME: unpacking without topdir is not yet implemented"
-		fi
-	    else
-		pwiz_fatal "FIXME: unpacking without topdir is not yet implemented"
-	    fi
-	done
-	return
-	;;
     * )
 	return
 	;;
 esac
+
+function unpack_package {
+    # FIXME: More archives.
+    unpack_prepare
+}
+
+function unpack_unpack {
+# FIXME: URI / name .tar.gz can be .tar.bz2. More archives to unpack.
+    cp -a "$PWIZ_CACHEDIR/${package_uri##*/}" $PWIZ_SOURCESDIR
+    cd $PWIZ_SRCDIR
+}
+
+# FIXME: Make a function
+function unpack_search_dirname {
+    unpack_dirname=
+    for unpack_name in * ; do
+	if test -d "$unpack_name" ; then
+	    if test -z "$unpack_dirname" ; then
+		unpack_dirname="$unpack_name"
+	    else
+		pwiz_fatal "FIXME: unpacking without topdir is not yet implemented"
+	    fi
+	else
+	    pwiz_fatal "FIXME: unpacking without topdir is not yet implemented"
+	fi
+    done
+}
 
 #@ Output: pwiz_result:
 # FIXME: is ugly, has no callback

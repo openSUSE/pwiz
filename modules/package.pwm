@@ -19,111 +19,6 @@ case $1 in
 # FIXME: finish splitting
 	pwiz_phase_new_callme download after policy
 	;;
-    package_project_prepare )
-	pwiz_project_project=
-	return
-	;;
-    package_project_set )
-# FIXME: implement selection "try another version" and search this version' URL
-# FIXME: implement to all error questions: error_default_list
-# FIXME: pwiz_project_ -> package_ for names not present in key
-	if test -z "$pwiz_project_project" ; then
-	    pwiz_ask_string "Project name (name of project for PWIZ)." \
-		"Now you should enter canonical project name. The name can be global project name, or any selected, if there is a reason for different name." \
-		q=package_project valid=setup
-	    pwiz_project_project="$pwiz_answer"
-	fi
-	return
-	;;
-
-    package_basename_prepare )
-	package_basename=
-	return
-	;;
-    package_basename_set )
-	if test -z "$package_basename" ; then
-	    pwiz_ask_string "Global project source base file name." \
-		"Now you should enter project base file name (i. e. name without prefix, suffix and version). This can be a string or extended pattern (see extglob in bash(1))." \
-		q=package_base default="$pwiz_project_project" p=70
-	    package_basename="$pwiz_answer"
-	fi
-	return
-	;;
-    package_search_uri_prepare )
-	package_search_uri=
-	return
-	;;
-    package_search_uri_set )
-	if test -z "$package_search_uri" ; then
-echo "$package_search_uri_guesses"
-# FIXME ask for home page
-	    pwiz_ask_string "Enter package search URI." \
-		"Package search URI is top-level URI, where sources are searched. Can be space separated list." \
-		q=package_search_uri valid=project
-	    package_search_uri="$pwiz_answer"
-	fi
-	return
-	;;
-    policy )
-# FIXME: subproject
-# FIXME: more sources with more policies
-	version_ask_policy
-	version_ask_product_policy
-	return
-	;;
-# FIXME: finish splitting
-    download )
-# FIXME: ugly temporary solution:
-	if test -d "$PWIZ_CACHEDIR/ftp/${package_search_uri#ftp://}" ; then
-	    package_default=false
-	else
-	    package_default=true
-	fi
-	if pwiz_ask_yesno "Do FTP lookup now?" \
-	    "Now you can lookup for FTP. Stored version will be used otherwise." \
-	    default=$package_default p=90 ; then
-# FIXME: ugly callback
-	    unset package_latest_version_array
-	    ftp_list_recursive $package_search_uri package_parse_uri
-	    echo "*** Latest URI: $package_latest_uri"
-	    echo "*** Latest URI: Latest version: $package_latest_version"
-	    pwiz_ask_string "Enter latest version." \
-		"Now you can specify latest version. Default is most probably the latest." \
-		q=package_latest_version valid=product default=$package_latest_version p=95
-	    pwiz_project_version=$pwiz_answer
-	    pwiz_ask_string "Enter latest version URI." \
-		"Now you can specify URI of latest version. Default is most probably the latest URI." \
-		q=package_latest_uri valid=product default=$package_latest_uri p=95
-	    package_uri=$pwiz_answer
-	else
-	    pwiz_ask_string "Enter latest version." \
-		"Now you can specify latest version. Default is most probably the latest." \
-		q=package_latest_version valid=product
-	    pwiz_project_version=$pwiz_answer
-	    pwiz_ask_string "Enter latest version." \
-		"Now you can specify latest version. Default is most probably the latest." \
-		q=package_latest_uri valid=product
-	    package_uri=$pwiz_answer
-	fi
-	package_parse_uri "$package_uri"
-	pwiz_projectdirs_init
-# FIXME: ugly, use storage engine
-# FIXME: guess type by contents, not URI. Report conflicts.
-	if test -f "$PWIZ_CACHEDIR/${package_uri##*/}" ; then
-	    if pwiz_ask_yesno "Download file now?" \
-		"Now you can dowload file." \
-		default=false p=90 ; then
-		ftp_get "$package_uri"
-	    fi
-	else
-	    if pwiz_ask_yesno "Download file now?" \
-		"Now you can dowload file." \
-		default=true p=90 ; then
-		ftp_get "$package_uri"
-	    fi
-	fi
-	return
-	;;
     version )
 	echo "0.1"
 	return
@@ -132,6 +27,110 @@ echo "$package_search_uri_guesses"
 	return
 	;;
 esac
+
+function package_package_project_prepare {
+    pwiz_project_project=
+}
+
+function package_package_project_set {
+# FIXME: implement selection "try another version" and search this version' URL
+# FIXME: implement to all error questions: error_default_list
+# FIXME: pwiz_project_ -> package_ for names not present in key
+    if test -z "$pwiz_project_project" ; then
+	pwiz_ask_string "Project name (name of project for PWIZ)." \
+	    "Now you should enter canonical project name. The name can be global project name, or any selected, if there is a reason for different name." \
+	    q=package_project valid=setup
+	pwiz_project_project="$pwiz_answer"
+    fi
+}
+
+function package_package_basename_prepare {
+    package_basename=
+}
+
+function package_package_basename_set {
+    if test -z "$package_basename" ; then
+	pwiz_ask_string "Global project source base file name." \
+	    "Now you should enter project base file name (i. e. name without prefix, suffix and version). This can be a string or extended pattern (see extglob in bash(1))." \
+	    q=package_base default="$pwiz_project_project" p=70
+	package_basename="$pwiz_answer"
+    fi
+}
+
+function package_package_search_uri_prepare {
+    package_search_uri=
+}
+
+function package_package_search_uri_set {
+    if test -z "$package_search_uri" ; then
+echo "$package_search_uri_guesses"
+# FIXME ask for home page
+	pwiz_ask_string "Enter package search URI." \
+	    "Package search URI is top-level URI, where sources are searched. Can be space separated list." \
+	    q=package_search_uri valid=project
+	package_search_uri="$pwiz_answer"
+    fi
+}
+
+function package_policy {
+# FIXME: subproject
+# FIXME: more sources with more policies
+    version_ask_policy
+    version_ask_product_policy
+}
+
+# FIXME: finish splitting
+function package_download {
+# FIXME: ugly temporary solution:
+    if test -d "$PWIZ_CACHEDIR/ftp/${package_search_uri#ftp://}" ; then
+	package_default=false
+    else
+	package_default=true
+    fi
+    if pwiz_ask_yesno "Do FTP lookup now?" \
+	"Now you can lookup for FTP. Stored version will be used otherwise." \
+	default=$package_default p=90 ; then
+# FIXME: ugly callback
+	unset package_latest_version_array
+	ftp_list_recursive $package_search_uri package_parse_uri
+	echo "*** Latest URI: $package_latest_uri"
+	echo "*** Latest URI: Latest version: $package_latest_version"
+	pwiz_ask_string "Enter latest version." \
+	    "Now you can specify latest version. Default is most probably the latest." \
+	    q=package_latest_version valid=product default=$package_latest_version p=95
+	pwiz_project_version=$pwiz_answer
+	pwiz_ask_string "Enter latest version URI." \
+	    "Now you can specify URI of latest version. Default is most probably the latest URI." \
+	    q=package_latest_uri valid=product default=$package_latest_uri p=95
+	package_uri=$pwiz_answer
+    else
+	pwiz_ask_string "Enter latest version." \
+	    "Now you can specify latest version. Default is most probably the latest." \
+	    q=package_latest_version valid=product
+	pwiz_project_version=$pwiz_answer
+	pwiz_ask_string "Enter latest version." \
+	    "Now you can specify latest version. Default is most probably the latest." \
+	    q=package_latest_uri valid=product
+	package_uri=$pwiz_answer
+    fi
+    package_parse_uri "$package_uri"
+    pwiz_projectdirs_init
+# FIXME: ugly, use storage engine
+# FIXME: guess type by contents, not URI. Report conflicts.
+    if test -f "$PWIZ_CACHEDIR/${package_uri##*/}" ; then
+	if pwiz_ask_yesno "Download file now?" \
+	    "Now you can dowload file." \
+	    default=false p=90 ; then
+	    ftp_get "$package_uri"
+	fi
+    else
+	if pwiz_ask_yesno "Download file now?" \
+	    "Now you can dowload file." \
+	    default=true p=90 ; then
+	    ftp_get "$package_uri"
+	fi
+    fi
+}
 
 #@ package_parse_uri URI
 # FIXME: Rename this function.

@@ -15,30 +15,6 @@ case $1 in
 # FIXME: real_uninstall
 	filelist_install_provider
 	;;
-    filelist_install )
-	ldconfig_run=false
-	exec 3<$filelist_file
-	IFS="${IFS}:"
-	while read -u3 ldconfig_file ; do
-	    ldconfig_file=${ldconfig_file% *}
-	    case "$ldconfig_file" in
-		*.so | *.so.* )
-# FIXME: generate dirlist
-		    for ldconfig_dir in $LD_LIBRARY_PATH $(</etc/ld.so.conf) ; do
-			if test "${ldconfig_file%/*}" = "$ldconfig_dir" ; then
-			    ldconfig_run=true
-			    break 2
-			fi
-		    done
-	    esac
-	done
-	exec 3<&-
-	IFS=${IFS%?}
-	if $ldconfig_run ; then
-	    pwiz_phase_add_run ldconfig "%run_ldconfig"
-	fi
-	return
-	;;
     version )
 	echo "0.1"
 	return
@@ -47,3 +23,27 @@ case $1 in
 	return
 	;;
 esac
+
+function ldconfig_filelist_install {
+    local dir
+    local run_ldconfig=false
+    filelist_read_open
+    IFS="${IFS}:"
+    while filelist_read_item ; do
+	case "$filelist_tag_name" in
+	    *.so | *.so.* )
+# FIXME: generate dirlist
+		for dir in $LD_LIBRARY_PATH $(</etc/ld.so.conf) ; do
+		    if test "${filelist_tag_name%/*}" = "$dir" ; then
+			run_ldconfig=true
+			break 2
+		    fi
+		done
+	esac
+    done
+    filelist_read_close
+    IFS=${IFS%?}
+    if $run_ldconfig ; then
+	pwiz_phase_add_run ldconfig "%run_ldconfig"
+    fi
+}

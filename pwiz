@@ -925,6 +925,7 @@ function pwiz_phase_add_call {
 #@ pwiz_phase_add_callme phase contents
 # phase===argument
 #@ similar to pwiz_phase_add_exec phase contents
+# FIXME with pwiz_module_exec: In future, argumentless version will call function named as module
 function pwiz_phase_add_callme {
     local phase=$1
     shift
@@ -934,6 +935,7 @@ function pwiz_phase_add_callme {
 #@ pwiz_phase_new_callme phase [ after | before ] phase_id contents
 # phase===argument
 #@ similar to pwiz_phase_new phase ; pwiz_phase_add_exec phase contents
+# FIXME with pwiz_module_exec: In future, argumentless version will call function named as module
 function pwiz_phase_new_callme {
     pwiz_phase_new "$1" "$2" "$3"
     local phase=$1
@@ -1293,13 +1295,45 @@ function pwiz_module_load {
     local loaded pwiz_module_current_save
     eval loaded\=\"\$PWIZ_MODULE_LOADED_$1\"
     if test -z "$loaded" ; then
-	pwiz_module_exec $1 init
+	pwiz_module_include $1 init
 	eval PWIZ_MODULE_LOADED_$1\=1
     fi
 }
 
+# FIXME: We are moving from module call "module arg1" args to module_arg1 args
+# This function will still be present, but used only for init.
+# With new name - pwiz_module_include
 #@ pwiz_module_exec module_name [ arguments ]
 function pwiz_module_exec {
+    echo >&2 "FIXME: calling deprecated pwiz_module_exec $*"
+    local pwiz_module_current_save function_call
+    pwiz_module_current_save="$pwiz_module_current"
+    pwiz_module_current=$1
+    if test "$(type -t "${1}_$2")" = function ; then
+	function_call=${1}_$2
+	shift 2
+	$function_call "$@"
+    else
+	if test "$(type -t "$2")" = function ; then
+	    function_call=$2
+	    shift 2
+	    $function_call "$@"
+	else
+	    if ! test -f ~/pwiz/modules/$1.pwm ; then
+		pwiz_fatal "module $1 not found"
+	    fi
+	    shift
+	    . ~/pwiz/modules/$pwiz_module_current.pwm "$@"
+	fi
+    fi
+    pwiz_module_current="$pwiz_module_current_save"
+}
+
+function pwiz_module_exec_old {
+    pwiz_module_include "$@"
+}
+
+function pwiz_module_include {
     local pwiz_module_current_save
     pwiz_module_current_save="$pwiz_module_current"
     pwiz_module_current=$1

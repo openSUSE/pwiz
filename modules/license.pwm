@@ -42,3 +42,6 @@ case $1 in
 	return
 	;;
 esac
+
+# FIXME: Add finction license_is_required to proper init scripts.
+# FIXME: The same for summary, descriptions etc.

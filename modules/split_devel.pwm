@@ -14,39 +14,6 @@ case $1 in
 	filelist_inspect_provider
 	filelist_split_candidate devel
 	;;
-    filelist_inspect )
-	split_devel_active=false
-	exec 3<$filelist_file
-	pwiz_redirect_stdout $filelist_file_tmp
-	while read -u3 split_devel_file ; do
-	    case "${split_devel_file% *}" in
-# FIXME: lib64 - biarch must be run before
-# FIXME: allow file list modification
-# FIXME: allow manual additions
-# FIXME: allow addition of both pathname and pathname-like patterns
-# FIXME: Check for soname - if soname is *.so, don't give it to -devel
-# FIXME: If library is module, ask user.
-# FIXME: pkgconfig to separate module
-		$libdir/lib*.so | $libdir/lib*.*a | $includedir | $includedir/* | $libdir/pkgconfig/*.pc )
-		    echo "$split_devel_file@sub=devel"
-		    split_devel_active=true
-		    ;;
-		* )
-		    echo "$split_devel_file"
-		    ;;
-	    esac
-	done
-	exec 3<&-
-	pwiz_redirect_stdout_close
-# FIXME
-	cp -a $filelist_file $filelist_file_tmp.spl1
-	cp -a $filelist_file_tmp $filelist_file_tmp.spl2
-	mv $filelist_file_tmp $filelist_file
-	if $split_devel_active ; then
-	    rpm_subpackage_add devel
-	fi
-	return
-	;;
     version )
 	echo "0.1"
 	return
@@ -55,3 +22,37 @@ case $1 in
 	return
 	;;
 esac
+
+function split_devel_filelist_inspect {
+    local active=false
+    filelist_read_open
+    pwiz_redirect_stdout $filelist_file_tmp
+    while filelist_read_item ; do
+	case "$filelist_tag_file" in
+# FIXME: lib64 - biarch must be run before
+# FIXME: allow file list modification
+# FIXME: allow manual additions
+# FIXME: allow addition of both pathname and pathname-like patterns
+# FIXME: Check for soname - if soname is *.so, don't give it to -devel
+# FIXME: If library is module, ask user.
+# FIXME: pkgconfig to separate module
+	    $libdir/lib*.so | $libdir/lib*.*a | $includedir | $includedir/* | $libdir/pkgconfig/*.pc )
+		echo "$filelist_line@sub=devel"
+		active=true
+		;;
+	    * )
+		echo "$filelist_line"
+		;;
+	esac
+    done
+    filelist_read_close
+    pwiz_redirect_stdout_close
+# FIXME
+    cp -a $filelist_file $filelist_file_tmp.spl1
+    cp -a $filelist_file_tmp $filelist_file_tmp.spl2
+    mv $filelist_file_tmp $filelist_file
+# FIXME: to RPM
+    if $active ; then
+	rpm_subpackage_add devel
+    fi
+}

@@ -14,24 +14,6 @@ case $1 in
 	pwiz_phase_add_callme prefix_set
 	filelist_inspect_provider
 	;;
-    prefix_set )
-	libdir="$prefix/%{_lib}"
-	libexecdir="$prefix/%{_lib}"
-	return
-	;;
-    filelist_inspect )
-	exec 3<$filelist_file
-	pwiz_redirect_stdout $filelist_file_tmp
-	while read -u3 biarch_file ; do
-# FIXME: libdir?
-	    biarch_file_new=${biarch_file/#$prefix\/lib/$prefix/%\{_lib\}}
-	    echo "$biarch_file_new"
-	done
-	exec 3<&-
-	pwiz_redirect_stdout_close
-	mv $filelist_file_tmp $filelist_file
-	return
-	;;
     version )
 	echo "0.1"
 	return
@@ -40,3 +22,22 @@ case $1 in
 	return
 	;;
 esac
+
+function biarch_prefix_set {
+    libdir="$prefix/%{_lib}"
+    libexecdir="$prefix/%{_lib}"
+}
+
+function biarch_filelist_inspect {
+    local filelist_tag_name_new
+    filelist_read_open
+    pwiz_redirect_stdout $filelist_file_tmp
+    while filelist_read_item ; do
+# FIXME: libdir?
+	filelist_tag_name_new=${filelist_tag_name/#$prefix\/lib/$prefix/%\{_lib\}}
+	echo "$filelist_tag_name_new $filelist_tagline"
+    done
+    filelist_read_close
+    pwiz_redirect_stdout_close
+    mv $filelist_file_tmp $filelist_file
+}

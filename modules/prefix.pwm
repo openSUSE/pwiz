@@ -13,28 +13,6 @@ case $1 in
 	pwiz_phase_add_callme START
 	pwiz_phase_new_3 prefix after BUILD
 	;;
-    START )
-# FIXME better defaults. Check for packaging system presence.
-	pwiz_ask_string "Select default prefix for PWIZ." \
-	    "You should enter global prefix. It is a directory, where most packages should go. Use /usr/local for manual installations, /usr for installations with packaging system, eventually $HOME for userland installation." \
-	    q=prefix_global valid=setup default[0]=/usr p[0]=50 default[1]=/usr/local p[1]=40 default[2]=$HOME p[2]=30
-	prefix_global=$pwiz_answer
-	return
-	;;
-    prefix_prepare )
-	prefix=@global@
-	return
-	;;
-    prefix_set )
-	if test "$prefix" = @global@ ; then
-	    pwiz_ask_string "Select prefix for your package." \
-		"You should enter prefix for your package. It is a main directory, where most packages should go. Most packages should use global prefix, but some needs extra prefix." \
-		q=prefix default[0]=@global@ p[0]=50 string[0]="PWIZ system default prefix ($prefix_global)"
-	    prefix="$pwiz_answer"
-	fi
-	prefix_set_dirs "$prefix"
-	return
-	;;
     version )
 	echo "0.1"
 	return
@@ -43,6 +21,28 @@ case $1 in
 	return
 	;;
 esac
+
+function prefix_START {
+# FIXME better defaults. Check for packaging system presence.
+    pwiz_ask_string "Select default prefix for PWIZ." \
+	"You should enter global prefix. It is a directory, where most packages should go. Use /usr/local for manual installations, /usr for installations with packaging system, eventually $HOME for userland installation." \
+	q=prefix_global valid=setup default[0]=/usr p[0]=50 default[1]=/usr/local p[1]=40 default[2]=$HOME p[2]=30
+    prefix_global=$pwiz_answer
+}
+
+function prefix_prefix_prepare {
+    prefix=@global@
+}
+
+function prefix_prefix_set {
+    if test "$prefix" = @global@ ; then
+	pwiz_ask_string "Select prefix for your package." \
+	    "You should enter prefix for your package. It is a main directory, where most packages should go. Most packages should use global prefix, but some needs extra prefix." \
+	    q=prefix default[0]=@global@ p[0]=50 string[0]="PWIZ system default prefix ($prefix_global)"
+	prefix="$pwiz_answer"
+    fi
+    prefix_set_dirs "$prefix"
+}
 
 #@ prefix_set_dirs prefix
 #@ Sets all GNU convenient directories depending on prefix and FHS

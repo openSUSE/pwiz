@@ -16,6 +16,7 @@ case $1 in
 	pwiz_phase_new rpmsetup after package
 	pwiz_phase_add_callme rpmsetup
 	pwiz_phase_new rpmheader after rpmsetup
+# FIXME: move from init:
 	pwiz_phase_add_rem PREPARE  ""
 	pwiz_phase_add_rem PREPARE  "%prep"
 	pwiz_phase_add     PREPARE  'rpm_section=prep ; rm -f $PWIZ_TMPDIR/rpm_{vars,pwd}'
@@ -44,71 +45,6 @@ case $1 in
 	rpm_section=preamble
 	rpm_files_args=
 	;;
-    rpmsetup )
-	# FIXME: Extract these attributes from spec file, if it exists, either old one or bundled.
-	rpm_add_preamble Name         $pwiz_project_project
-	rpm_add_preamble Version      $pwiz_project_version
-	pwiz_ask_string "Enter RPM group for this package." \
-	    "RPM requires assigning group attribute for any package created. You should select one of the list." \
-	    q=rpm_group__ default=Other p=0
-	rpm_group="$pwiz_answer"
-	rpm_add_preamble Group        "$rpm_group"
-	pwiz_ask_string "Enter RPM license for this package." \
-	    "RPM requires assigning license attribute for any package created. You should select one of the list." \
-	    q=rpm_license default=GPL p=0
-	rpm_license="$pwiz_answer"
-	rpm_add_preamble License      "$rpm_license"
-	rpm_add_preamble Release      0
-	rpm_add_preamble Source       $package_uri
-	rpm_add_preamble BuildRoot    %{_tmppath}/%{name}-%{version}-build
-	pwiz_ask_string "Enter RPM summary for this package." \
-	    "RPM requires assigning one-line summary attribute for any package created. You should now write any." \
-	    q=rpm_summary__ default= p=0
-	rpm_summary__="$pwiz_answer"
-	rpm_add_preamble Summary      "$rpm_summary__"
-	pwiz_ask_string "Enter RPM description for this package." \
-	    "RPM requires assigning multiple line summary attribute for any package created. You should now write any." \
-	    q=rpm_description__ default= p=0
-	rpm_description__="$pwiz_answer"
-	rpm_add_description           "$rpm_description__"
-	return
-	;;
-    rpm_files_finish )
-	pwiz_phase_add_rem rpm_files_finish ""
-	pwiz_phase_add_rem rpm_files_finish "%files$rpm_files_args"
-	return
-	;;
-    rpm_files_list )
-# FIXME: move to globals or other section, do not create final list, but replace dir -> systemdir
-	exec 3<$filelist_file
-	exec 4>$PWIZ_TMPDIR/rpm_sub_tmp
-	while read -u3 rpm_item ; do
-	    filelist_read_item "$rpm_item"
-	    if test "$filelist_tag_sub" = "" ; then
-		rpm_files_create
-	    else
-		echo "$filelist_tag_sub" >&4
-	    fi
-	done
-	exec 3<&-
-	exec 4>&-
-# FIXME: This should be in general part.
-	uniq <$PWIZ_TMPDIR/rpm_sub_tmp | LC_ALL=C sort | uniq >$PWIZ_TMPDIR/rpm_sub
-	for rpm_supbackage in $(<$PWIZ_TMPDIR/rpm_sub) ; do
-	    pwiz_phase_add_rem rpm_files_list ""
-# FIXME: support rpm_files_args
-	    pwiz_phase_add_rem rpm_files_list "%files $rpm_supbackage"
-	    exec 3<$filelist_file
-	    while read -u3 rpm_item ; do
-		filelist_read_item "$rpm_item"
-		if test "$filelist_tag_sub" = "$rpm_supbackage" ; then
-		    rpm_files_create
-		fi
-	    done
-	    exec 3<&-
-	done
-	return
-	;;
     version )
 	echo "0.1"
 	return
@@ -117,6 +53,70 @@ case $1 in
 	return
 	;;
 esac
+
+function rpm_rpmsetup {
+# FIXME: This phase should be at the end of process, not beginning
+	# FIXME: Extract these attributes from spec file, if it exists, either old one or bundled.
+    rpm_add_preamble Name         $pwiz_project_project
+    rpm_add_preamble Version      $pwiz_project_version
+    pwiz_ask_string "Enter RPM group for this package." \
+	"RPM requires assigning group attribute for any package created. You should select one of the list." \
+	q=rpm_group__ default=Other p=0
+    rpm_group__="$pwiz_answer"
+    rpm_add_preamble Group        "$rpm_group__"
+    pwiz_ask_string "Enter RPM license for this package." \
+	"RPM requires assigning license attribute for any package created. You should select one of the list." \
+	q=rpm_license default=Unknown p=0
+    rpm_license="$pwiz_answer"
+    rpm_add_preamble License      "$rpm_license"
+    rpm_add_preamble Release      0
+    rpm_add_preamble Source       $package_uri
+    rpm_add_preamble BuildRoot    %{_tmppath}/%{name}-%{version}-build
+    pwiz_ask_string "Enter RPM summary for this package." \
+	"RPM requires assigning one-line summary attribute for any package created. You should now write any." \
+	q=rpm_summary__
+    rpm_summary__="$pwiz_answer"
+    rpm_add_preamble Summary      "$rpm_summary__"
+    pwiz_ask_string "Enter RPM description for this package." \
+	"RPM requires assigning multiple line summary attribute for any package created. You should now write any." \
+	q=rpm_description__ default= p=0
+    rpm_description__="$pwiz_answer"
+    rpm_add_description           "$rpm_description__"
+}
+
+function rpm_files_finish {
+    pwiz_phase_add_rem rpm_files_finish ""
+    pwiz_phase_add_rem rpm_files_finish "%files$rpm_files_args"
+}
+
+function rpm_files_list {
+# FIXME: move to globals or other section, do not create final list, but replace dir -> systemdir
+    filelist_read_open
+    exec 4>$PWIZ_TMPDIR/rpm_sub_tmp
+    while filelist_read_item ; do
+	if test "$filelist_tag_sub" = "" ; then
+	    rpm_files_create
+	else
+	    echo "$filelist_tag_sub" >&4
+	fi
+    done
+    filelist_read_close
+    exec 4>&-
+# FIXME: This should be in general part.
+    uniq <$PWIZ_TMPDIR/rpm_sub_tmp | LC_ALL=C sort | uniq >$PWIZ_TMPDIR/rpm_sub
+    for rpm_supbackage in $(<$PWIZ_TMPDIR/rpm_sub) ; do
+	pwiz_phase_add_rem rpm_files_list ""
+# FIXME: support rpm_files_args
+	pwiz_phase_add_rem rpm_files_list "%files $rpm_supbackage"
+	filelist_read_open
+	while filelist_read_item ; do
+	    if test "$filelist_tag_sub" = "$rpm_supbackage" ; then
+		rpm_files_create
+	    fi
+	done
+	filelist_read_close
+    done
+}
 
 # FIXME: zip archives etc.
 # FIXME: Ask for directory and not try it.
@@ -240,22 +240,23 @@ function rpm_subst_names {
 
 #@ rpm_files_create (no args) (internal)
 function rpm_files_create {
+    local item_prefix
     if test "$filelist_tag_cat" = doc ; then
-	rpm_item_prefix="%doc "
+	item_prefix="%doc "
     else
-	rpm_item_prefix=""
+	item_prefix=""
     fi
     case $filelist_tag_type in
 	file )
-	    pwiz_phase_add_rem rpm_files_list "$rpm_item_prefix$filelist_tag_name"
+	    pwiz_phase_add_rem rpm_files_list "$item_prefix$filelist_tag_name"
 	    ;;
 	dir )
-	    pwiz_phase_add_rem rpm_files_list "$rpm_item_prefix%dir $filelist_tag_name"
+	    pwiz_phase_add_rem rpm_files_list "$item_prefix%dir $filelist_tag_name"
 	    ;;
 	odir | ofile )
 	    ;;
 	glob )
-	    pwiz_phase_add_rem rpm_files_list "$rpm_item_prefix$filelist_tag_name"
+	    pwiz_phase_add_rem rpm_files_list "$item_prefix$filelist_tag_name"
 	    ;;
 	* )
 	    pwiz_fatal "unknown item attribute $filelist_tag_type"

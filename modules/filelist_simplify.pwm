@@ -13,206 +13,6 @@ case $1 in
 	pwiz_module_needs filelist
 	pwiz_phase_new_callme filelist_simplify before filelist_finish
 	;;
-    filelist_simplify )
-	unset filelist_simplify_files
-	unset filelist_simplify_types
-	unset filelist_simplify_taglines
-
-# Read file list to memory.
-	filelist_simplify_count=0
-	exec 3<$filelist_file
-	while read -u3 filelist_simplify_line ; do
-	    filelist_read_item "$filelist_simplify_line"
-	    # Create a list of object.
-	    filelist_simplify_files[filelist_simplify_count]="$filelist_tag_name"
-	    filelist_simplify_types[filelist_simplify_count]="$filelist_tag_type"
-	    filelist_simplify_taglines[filelist_simplify_count++]="$filelist_tagline"
-	done
-	exec 3<&-
-
-# FIXME: simplify dir dir/file too: %dir /opt/gnome/share/pixmaps/splash x /opt/gnome/share/pixmaps/splash/gnome-splash.png
-
-# FIXME:  Simplify on predefined pattern
-	# Make a simplification.
-	shopt -s extglob
-	for (( filelist_simplify_count=0 ; filelist_simplify_count < ${#filelist_simplify_files[@]} ; filelist_simplify_count++ )) ; do
-	    filelist_simplify_file="${filelist_simplify_files[filelist_simplify_count]}"
-	    filelist_simplify_type="${filelist_simplify_types[filelist_simplify_count]}"
-	    filelist_simplify_tagline="${filelist_simplify_taglines[filelist_simplify_count]}"
-# FIXME: Here we use non-standard access to fields.
-	    filelist_simplify_tagext="${filelist_simplify_tagline#*@}"
-	    if test "$filelist_simplify_tagext" = "$filelist_simplify_tagline" ; then
-		filelist_simplify_tagext=
-	    fi
-
-	    # Is object owned?
-	    # FIXME: maybe add attribute owned/unowned
-	    if test "$filelist_simplify_type" = odir -o  "$filelist_simplify_type" = ofile ; then
-		continue
-	    fi
-
-	    # Is object covered by previous simplification?
-	    if test -z "$filelist_simplify_file" ; then
-		continue
-	    fi
-	    filelist_simplify_valid_pattern=
-
-	    # For file /p/a/t/h/file we will try /p/a/t/h/* /p/a/t/* /p/a/* /p/* /*.
-	    # For directory /p/a/t/h we will try /p/a/t/h/* /p/a/t/* etc.
-
-	    # Special case for directory with its contents:
-	    # If directory is in list, it cannot be in unowned list.
-	    # It means, if pattern fits and directory is oned, don't use "*".
-	    if test "$filelist_simplify_type" = dir ; then
-		filelist_simplify_path="$filelist_simplify_file"
-	    else
-		filelist_simplify_path="${filelist_simplify_file%/*}"
-	    fi
-
-# FIXME: If path is not absolute, dead loop occurs
-	    until test "$filelist_simplify_path" = "" ; do
-
-		for filelist_simplify_callback in "${filelist_simplify_callbacks[@]}" ; do
-		    $filelist_simplify_callback "$filelist_simplify_file"
-		done
-		for filelist_simplify_pattern in "" "${filelist_simplify_patterns[@]}" "${filelist_simplify_fallback_patterns[@]}" ; do
-		    # Expand variables inside pattern
-		    eval filelist_simplify_pattern\=\""\$filelist_simplify_path$filelist_simplify_pattern"\"
-		    filelist_simplify_compare_file_pattern_gen "$filelist_simplify_pattern"
-		    echo "*** checking against pattern $filelist_simplify_pattern"
-		    # If test pattern is not valid for current file, skip it.
-		    if ! filelist_simplify_compare_file_pattern_use "$filelist_simplify_file" ; then
-			echo "*** does not fit to this pattern"
-			filelist_simplify_usable=false
-			continue
-		    fi
-		    filelist_simplify_usable=true
-		    echo "*** simplify pattern: $filelist_simplify_pattern"
-		    for (( filelist_simplify_count2=0 ; filelist_simplify_count2 < ${#filelist_simplify_files[@]} ; filelist_simplify_count2++ )) ; do
-			filelist_simplify_file2="${filelist_simplify_files[filelist_simplify_count2]}"
-			filelist_simplify_type2="${filelist_simplify_types[filelist_simplify_count2]}"
-			echo "*** compares with: $filelist_simplify_file2"
-			if test "$filelist_simplify_type2" = odir -o  "$filelist_simplify_type2" = ofile ; then
-			    echo "*** (unowned)"
-			    # If any unowned object match, the simplicifation is invalid.
-			    if filelist_simplify_compare_file_pattern_use "$filelist_simplify_file2" ; then
-				echo "*** $filelist_simplify_file2 breaks this simplification"
-				filelist_simplify_usable=false
-				break
-			    fi
-			else
-			    echo "*** (owned)"
-			    # If any owned object with different attributes match, the simplicifation is invalid.
-			    if filelist_simplify_compare_file_pattern_use "$filelist_simplify_file2" ; then
-# FIXME: Write filelist_simplify_make_tagext
-				filelist_simplify_tagline2="${filelist_simplify_taglines[filelist_simplify_count2]}"
-				filelist_simplify_tagext2="${filelist_simplify_tagline2#*@}"
-				if test "$filelist_simplify_tagext2" = "$filelist_simplify_tagline2" ; then
-				    filelist_simplify_tagext2=
-				fi
-				if test "$filelist_simplify_tagext" != "$filelist_simplify_tagext2" ; then
-				    echo "*** $filelist_simplify_file2 attributes breaks this simplification"
-				    filelist_simplify_usable=false
-				    break
-				fi
-			    fi
-			fi
-		    done
-
-		    # Valid pattern found! Break a pattern loop.
-		    if $filelist_simplify_usable ; then
-			break
-		    fi
-
-		done
-
-
-# FIXME: Maybe have only one list with all objects.
-
-# Valid simplification found.
-		if $filelist_simplify_usable ; then
-
-		    if test "$filelist_simplify_type" = dir -a "$filelist_simplify_file" = "${filelist_simplify_pattern%??}" ; then
-			# If it is directory itself with contents, cut trailing "/*".
-			filelist_simplify_valid_pattern="${filelist_simplify_pattern%??}"
-			filelist_simplify_valid_glob_pattern="$filelist_simplify_pattern"
-		    else
-			filelist_simplify_valid_pattern="$filelist_simplify_pattern"
-			filelist_simplify_valid_glob_pattern="$filelist_simplify_pattern"
-		    fi
-
-		    echo "*** simplification $filelist_simplify_valid_pattern"
-
-		else
-		    # This simplification is not usable. Don't try any shorter.
-		    break
-		fi
-
-		# Now cut rightmost part of path and try again with shorter pattern
-		# and loop to try to find even better simplification.
-		if test "$filelist_simplify_path" = / ; then
-		    filelist_simplify_path=
-		else
-		    filelist_simplify_path="${filelist_simplify_path%/*}"
-		fi
-	    done
-
-# Pattern searching finished.
-
-# If simplification was found, remove all obsolete items from list.
-	    if test -z "$filelist_simplify_valid_pattern" ; then
-		echo "*** no valid simplification"
-	    else
-
-		# Keep all attributes except type, set type to "glob".
-		if test "$filelist_simplify_tagext" = "" ; then
-		    filelist_simplify_tagline=glob
-		else
-		    filelist_simplify_tagline="glob@$filelist_simplify_tagext"
-		fi
-
-		# Remove all matches from list.
-# FIXME: Note: Matches cannot contain unowned object.
-		# Clean current item explicitly (for directory with contents case).
-		filelist_simplify_files[filelist_simplify_count]=
-		filelist_simplify_compare_file_pattern_gen "$filelist_simplify_valid_glob_pattern"
-		for (( filelist_simplify_count2=0 ; filelist_simplify_count2 < ${#filelist_simplify_files[@]} ; filelist_simplify_count2++ )) ; do
-		    if filelist_simplify_compare_file_pattern_use "${filelist_simplify_files[filelist_simplify_count2]}" ; then
-			# Check against "/*" ending version of string, not against glob string.
-			# (Directory itself contents is by glob itself.)
-			echo "*** removing globbed ${filelist_simplify_files[filelist_simplify_count2]}"
-			filelist_simplify_files[filelist_simplify_count2]=
-		    fi
-		done
-
-		# Replace object with glob list.
-		filelist_simplify_files[filelist_simplify_count]="$filelist_simplify_valid_pattern"
-		filelist_simplify_taglines[filelist_simplify_count]="$filelist_simplify_tagline"
-
-	    fi
-	# Go to next object in list.
-	done
-	shopt -u extglob
-
-# FIXME:
-set >$filelist_file_tmp.set
-	pwiz_redirect_stdout $filelist_file_tmp
-	# Output result
-	for (( filelist_simplify_count=0 ; filelist_simplify_count < ${#filelist_simplify_files[@]} ; filelist_simplify_count++ )) ; do
-	    if ! test -z "${filelist_simplify_files[filelist_simplify_count]}" ; then
-		echo "${filelist_simplify_files[filelist_simplify_count]} ${filelist_simplify_taglines[filelist_simplify_count]}"
-	    fi
-	done
-	unset filelist_simplify_files
-	unset filelist_simplify_types
-	unset filelist_simplify_taglines
-	pwiz_redirect_stdout_close
-# FIXME:
-cp -a $filelist_file $filelist_file_tmp.sim1
-cp -a $filelist_file_tmp $filelist_file_tmp.sim2
-	LC_ALL=C sort <$filelist_file_tmp | uniq >$filelist_file
-	return
-	;;
     version )
 	echo "0.1"
 	return
@@ -221,6 +21,205 @@ cp -a $filelist_file_tmp $filelist_file_tmp.sim2
 	return
 	;;
 esac
+
+# FIXME: new feature request - do not add simlification, which covers only one file
+function filelist_simplify {
+    local -i count count2
+    local file type tagline tagext
+    local file2 type2 tagline2 tagext2
+    local usable valid_pattern valid_glob_pattern path callback pattern
+    local -a list_files list_types list_taglines
+
+# Read file list to memory.
+    count=0
+    filelist_read_open
+    while filelist_read_item ; do
+	# Create a list of object.
+	list_files[count]="$filelist_tag_name"
+	list_types[count]="$filelist_tag_type"
+	list_taglines[count++]="$filelist_tagline"
+    done
+    filelist_read_close
+
+# FIXME: simplify dir dir/file too: %dir /opt/gnome/share/pixmaps/splash x /opt/gnome/share/pixmaps/splash/gnome-splash.png
+
+# FIXME:  Simplify on predefined pattern
+    # Make a simplification.
+    shopt -s extglob
+    for (( count=0 ; count < ${#list_files[@]} ; count++ )) ; do
+	file="${list_files[count]}"
+	type="${list_types[count]}"
+	tagline="${list_taglines[count]}"
+# FIXME: Here we use non-standard access to fields.
+	tagext="${tagline#*@}"
+	if test "$tagext" = "$tagline" ; then
+	    tagext=
+	fi
+
+	# Is object owned?
+	# FIXME: maybe add attribute owned/unowned
+	if test "$type" = odir -o  "$type" = ofile ; then
+	    continue
+	fi
+
+	# Is object covered by previous simplification?
+	if test -z "$file" ; then
+	    continue
+	fi
+	valid_pattern=
+
+	# For file /p/a/t/h/file we will try /p/a/t/h/* /p/a/t/* /p/a/* /p/* /*.
+	# For directory /p/a/t/h we will try /p/a/t/h/* /p/a/t/* etc.
+
+	# Special case for directory with its contents:
+	# If directory is in list, it cannot be in unowned list.
+	# It means, if pattern fits and directory is oned, don't use "*".
+	if test "$type" = dir ; then
+	    path="$file"
+	else
+	    path="${file%/*}"
+	fi
+
+# FIXME: If path is not absolute, dead loop occurs
+	until test "$path" = "" ; do
+
+	    for callback in "${filelist_simplify_callbacks[@]}" ; do
+		$callback "$file"
+	    done
+	    for pattern in "" "${filelist_simplify_patterns[@]}" "${filelist_simplify_fallback_patterns[@]}" ; do
+		# Expand variables inside pattern
+		eval pattern\=\""\$path$pattern"\"
+		filelist_simplify_compare_file_pattern_gen "$pattern"
+		echo "*** checking against pattern $pattern"
+		# If test pattern is not valid for current file, skip it.
+		if ! filelist_simplify_compare_file_pattern_use "$file" ; then
+		    echo "*** does not fit to this pattern"
+		    usable=false
+		    continue
+		fi
+		usable=true
+		echo "*** simplify pattern: $pattern"
+		for (( count2=0 ; count2 < ${#list_files[@]} ; count2++ )) ; do
+		    file2="${list_files[count2]}"
+		    type2="${list_types[count2]}"
+		    echo "*** compares with: $file2"
+		    if test "$type2" = odir -o  "$type2" = ofile ; then
+			echo "*** (unowned)"
+			# If any unowned object match, the simplicifation is invalid.
+			if filelist_simplify_compare_file_pattern_use "$file2" ; then
+			    echo "*** $file2 breaks this simplification"
+			    usable=false
+			    break
+			fi
+		    else
+			echo "*** (owned)"
+			# If any owned object with different attributes match, the simplicifation is invalid.
+			if filelist_simplify_compare_file_pattern_use "$file2" ; then
+# FIXME: Write filelist_simplify_make_tagext
+			    tagline2="${list_taglines[count2]}"
+			    tagext2="${tagline2#*@}"
+			    if test "$tagext2" = "$tagline2" ; then
+				tagext2=
+			    fi
+			    if test "$tagext" != "$tagext2" ; then
+				echo "*** $file2 attributes breaks this simplification"
+				usable=false
+				break
+			    fi
+			fi
+		    fi
+		done
+
+		# Valid pattern found! Break a pattern loop.
+		if $usable ; then
+		    break
+		fi
+
+	    done
+
+
+# FIXME: Maybe have only one list with all objects.
+
+# Valid simplification found.
+	    if $usable ; then
+
+		if test "$type" = dir -a "$file" = "${pattern%??}" ; then
+		    # If it is directory itself with contents, cut trailing "/*".
+		    valid_pattern="${pattern%??}"
+		    valid_glob_pattern="$pattern"
+		else
+		    valid_pattern="$pattern"
+		    valid_glob_pattern="$pattern"
+		fi
+
+		echo "*** simplification $valid_pattern"
+
+	    else
+		# This simplification is not usable. Don't try any shorter.
+		break
+	    fi
+
+	    # Now cut rightmost part of path and try again with shorter pattern
+	    # and loop to try to find even better simplification.
+	    if test "$path" = / ; then
+		path=
+	    else
+		path="${path%/*}"
+	    fi
+	done
+
+# Pattern searching finished.
+
+# If simplification was found, remove all obsolete items from list.
+	if test -z "$valid_pattern" ; then
+	    echo "*** no valid simplification"
+	else
+
+	    # Keep all attributes except type, set type to "glob".
+	    if test "$tagext" = "" ; then
+		tagline=glob
+	    else
+		tagline="glob@$tagext"
+	    fi
+
+	    # Remove all matches from list.
+# FIXME: Note: Matches cannot contain unowned object.
+	    # Clean current item explicitly (for directory with contents case).
+	    list_files[count]=
+	    filelist_simplify_compare_file_pattern_gen "$valid_glob_pattern"
+	    for (( count2=0 ; count2 < ${#list_files[@]} ; count2++ )) ; do
+		if filelist_simplify_compare_file_pattern_use "${list_files[count2]}" ; then
+		    # Check against "/*" ending version of string, not against glob string.
+		    # (Directory itself contents is by glob itself.)
+		    echo "*** removing globbed ${list_files[count2]}"
+		    list_files[count2]=
+		fi
+	    done
+
+	    # Replace object with glob list.
+	    list_files[count]="$valid_pattern"
+	    list_taglines[count]="$tagline"
+
+	fi
+    # Go to next object in list.
+    done
+    shopt -u extglob
+
+# FIXME:
+set >$filelist_file_tmp.set
+    pwiz_redirect_stdout $filelist_file_tmp
+    # Output result
+    for (( count=0 ; count < ${#list_files[@]} ; count++ )) ; do
+	if ! test -z "${list_files[count]}" ; then
+	    echo "${list_files[count]} ${list_taglines[count]}"
+	fi
+    done
+    pwiz_redirect_stdout_close
+# FIXME:
+cp -a $filelist_file $filelist_file_tmp.sim1
+cp -a $filelist_file_tmp $filelist_file_tmp.sim2
+    LC_ALL=C sort -u <$filelist_file_tmp >$filelist_file
+}
 
 #@ filelist_simplify_add_callback function ...
 #@ callback format: function file
@@ -302,6 +301,8 @@ function filelist_simplify_compare_file_pattern_use {
 
 # FIXME: Those should be in platform part.
 filelist_simplify_add_pattern "man?/*.*"
+# In RPM superseded by %find_lang:
+#filelist_simplify_add_pattern "locale/*/LC_MESSAGES/*.mo"
 filelist_simplify_add_pattern "*.*a" "*.so.*" "*.so"
 filelist_simplify_add_pattern "*-config"
 
