@@ -447,6 +447,7 @@ function pwiz_run_eval {
 #@ Remark function. Action will appear in stage, but is not executed.
 #@ Primarily intended for exporting comments to final build script.
 # FIXME: multi-line
+# FIXME: now probably obsolete
 function pwiz_rem {
     :
 }
@@ -1417,7 +1418,9 @@ function pwiz_step {
 		if test "${pwiz_step_stage_code%% *}" = pwiz_run ; then
 		    $pwiz_step_stage_code
 		else
-		    eval "$pwiz_step_stage_code"
+		    if ! test "${pwiz_step_stage_code%% *}" = pwiz_rem ; then
+			eval "$pwiz_step_stage_code"
+		    fi
 		fi
 		pwiz_rc=$?
 		if $OPTARG_PROMPT ; then
