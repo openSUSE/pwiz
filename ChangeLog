@@ -1,3 +1,10 @@
+2004-12-14  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* NEWS, modules/Makefile.am, modules/gnome.pwm,
+	modules/html.pwm.in, modules/package.pwm, modules/sourceforge.pwm,
+	pwiz.gopts.in: Added conditional to three phase structure.
+	Improved package dialog. Sourceforge support module.
+
 2004-12-13  Stanislav Brabec  <sbrabec@suse.cz>
 
 	* engines/question/dumb.pwe, modules/Makefile.am,
