@@ -1,0 +1,532 @@
+2004-07-02  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* pwiz.gopts: Options only.
+
+	* modules/gnome.pwm, modules/manual.pwm, modules/package.pwm,
+	modules/version.pwm, engines/question/dumb.pwe, pwiz.gopts:
+	Credibility heuristics, code fixes.
+
+2004-06-25  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/biarch.pwm, modules/filelist.pwm,
+	modules/filelist_simplify.pwm, modules/find_lang.pwm,
+	modules/ftp.pwm, modules/gnome.pwm, modules/gnu_configure.pwm,
+	modules/gnu_make.pwm, modules/gtkdoc_split_doc.pwm,
+	modules/installwatch.pwm, modules/ldconfig.pwm,
+	modules/license.pwm, modules/manual.pwm, modules/package.pwm,
+	modules/prefix.pwm, modules/rpm.pwm, modules/rpm_doc.pwm,
+	modules/split_devel.pwm, modules/unpack.pwm, modules/version.pwm,
+	engines/question/dumb.pwe, pwizdoc, userdoc.txt, develdoc.txt,
+	pwiz.gopts: Added documentation.
+
+2004-06-11  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/gnome.pwm, modules/manual.pwm, modules/prefix.pwm: Fixed
+	prefix.
+
+	* engines/question/dumb.pwe: Nice prompts.
+
+	* engines/cache/file.pwe: Fixed quoting.
+
+	* pwiz.gopts: Fixed credit code.
+
+2004-06-10  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* watch/clean.c, watch/installwatch.c: Accessed files support.
+
+	* modules/package.pwm, modules/prefix.pwm, modules/rpm.pwm,
+	modules/split_devel.pwm, modules/version.pwm,
+	modules/filelist.pwm, modules/gnome.pwm,
+	modules/gnu_configure.pwm, modules/gnu_make.pwm,
+	modules/installwatch.pwm, modules/ldconfig.pwm,
+	modules/license.pwm, engines/question/dumb.pwe, userdoc.txt,
+	README, develdoc.txt, pwiz.gopts: Credit support. Many bug fixes.
+
+2004-05-14  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/filelist.pwm, modules/filelist_simplify.pwm,
+	modules/find_lang.pwm, modules/ftp.pwm, modules/gnome.pwm,
+	modules/gnu_configure.pwm, modules/gnu_make.pwm,
+	modules/ldconfig.pwm, modules/license.pwm, modules/manual.pwm,
+	modules/package.pwm, modules/prefix.pwm, modules/rpm.pwm,
+	modules/split_devel.pwm, modules/version.pwm, genopts/genopts,
+	genopts/genopts_example.gopts, genopts/genopts_example2.gopts,
+	README, pwiz.gopts: Typo fixes. Support for multi-line commands.
+	Support for split candidate requiremets. New licenses. Fixed GNOME
+	stuff.
+
+2004-03-03  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/rpm_doc.pwm: Another INSTALL MD5.
+
+2004-02-17  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/filelist_simplify.pwm: Do not consider .number as valid
+	extension.
+
+	* modules/license.pwm: Added another LGPL 2.1 MD5.
+
+	* modules/rpm.pwm: Fixed URL generation.
+
+	* modules/rpm.pwm: Don't add Source and Patch to subpackages.
+
+	* modules/prefix.pwm: Discriminate between @global@ and @none@
+	prefixes (modules can propagate @global@).
+
+	* modules/gnome.pwm: Redirect gconftool output to /dev/null.
+
+	* modules/license.pwm: Added LGPL 2.1.
+
+2004-02-06  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/version.pwm: Fixed bugs in version comparison.
+
+2004-02-05  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/ftp.pwm: Fixed bad canonization of ftp:/url.
+
+	* modules/gnu_configure.pwm: Blocked configure args format until
+	multiline pwiz_run will be fixed.
+
+2004-02-04  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/biarch.pwm, modules/gnu_configure.pwm, modules/rpm.pwm:
+	Improved extra source copying.
+
+2004-02-03  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* pwiz.gopts: Added FIXME comment.
+
+	* modules/rpm.pwm: Fixed pwiz_ask_list usage.
+
+	* modules/rpm_doc.pwm: Exclude ABOUT-NLS and MANIFEST from %doc.
+
+	* modules/ftp.pwm, modules/package.pwm: Fixed trailing slash
+	problem on some FTP servers.
+
+	* modules/package.pwm: Note on terminal slash.
+
+	* engines/question/dumb.pwe: Fixed e[number] answer.
+
+	* pwiz.gopts: Simplified cache hierrarchy -
+	vendor/product/pversion -> vendor.
+
+	* modules/rpm.pwm: Fixed answer caching and multilines.
+
+	* modules/package.pwm, modules/rpm.pwm: Support for home page,
+	requires and prerequires.
+
+	* modules/manual.pwm, modules/patch.pwm, modules/rpm.pwm,
+	engines/question/dumb.pwe, pwiz.gopts: Implemented RPM extra
+	sources and patches, improved list engine.
+
+2004-02-02  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/rpm_doc.pwm: Typo fix.
+
+	* engines/question/dumb.pwe: Implemented string edit.
+
+2004-01-30  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/manual.pwm, modules/package.pwm, modules/rpm.pwm,
+	engines/question/dumb.pwe, pwiz.gopts: List engine rewritten.
+	Manual action point implementation. RPM extra source and extra
+	patch support.
+
+2004-01-29  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/prefix.pwm: Update for FHS 2.3.
+
+2004-01-28  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/manual.pwm, engines/question/dumb.pwe, README,
+	pwiz.gopts: Implementation of manual action points.
+
+2004-01-27  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* README: Note RPM CXXFLAGS:
+
+	* README: Note RPM suid problems.
+
+	* README: Note on single-line answer limitation.
+
+	* modules/package.pwm, modules/rpm.pwm,
+	modules/filelist_simplify.pwm: Support for package basename not
+	equal to project name.
+
+	* README: Inform about limitation to FTP.
+
+	* pwiz.gopts: Support for --debug=all.
+
+	* README: Added actual information.
+
+	* pwiz.gopts: Added guess debugging description.
+
+	* modules/rpm.pwm: Fixed %defattr position.
+
+	* modules/gnome.pwm, modules/rpm.pwm: Fixed RPM environment
+	wrapper. Fixed gconftool use in %post.
+
+2004-01-26  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/ftp.pwm, modules/package.pwm, modules/rpm.pwm,
+	modules/rpm_doc.pwm, modules/unpack.pwm: Support for %doc and
+	%defattr. Fixed uri parsing. Support for preferring specific
+	archive types.
+
+	* pwiz.gopts: Improved pwiz_rem.
+
+	* modules/check_unpacked.pwm, modules/filelist.pwm,
+	modules/find_lang.pwm, modules/gnome.pwm,
+	modules/gnu_configure.pwm, modules/gnu_make.pwm,
+	modules/installwatch.pwm, modules/license.pwm, modules/patch.pwm,
+	modules/prefix.pwm, modules/rpm.pwm, modules/unpack.pwm,
+	modules/version.pwm, engines/question/dumb.pwe, pwiz.gopts: Added
+	subphases. Reworked pwiz_guess and yesno. Deprecated
+	pwiz_run_eval.
+
+2004-01-20  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/gnu_configure.pwm, modules/gtkdoc_split_doc.pwm,
+	modules/license.pwm, modules/rpm.pwm, modules/split_devel.pwm,
+	engines/question/dumb.pwe, pwiz.gopts: Improved splitting devel.
+	Added support for answer hotkeys. Yesno is now special case of
+	string question.
+
+2004-01-16  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/archive.pwm, modules/filelist.pwm,
+	modules/filelist_simplify.pwm, modules/ftp.pwm,
+	modules/package.pwm, modules/package_attributes.pwm,
+	modules/rpm.pwm, modules/uri.pwm, engines/pkgdb/rpm.pwe,
+	pwiz.gopts: Support for debugging. Debugging messages cleanup.
+
+2004-01-15  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* pwiz.gopts: First parts of command line interface.
+
+	* genopts/genopts: By one fix in HELPSIZE.
+
+	* README: Describe genopts use.
+
+	* genopts/.cvsignore, .cvsignore: Updated cvs ignores.
+
+	* genopts/genopts: Fixed ARGV declare in previous change.
+
+	* genopts/genopts: Do not declare ARGV for @options_only.
+
+	* genopts/genopts, genopts/genopts_example.gopts,
+	genopts/genopts_example2.gopts, build.sh, pwiz, pwiz.gopts: Added
+	options parser based on genopts.
+
+2004-01-14  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/filelist.pwm, modules/filelist_simplify.pwm,
+	modules/rpm.pwm, pwiz: New function pwiz_array_add. It makes
+	adding to array end a bit simpler.
+
+	* modules/filelist.pwm, modules/filelist_simplify.pwm,
+	modules/find_lang.pwm, modules/gnome.pwm,
+	modules/gnu_configure.pwm, modules/gnu_make.pwm,
+	modules/license.pwm, modules/package.pwm, modules/patch.pwm,
+	modules/prefix.pwm, modules/rpm.pwm, modules/split_devel.pwm,
+	pwiz: Finished code transformation to functional form. Many fixes.
+
+2004-01-13  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/unpack.pwm, modules/find_lang.pwm, modules/gnome.pwm,
+	modules/package.pwm, modules/patch.pwm, modules/rpm.pwm: Prepared
+	for removing pwiz_module_exec.
+
+	* modules/biarch.pwm, modules/filelist.pwm,
+	modules/filelist_simplify.pwm, modules/find_lang.pwm,
+	modules/gnome.pwm, modules/gnu_configure.pwm,
+	modules/gnu_make.pwm, modules/gtkdoc_split_doc.pwm,
+	modules/installwatch.pwm, modules/ldconfig.pwm,
+	modules/license.pwm, modules/package.pwm,
+	modules/package_attributes.pwm, modules/patch.pwm,
+	modules/prefix.pwm, modules/rpm.pwm, modules/split_devel.pwm,
+	modules/unpack.pwm, modules/uri.pwm, pwiz: PWIZ modules rewritten
+	from argument form to functional form. Rewritten functions using
+	filelist_read_item.
+
+2004-01-12  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/license.pwm: Added license module. Not yet working due
+	to early evaluation in RPM.
+
+	* pwiz: Fixed pwiz_find_d.
+
+2004-01-09  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* README: Inform about installwatch.
+
+	* README: Added initial README.
+
+	* modules/filelist.pwm, modules/filelist_simplify.pwm,
+	modules/gnome.pwm, modules/gtkdoc_split_doc.pwm, modules/rpm.pwm,
+	modules/split_devel.pwm, pwiz: Fixed directory ownership for
+	splitted packages. Gtk-doc splitting support.
+
+2004-01-08  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/filelist_simplify.pwm, modules/rpm.pwm: Implemented RPM
+	attributes.
+
+	* modules/filelist_simplify.pwm: Simplification now completely
+	works, additional patterns are implemented.
+
+2004-01-07  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/filelist_simplify.pwm: Rewritten to use single array
+	instead of three.
+
+	* modules/filelist_simplify.pwm: Completely working file list
+	simplification.
+
+2004-01-06  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/filelist.pwm, modules/filelist_simplify.pwm,
+	modules/installwatch.pwm, modules/rpm.pwm,
+	modules/split_devel.pwm, pwiz: Filelist interface rewritten.
+
+2003-12-17  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/ftp.pwm, modules/rpm.pwm, modules/split_devel.pwm, pwiz:
+	RPM preambles. Prepared for RPM package splitting.
+
+2003-12-16  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/filelist.pwm, modules/filelist_simplify.pwm,
+	modules/gnome.pwm, modules/installwatch.pwm, modules/rpm.pwm,
+	modules/split_devel.pwm: Prepared for package splitting.
+
+2003-12-15  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/ftp.pwm, modules/gnome.pwm, modules/package.pwm, pwiz:
+	Partially splitted package selection, implemented guess variables
+	and callbacks, URL guessers.
+
+	* modules/gnome.pwm: Fixed gconftool calls.
+
+2003-12-12  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/filelist_simplify.pwm, modules/find_lang.pwm, pwiz:
+	Fixed %find_lang and filelist_simplify.
+
+	* modules/biarch.pwm, modules/check_unpacked.pwm,
+	modules/filelist.pwm, modules/filelist_simplify.pwm,
+	modules/gnome.pwm, modules/gnu_configure.pwm,
+	modules/gnu_make.pwm, modules/ldconfig.pwm, modules/patch.pwm,
+	modules/prefix.pwm, modules/rpm.pwm, modules/unpack.pwm, pwiz:
+	Implemented ldconfig, %post, improved filelist.
+
+2003-12-11  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/filelist.pwm, modules/filelist_simplify.pwm,
+	modules/installwatch.pwm, modules/prefix.pwm, pwiz: Improved
+	filelist.
+
+	* modules/biarch.pwm, modules/check_unpacked.pwm,
+	modules/filelist.pwm, modules/filelist_simplify.pwm,
+	modules/find_lang.pwm, modules/gnome.pwm,
+	modules/gnu_configure.pwm, modules/gnu_make.pwm,
+	modules/installwatch.pwm, modules/package.pwm,
+	modules/package_attributes.pwm, modules/prefix.pwm,
+	modules/rpm.pwm, modules/unpack.pwm, pwiz: 2003-12-11
+
+2003-12-08  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* .cvsignore: added .cvsignore
+
+	* engines/cache/dumb, engines/cache/file, engines/pkgdb/rpm,
+	engines/question/dumb, engines/storage/simple, modules/archive,
+	modules/check_unpacked, modules/ftp, modules/gnome,
+	modules/gnu_configure, modules/gnu_make, modules/installwatch,
+	modules/package, modules/patch, modules/prefix, modules/rpm,
+	modules/unpack, modules/uri, modules/version: removed old
+	instances of renamed files
+
+2003-12-05  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* pwiz: a3
+
+	* modules/version.pwm: New file.
+
+	* modules/version.pwm: a3
+
+	* modules/uri.pwm: New file.
+
+	* modules/uri.pwm: a3
+
+	* modules/unpack.pwm: New file.
+
+	* modules/unpack.pwm: a3
+
+	* modules/rpm.pwm: New file.
+
+	* modules/rpm.pwm: a3
+
+	* modules/prefix.pwm: New file.
+
+	* modules/prefix.pwm: a3
+
+	* modules/patch.pwm: New file.
+
+	* modules/patch.pwm: a3
+
+	* modules/package.pwm: New file.
+
+	* modules/package.pwm: a3
+
+	* modules/installwatch.pwm: New file.
+
+	* modules/installwatch.pwm: a3
+
+	* modules/gnu_make.pwm: New file.
+
+	* modules/gnu_make.pwm: a3
+
+	* modules/gnu_configure.pwm: New file.
+
+	* modules/gnu_configure.pwm: a3
+
+	* modules/gnome.pwm: New file.
+
+	* modules/gnome.pwm: a3
+
+	* modules/ftp.pwm: New file.
+
+	* modules/ftp.pwm: a3
+
+	* modules/check_unpacked.pwm: New file.
+
+	* modules/check_unpacked.pwm: a3
+
+	* modules/archive.pwm: New file.
+
+	* modules/archive.pwm: a3
+
+	* engines/storage/simple.pwe: New file.
+
+	* engines/storage/simple.pwe: a3
+
+	* engines/question/dumb.pwe: New file.
+
+	* engines/question/dumb.pwe: a3
+
+	* engines/pkgdb/rpm.pwe: New file.
+
+	* engines/pkgdb/rpm.pwe: a3
+
+	* engines/cache/file.pwe: New file.
+
+	* engines/cache/file.pwe: a3
+
+	* modules/rpm, pwiz, modules/version, engines/question/dumb,
+	engines/pkgdb/rpm, engines/cache/dumb, modules/installwatch,
+	modules/unpack: a2
+
+2003-12-04  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/gnu_configure: a2
+
+	* modules/prefix: New file.
+
+	* modules/prefix, modules/package: a2
+
+2003-12-03  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/ftp: a2
+
+2003-12-02  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/archive: a2
+
+2003-11-27  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* pwiz: New file.
+
+	* pwiz: a1
+
+	* engines/pkgdb/rpm: New file.
+
+	* engines/pkgdb/rpm: a1
+
+	* modules/rpm: New file.
+
+	* modules/rpm: a1
+
+	* modules/installwatch: New file.
+
+	* modules/installwatch: a1
+
+	* modules/unpack: New file.
+
+	* modules/unpack: a1
+
+2003-11-26  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/gnu_configure: New file.
+
+	* modules/gnu_configure: a1
+
+	* engines/cache/file: New file.
+
+	* engines/cache/file: a1
+
+	* modules/gnu_make: New file.
+
+	* modules/gnu_make: a1
+
+	* modules/package: New file.
+
+	* modules/package: a1
+
+	* modules/version: New file.
+
+	* modules/version: a1
+
+	* modules/archive: New file.
+
+	* modules/archive: a1
+
+2003-11-25  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/ftp: New file.
+
+	* modules/ftp: a1
+
+	* engines/question/dumb: New file.
+
+	* engines/question/dumb: a1
+
+	* modules/uri: New file.
+
+	* modules/uri: a1
+
+2003-11-24  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/gnome: New file.
+
+	* modules/gnome: a1
+
+	* modules/check_unpacked: New file.
+
+	* modules/check_unpacked: a1
+
+	* modules/patch: New file.
+
+	* modules/patch: a1
+
+2003-11-12  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* engines/storage/simple: New file.
+
+	* engines/storage/simple: a1
+
+2003-10-01  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* engines/cache/dumb: New file.
+
+	* engines/cache/dumb: a1
