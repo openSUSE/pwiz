@@ -188,7 +188,7 @@ function pwiz_find_d {
     if test -d "$2$1" ; then
 	$pwiz_callback "${1#$2}" dir "$3"
 	for item in "$2$1/"* ; do
-	    pwiz_find "${item#$2}" "$2" "$3"
+	    pwiz_find_d "${item#$2}" "$2" "$3"
 	done
     else
 	$pwiz_callback "${1#$2}" file "$3"
