@@ -301,3 +301,5 @@ function rpm_add_description {
 }
 
 # FIXME: rpm should auto-ask for splitted package args, if none are supported.
+
+# FIXME: Stuff should work, if package name != project name

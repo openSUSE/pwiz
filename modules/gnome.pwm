@@ -10,7 +10,7 @@ case $1 in
 	return
 	;;
     init )
-	pwiz_module_needs check_unpacked prefix ldconfig package
+	pwiz_module_needs check_unpacked prefix ldconfig package filelist_simplify
 	pwiz_phase_new gnome_gconf_install after ldconfig
 	prefix_provider
 	package_search_uri_provider
@@ -107,3 +107,5 @@ function gnome_check_uri {
 	package_search_uri_guess "$1" 10
     fi
 }
+
+filelist_simplify_add_pattern "pkgconfig/*.pc"

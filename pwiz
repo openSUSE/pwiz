@@ -1236,6 +1236,8 @@ PWIZ_STAGE_CURRENT=0
 
 #@@ modules
 
+# FIXME: Check - module must not contain "-" and similar characters (only alphanum and @).
+
 # Module description:
 # Module is a piece of bash code, inlined to main code.
 # It typically implements package checks, expert system knowledges and its infrastructure.

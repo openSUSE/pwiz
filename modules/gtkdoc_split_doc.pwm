@@ -1,0 +1,52 @@
+#! /bin/bash
+
+case $1 in
+    desc )
+	echo "split gtkdoc sub-package"
+	return
+	;;
+    longdesc )
+	echo "This module provides splitting develepment documentation from base package into -doc files for gtkdoc style documentation. It is useful for ordinary users, who do not need to install development documentation."
+	return
+	;;
+    init )
+# FIXME: does it need rpm?
+	pwiz_module_needs filelist rpm
+	filelist_inspect_provider
+	filelist_split_candidate doc
+	;;
+    filelist_inspect )
+	gtkdoc_split_doc_active=false
+	exec 3<$filelist_file
+	pwiz_redirect_stdout $filelist_file_tmp
+	while read -u3 gtkdoc_split_doc_file ; do
+	    case "${gtkdoc_split_doc_file% *}" in
+		$datadir/gtk-doc/html/* )
+		    echo "$gtkdoc_split_doc_file@sub=doc"
+		    gtkdoc_split_doc_active=true
+		    ;;
+		* )
+		    echo "$gtkdoc_split_doc_file"
+		    ;;
+	    esac
+	done
+	exec 3<&-
+	pwiz_redirect_stdout_close
+# FIXME
+	cp -a $filelist_file $filelist_file_tmp.spd1
+	cp -a $filelist_file_tmp $filelist_file_tmp.spd2
+	mv $filelist_file_tmp $filelist_file
+# FIXME - this should be done by RPM
+	if $gtkdoc_split_doc_active ; then
+	    rpm_subpackage_add doc
+	fi
+	return
+	;;
+    version )
+	echo "0.1"
+	return
+	;;
+    * )
+	return
+	;;
+esac

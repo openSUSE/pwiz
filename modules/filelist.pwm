@@ -56,30 +56,31 @@ esac
 function filelist_raw_clean_1 {
     local line
     while read line ; do
-	local name="${line% *}"
-	local attr="${line##* }"
-	case $name in
+	filelist_read_item "$line"
+	case $filelist_tag_name in
 # FIXME: not fixed list
 	    $PWIZ_SRCDIR/* | $PWIZ_BUILDDIR/* | $PWIZ_SOURCESDIR/* | $PWIZ_TMPDIR/* )
 		;;
 	    $PWIZ_INSTALLROOT/* )
-		if test -e "$name" ; then
-		    pwiz_canonize "${name##$PWIZ_INSTALLROOT}"
-		    name="$pwiz_result"
-		    if test $attr = dir ; then
+# FIXME: Does -e work for absolute chrooted danglinks?
+		if test -e "$filelist_tag_name" ; then
+		    pwiz_canonize "${filelist_tag_name##$PWIZ_INSTALLROOT}"
+		    filelist_tag_name="$pwiz_result"
+# FIXME: ignores tagext
+		    if test $filelist_tag_type = dir ; then
 # FIXME: remove redirection
 # FIXME: implement and ask more files at once
 # FIXME: dump file attributes
-			echo "$name dir"
+			echo "$filelist_tag_name dir"
 		    else
-			echo "$name file"
+			echo "$filelist_tag_name file"
 		    fi
 		fi
 		;;
 	    /tmp/* | /dev/null | /dev/tty* | /var/tmp/* )
 		;;
 	    * )
-		echo >&2 "ERROR: FIXME: access violation $name"
+		echo >&2 "ERROR: FIXME: access violation $filelist_tag_name"
 		;;
 	esac
     done
@@ -87,21 +88,41 @@ function filelist_raw_clean_1 {
 
 function filelist_raw_clean_2 {
     local line
+    local pkg sub owned
     while read line ; do
-	local name="${line% *}"
-	local attr="${line##* }"
-	if test $attr = dir ; then
+	filelist_read_item "$line"
+	if test $filelist_tag_type = dir ; then
 # FIXME: remove redirection
 # FIXME: implement and ask more files at once
-	    pwiz_pkgdb_what_owns "${name##$PWIZ_INSTALLROOT}" >&2
+	    pwiz_pkgdb_what_owns "$filelist_tag_name" >&2
 # FIXME check for both package and package-devel
-	    if test ${#pwiz_result[@]} -gt 1 -o "${pwiz_result[0]:-$pwiz_project_project}" != "$pwiz_project_project" ; then
-		echo "$name odir"
+# FIXME: For non install root installation, we should generate ofile, too (but can be based on mtime).
+	    # If directory is owned by any installed package except this one and sub candidates, it is unowned.
+	    owned=true
+	    for pkg in "${pwiz_result[@]}" ; do
+# FIXME: This is questionable, whether dir owned by our package and other one is OK.
+# FIXME: By default, we consider, that it is a mistake of currently installed package.
+		if test "$pkg" != "$pwiz_project_project" ; then
+		    owned=false
+		    for sub in "${filelist_split_candidates[@]}" ; do
+			if test "$pkg" = "$pwiz_project_project-$sub" ; then
+			    owned=true
+			    break
+			fi
+		    done
+		    if $owned ; then
+			break
+		    fi
+		fi
+	    done
+# FIXME: Ignores tagext.
+	    if $owned ; then
+		echo "$filelist_tag_name dir"
 	    else
-		echo "$name dir"
+		echo "$filelist_tag_name odir"
 	    fi
 	else
-	    echo "$name file"
+	    echo "$filelist_tag_name file"
 	fi
     done
 }
@@ -123,6 +144,9 @@ function filelist_raw_close {
 function filelist_raw_provider {
     filelist_raw_provider_module=$pwiz_module_current
 }
+
+# FIXME: Maybe filelist_inspect_callback can be more efficient.
+# FIXME: But there can be problems with special modules, requiring whole list in time.
 
 #@ filelist_inspect_provider
 #@ function for init of modules providing filelist_inspect argument and functionality.
@@ -172,3 +196,16 @@ function filelist_read_item {
 }
 
 # FIXME implement function filelist_write_item
+
+#@ filelist_split_candidate sub ...
+#@ Defines candidate for splitting package to subpackages.
+# NOTE: This is required, because in time of inspection, we don't know, whether such subpackage will be created.
+function filelist_split_candidate {
+    local sub
+    for sub in "$@" ; do
+	filelist_split_candidates[${#filelist_split_candidates[@]}]="$sub"
+    done
+}
+
+# FIXME: There can be splitting package -> package + othername
+# FIXME: Splitting package and splitting %post.
