@@ -1,3 +1,14 @@
+2004-12-22  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/Makefile.am, modules/freshmeat.pwm.in,
+	modules/freshmeat_xml_parse, modules/ftp.pwm, modules/gnome.pwm,
+	modules/http.pwm.in, modules/http_html_printurls,
+	modules/package.pwm, modules/rpm_doc.pwm, modules/sourceforge.pwm,
+	modules/tld.pwm, modules/unpack.pwm, modules/uri.pwm,
+	modules/version.pwm, configure.in, pwiz.gopts.in: Implemented URI
+	providers. Added http with html parsing support, sourceforge
+	providers and freshmeat and tld home page providers. Fixes.
+
 2004-12-14  Stanislav Brabec  <sbrabec@suse.cz>
 
 	* NEWS, modules/Makefile.am, modules/gnome.pwm,
