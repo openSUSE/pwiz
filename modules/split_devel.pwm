@@ -10,10 +10,11 @@ case $1 in
 	return
 	;;
     init )
-	pwiz_module_needs filelist
+	pwiz_module_needs filelist rpm
 	filelist_inspect_provider
 	;;
     filelist_inspect )
+	split_devel_active=false
 	exec 3<$filelist_file
 	pwiz_redirect_stdout $filelist_file_tmp
 	while read -u3 find_lang_file ; do
@@ -23,6 +24,7 @@ case $1 in
 # FIXME: allow manual additions
 		$libdir/*.so | $libdir/*.la | $includedir/* | $libdir/pkgconfig/*.pc )
 		    echo "$find_lang_file@sub=devel"
+		    split_devel_active=true
 		    ;;
 		* )
 		    echo "$find_lang_file"
@@ -32,6 +34,9 @@ case $1 in
 	exec 3<&-
 	pwiz_redirect_stdout_close
 	mv $filelist_file_tmp $filelist_file
+	if $split_devel_active ; then
+	    rpm_subpackage_add devel
+	fi
 	return
 	;;
     version )

@@ -45,22 +45,21 @@ case $1 in
 	rpm_files_args=
 	;;
     rpmsetup )
-	pwiz_phase_add_rem rpmheader "Name:         $pwiz_project_project"
-	pwiz_phase_add_rem rpmheader "Version:      $pwiz_project_version"
-	pwiz_phase_add_rem rpmheader "Group:        FIXME"
-	pwiz_phase_add_rem rpmheader "License:      FIXME"
-	pwiz_phase_add_rem rpmheader "Release:      0"
-	pwiz_phase_add_rem rpmheader "Source:       $package_uri"
-	pwiz_phase_add_rem rpmheader "BuildRoot:    %{_tmppath}/%{name}-%{version}-build"
-	pwiz_phase_add_rem rpmheader "Summary:      FIXME"
-	pwiz_phase_add_rem rpmheader ""
-	pwiz_phase_add_rem rpmheader "%description"
-	pwiz_phase_add_rem rpmheader "FIXME"
+	rpm_add_preamble Name         $pwiz_project_project
+	rpm_add_preamble Version      $pwiz_project_version
+	rpm_add_preamble Group        FIXME
+	rpm_add_preamble License      FIXME
+	rpm_add_preamble Release      0
+	rpm_add_preamble Source       $package_uri
+	rpm_add_preamble BuildRoot    %{_tmppath}/%{name}-%{version}-build
+	rpm_add_preamble Summary      FIXME
+	rpm_add_description           FIXME
 	return
 	;;
     rpm_files_finish )
 	pwiz_phase_add_rem rpm_files_finish ""
 	pwiz_phase_add_rem rpm_files_finish "%files$rpm_files_args"
+	return
 	;;
     rpm_files_list )
 # FIXME: move to globals or other section, do not create final list, but replace dir -> systemdir
@@ -167,12 +166,12 @@ function rpm_create_spec {
     echo >$PWIZ_TMPDIR/rpm_tmp.spec \
 "Name:         $pwiz_project_project
 Version:      $pwiz_project_version
-Group:        FIXME
-License:      FIXME
+Group:        DUMMY
+License:      DUMMY
 Release:      0
 Source:       $package_uri
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build
-Summary:      FIXME
+Summary:      DUMMY
 # FIXME: define __check_files
 
 %description
@@ -246,3 +245,34 @@ function rpm_files_create {
 	    ;;
     esac
 }
+
+# rpm_add_subpackage subpackage
+function rpm_subpackage_add {
+    rpm_subpackage_list="$rpm_subpackage_list $1"
+    declare -a rpm_preamble__$1
+    eval rpm_description__$1\=
+# FIXME:
+    rpm_add_preamble Group        FIXME $1
+    rpm_add_preamble Summary      FIXME $1
+}
+declare -a rpm_preamble__
+rpm_subpackage_list=
+
+# rpm_add_preamble_line line subpackage
+function rpm_add_preamble_line {
+    eval 'rpm_preamble__'$2'[${#rpm_preamble__'$2'[@]}]="$1"'
+}
+
+# rpm_add_preamble atribute value subpackage
+function rpm_add_preamble {
+    local pad='              '
+    rpm_add_preamble_line "$1: ${pad:${#1}+2}$2" "$3"
+}
+
+# rpm_add_description description subpackage
+function rpm_add_description {
+    rpm_add_preamble_line "" $2
+    eval 'rpm_description__'$2'="$1"'
+}
+
+# FIXME: rpm should auto-ask for splitted package args, if none are supported.
