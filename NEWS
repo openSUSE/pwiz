@@ -1,2 +1,18 @@
+Version 0.04
+    Improved Internet lookup search.
+    Support for URI providers.
+    Initial support for parsing HTTP.
+    Sourceforge support module.
+
+Version 0.03.1
+    Documentation update.
+    Bug fixes.
+
+Version 0.03
+    Back-end changes (askmenu, backstep support).
+
+Version 0.02
+    Bug and usability fixes.
+
 Version 0.01
     First testing release.

@@ -20,6 +20,7 @@ pwizmodules_DATA=\
 	prefix.pwm\
 	rpm_doc.pwm\
 	rpm.pwm\
+	sourceforge.pwm\
 	split_devel.pwm\
 	unpack.pwm\
 	version.pwm
@@ -61,6 +62,7 @@ EXTRA_DIST=\
 	prefix.pwm\
 	rpm_doc.pwm\
 	rpm.pwm\
+	sourceforge.pwm\
 	split_devel.pwm\
 	unpack.pwm\
 	version.pwm

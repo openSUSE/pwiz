@@ -42,7 +42,7 @@ function package_project_set {
 # FIXME: pwiz_project_ -> package_ for names not present in key
     pwiz_ask_string "Project name (name of project for PWIZ)." \
 	"Now you should enter canonical project name. The name can be global project name, or any selected, if there is a reason for different name." \
-	q=pwiz_project_project valid=setup knowledge=total guesslevel=0
+	q=pwiz_project_project valid=setup knowledge=total guesslevel=0 force_overwrite=true
     pwiz_patchlevel_set
 }
 
@@ -58,17 +58,57 @@ function package_basename_set {
 }
 
 function package_home_page_prepare {
+    local defaults credit
     unset package_home_page
+    # If there is any previous answer, default to no, otherwise yes.
+    # Look at validity ranges: For first it is global, for second it
+    # is package specific (there can be no home page for particular
+    # project).
+    pwiz_cache_load q=package_home_page valid=project
+    # Unset condition and ask user for value.
+    unset package_home_page_condition
+    if test "$pwiz_guess_best_value" = "" ; then
+	defaults="default=true c=10 valid=setup"
+    else
+	# Add 1: For default run, ask only once.
+	let credit=1+pwiz_guess_best_credit
+	defaults="default=false c=$credit valid=project"
+    fi
+    pwiz_ask_yesno "Do automatic Internet lookup for home page now?" \
+	"Now you can lookup for home page. It can take some time. If you know exact URI, answer no." \
+	q=package_home_page_condition $defaults importance=10 knowledge=none force_overwrite=true
+    true
 }
 
 function package_home_page_set {
     pwiz_ask_string "Enter package home page." \
 	"Package home page is URI, where home WWW (or FTP) page resides." \
-	q=package_home_page valid=project default=""
+	q=package_home_page valid=project default="" string=unknown
 }
 
 function package_search_uri_prepare {
+    local defaults credit
     unset package_search_uri
+    # If there is any previous answer, default to no, otherwise yes.
+    # Look at validity ranges: For first it is global, for second it
+    # is package specific (there can be no home page for particular
+    # project).
+    pwiz_cache_load q=package_search_uri valid=project
+    # Unset condition and ask user for value.
+    unset package_search_uri_condition
+    if test "$pwiz_guess_best_value" = "" ; then
+	defaults="default=true c=10 valid=setup"
+    else
+	# Add 1: For default run, ask only once.
+	let credit=1+pwiz_guess_best_credit
+	defaults="default=false c=$credit valid=project"
+    fi
+    pwiz_ask_yesno "Do automatic Internet lookup for search URI now?" \
+	"Now you can lookup for home page. It can take some time. If you know exact URI, answer no." \
+	q=package_search_uri_condition $defaults importance=10 knowledge=none force_overwrite=true
+    true
+
+
 }
 
 function package_search_uri_set {

@@ -45,18 +45,7 @@ function gnome_prefix {
 #
 # Provides an URI guess for searching packages in GNOME FTP. (internal)
 function gnome_package_search_uri {
-    local default
-# FIXME: ugly temporary solution:
-    if test -f "$PWIZ_CACHEDIR/ftp/ftp.gnome.org/pub/GNOME/sources/.listing" ; then
-	default=false
-    else
-	default=true
-    fi
-    if pwiz_ask_yesno "Do FTP lookup now?" \
-	"Now you can lookup for FTP. Stored version will be used otherwise." \
-	default=$default importance=10 ; then
-	ftp_list ftp://ftp.gnome.org/pub/GNOME/sources gnome_check_uri
-    fi
+    ftp_list ftp://ftp.gnome.org/pub/GNOME/sources gnome_check_uri
 }
 
 #@ gnome_PREPARE_CHECK

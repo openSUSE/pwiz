@@ -761,6 +761,7 @@ pwiz_register_tag_default valid=exact
 pwiz_register_tag_default knowledge=general
 pwiz_register_tag_default importance=25
 pwiz_register_tag_default askmenu_hook=:
+pwiz_register_tag_default force_overwrite=false
 pwiz_register_tag_default callback=pwiz_question_enter_string
 pwiz_register_tag_default callback_prompt="Your value: "
 pwiz_register_tag_default multiline=false
@@ -923,7 +924,7 @@ function pwiz_engine_interface {
 #get particular tags, it must be further expanded by @eval or
 #@pwiz_read_tags.
 
-#@ pwiz_cache_write key value [ tags ]
+#@ pwiz_cache_write key value [ tags ... ]
 # key: key for data you want to write to cache
 # value: data to be written
 # tags: tags to be written
@@ -1010,7 +1011,7 @@ function pwiz_cache_remove {
     pwiz_cache_delete "$pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$build"
 }
 
-#@ pwiz_cache_load value [ tags ... ]
+#@ pwiz_cache_load [ tags ... ]
 # returns ${pwiz_guesses[@@]}: array of all acceptablee guesses found
 # returns ${pwiz_credits[@@]}: array of credits of guesses
 # returns $pwiz_guess_best: index of most credible guess
@@ -1384,7 +1385,7 @@ function pwiz_guess_credit {
     pwiz_credit=$subcredit
 }
 
-#@ pwiz_guess [ tags ]
+#@ pwiz_guess
 # returns ${pwiz_guesses[@@]}: array of all acceptablee guesses found
 # returns ${pwiz_credits[@@]}: array of credits of guesses
 # returns $pwiz_guess_best: index of most credible guess
@@ -1414,7 +1415,8 @@ function pwiz_guess_credit {
 #defaults in variables (optional - array can be sparse)
 #
 # This function collects all available guesses. Function is used
-#internally by @pwiz_ask_core.
+#internally by @pwiz_ask_core and @pwiz_cache_load.
+# NOTE: Tags must be already read before calling this function.
 function pwiz_guess {
     local key_found is_new tags count v_total v_default v_c v_string v_hotkey callback
 
@@ -1957,7 +1959,7 @@ function pwiz_askmenu_process {
 
 #@@ Asking user
 
-#@ pwiz_ask_{function} desc longdesc [ tags ]
+#@ pwiz_ask_{function} desc longdesc [ tags ... ]
 # desc: short description of feature
 # longdesc: long description of feature
 # tags: optional tags
@@ -1974,7 +1976,7 @@ function pwiz_ask_none {
     :
 }
 
-#@ pwiz_ask_yesno desc longdesc [ tags ]
+#@ pwiz_ask_yesno desc longdesc [ tags ... ]
 # desc: short description of feature
 # longdesc: long description of feature
 # tags: optional tags
@@ -1999,7 +2001,7 @@ function pwiz_ask_yesno_f {
     fi
 }
 
-#@ pwiz_ask_string desc longdesc [ tags ]
+#@ pwiz_ask_string desc longdesc [ tags ... ]
 # desc: short description of feature
 # longdesc: long description of feature
 # tags: optional tags
@@ -2034,7 +2036,7 @@ function pwiz_ask_radio_f {
     pwiz_ask_core pwiz_question_string "$desc" "$longdesc" allow_new=false "$@"
 }
 
-#@ pwiz_ask_core question_function desc longdesc [ tags ]
+#@ pwiz_ask_core question_function desc longdesc [ tags ... ]
 # question_function: function from question engine
 # desc: short description of feature
 # longdesc: long description of feature
@@ -2054,6 +2056,8 @@ function pwiz_ask_radio_f {
 #$pwiz_answer) (default string)
 # uses tag allow_new: if set to false, "enter manually" is disabled
 #(default true)
+# uses tag force_overwrite: if set to true, old answer will be
+#overwritten by new one without any prompt (defult false)
 # uses tag askmenu_hook: hook function for adding items to askmenu
 #(default is nop)
 # uses tag no_default: no preselected default - user have to respond
@@ -2207,7 +2211,7 @@ function pwiz_ask_core {
 	if test "$pwiz_cache_key_value" != @@PWIZ_UNDEFINED@@ ; then
 	    decho_guess "old cached alswer \"$pwiz_cache_key_value\" with credit $pwiz_cache_key_credit"
 	    # Is new answer different from old one?
-	    if test "$pwiz_answer" != "$pwiz_cache_key_value" ; then
+	    if [ $pwiz_tag_force_overwrite = false -a "$pwiz_answer" != "$pwiz_cache_key_value" ] ; then
 		nocred_string=
 		nocred_help=
 		nocred_no=1
@@ -2408,7 +2412,7 @@ You can get rid this dialog by -g and/or -G command line options."\
 # FIXME: implement pwiz_ask_selection === unordered list
 # BIG FIXME: Implement new askmenu engine and delayed answers
 
-#@ pwiz_ask_list desc longdesc [ tags ]
+#@ pwiz_ask_list desc longdesc [ tags ... ]
 # desc: short description of feature
 # longdesc: long description of feature
 # tags: optional tags
@@ -2598,7 +2602,7 @@ function pwiz_list_add {
     fi
 }
 
-#@ {callback} [ tags ]
+#@ {callback} [ tags ... ]
 # tags: optional tags
 # returns $pwiz_answer: result of question
 #
@@ -2672,7 +2676,7 @@ function pwiz_phase_list {
     done
 }
 
-#@ pwiz_phase_add phase contents [ tags ]
+#@ pwiz_phase_add phase contents [ tags ... ]
 # phase: existing phase
 # action: contents of action to be added, optionaly containing undo
 #hooks
@@ -2743,6 +2747,38 @@ function pwiz_phase_add_callme {
     pwiz_phase_add "$1" "${pwiz_module_current}_$1${2:+ $2}"
 }
 
+#@ pwiz_phase_add_callme_cond condition phase [ arg ]
+# condition: variable name, where condition is stored (i. e. without
+#leading $)
+# phase: existing phase
+# arg: argument to function
+#
+# Add call to function module_phase with arguments arg to phase to be
+#used in module initialization, but execute it only if condition
+#variable in time of execution is true.
+# It is the simplification of:
+#@<
+#pwiz_phase_add {phase} "if ${condition} ; then {module}_{phase} {arg} ; fi"
+#@>
+# NOTE: If your arguments needs quotes and special characters, you
+#have to escape them to prevent double bash expansion.
+# WARNING: This function cannot be called outside module init.
+
+# FIXME with pwiz_module_exec: In future, argumentless version will call function named as module
+# FIXME: undo actions
+function pwiz_phase_add_callme_cond {
+# FIXME: for debugging only:
+    if test "$4" != "" ; then
+	pwiz_fatal "4 arguments: pwiz_phase_add_callme $*"
+    fi
+    if test "$pwiz_module_current" = "ERROR" ; then
+	pwiz_fatal "pwiz_phase_add_callme_cond called outside init"
+    fi
+    pwiz_phase_add "$2" "if $1 ; then
+    ${pwiz_module_current}_$2${3:+ $3}
+fi"
+}
+
 #@ pwiz_phase_new_call phase_id { "after" | "before" } existing_phase [ arg ]
 # phase_id: id of new phase
 # { "after" | "before" } existing_phase: position of phase
@@ -2790,9 +2826,10 @@ function pwiz_phase_new_call {
 #pwiz_phase_add {phase}_prepare "{module}_{phase}_prepare {arg}"
 #pwiz_phase_add {phase}_set "{module}_{phase}_set {arg}"
 #function {phase}_provider {
-#    pwiz_phase_add_callme {phase}
+#    pwiz_phase_add_callme_cond {phase}_condition {phase}
 #}
 #@>
+# {phase}_condition is set to true by default.
 # NOTE: If your arguments needs quotes and special characters, you
 #have to escape them to prevent double bash expansion.
 # WARNING: Optional argument {arg} is not used in {phase}_provider.
@@ -2813,8 +2850,9 @@ function pwiz_phase_new_3 {
     pwiz_phase_new $1 after $1_prepare
     pwiz_phase_new_call $1_set after $1 $4
     eval "function $1_provider {
-    pwiz_phase_add_callme $1
+    pwiz_phase_add_callme_cond \\\$$1_condition $1
 }"
+    eval $1_condition=true
 }
 
 #@ pwiz_phase_new_3_guess phase_id { "after" | "before" } existing_phase [ arg ]
@@ -2854,11 +2892,12 @@ function pwiz_phase_new_3_guess {
     pwiz_phase_new $1 after $1_prepare
     pwiz_phase_new_call $1_set after $1 $5
     eval "function $1_provider {
-    pwiz_phase_add_callme $1
+    pwiz_phase_add_callme_cond \\\$$1_condition $1
 }"
     eval "function $1_guess {
     pwiz_guess_add $1 \"\$@\"
 }"
+    eval $1_condition=true
 }
 
 #@ pwiz_phase_add_run phase contents

@@ -1,0 +1,53 @@
+#! /bin/bash
+
+case $1 in
+    desc )
+	echo "sourceforge.net support functions"
+	return
+	;;
+    longdesc )
+	echo "This module provides basic dialog for package selection."
+	return
+	;;
+    init )
+	pwiz_module_needs package
+	pwiz_module_uses html
+	package_home_page_provider
+	;;
+    version )
+	echo "0.1"
+	return
+	;;
+    * )
+	return
+	;;
+esac
+
+#@ sourceforge_package_home_page
+#
+# Searches probable home pages on Sourceforge site. (internal)
+function sourceforge_package_home_page {
+    if html_http_exists "http://$package_basename.sourceforge.net/" ; then
+	package_home_page_guess "http://$package_basename.sourceforge.net/" 12
+    fi
+    if html_http_exists "http://sourceforge.net/projects/$package_basename/" ; then
+	package_home_page_guess "http://sourceforge.net/projects/$package_basename/" 11
+    fi
+}
+
+#@ sourceforge_package_search_uri
+#
+# Searches probable download area on Sourceforge site. (internal)
+# NOTE: sourceforge:// is special URI provider, which needs further processing.
+function sourceforge_package_search_uri {
+    if html_http_exists "http://prdownloads.sourceforge.net/$package_basename/" ; then
+	package_search_uri_guess "sourceforge://$package_basename" 50
+    fi
+}
+
+# BIG FIXME: not yet finished
+# FIXME: Make difference: project name, package basename, tarball basename
+function sourceforge_get {
+    local mirror filename
+    uri=http://$mirror.dl.sourceforge.net/sourceforge/$package_basename/$filename
+}
