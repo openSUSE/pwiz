@@ -53,8 +53,18 @@ case $1 in
 	;;
 esac
 
+# FIXME: Initialize guesses here.
 function rpm_setup {
-# FIXME: This phase should be at the end of process, not beginning
+    :
+}
+
+function rpm_files_finish {
+    pwiz_phase_add_rem rpm_files_finish ""
+    pwiz_phase_add_rem rpm_files_finish "%files$rpm_files_args"
+}
+
+function rpm_files_list {
+# FIXME: Ask maybe even later in packaging process?
 	# FIXME: Extract these attributes from spec file, if it exists, either old one or bundled.
     rpm_add_preamble Name         $pwiz_project_project
     rpm_add_preamble Version      $pwiz_project_version
@@ -81,15 +91,8 @@ function rpm_setup {
 	q=rpm_description__ default= p=0
     rpm_description__="$pwiz_answer"
     rpm_add_description           "$rpm_description__"
-}
-
-function rpm_files_finish {
-    pwiz_phase_add_rem rpm_files_finish ""
-    pwiz_phase_add_rem rpm_files_finish "%files$rpm_files_args"
-}
-
-function rpm_files_list {
 # FIXME: move to globals or other section, do not create final list, but replace dir -> systemdir
+    local supbackage
     filelist_read_open
     exec 4>$PWIZ_TMPDIR/rpm_sub_tmp
     while filelist_read_item ; do
@@ -102,14 +105,15 @@ function rpm_files_list {
     filelist_read_close
     exec 4>&-
 # FIXME: This should be in general part.
-    uniq <$PWIZ_TMPDIR/rpm_sub_tmp | LC_ALL=C sort | uniq >$PWIZ_TMPDIR/rpm_sub
-    for rpm_supbackage in $(<$PWIZ_TMPDIR/rpm_sub) ; do
+    uniq <$PWIZ_TMPDIR/rpm_sub_tmp | LC_ALL=C sort -u >$PWIZ_TMPDIR/rpm_sub
+    for supbackage in $(<$PWIZ_TMPDIR/rpm_sub) ; do
+	rpm_subpackage_add "$supbackage"
 	pwiz_phase_add_rem rpm_files_list ""
 # FIXME: support rpm_files_args
-	pwiz_phase_add_rem rpm_files_list "%files $rpm_supbackage"
+	pwiz_phase_add_rem rpm_files_list "%files $supbackage"
 	filelist_read_open
 	while filelist_read_item ; do
-	    if test "$filelist_tag_sub" = "$rpm_supbackage" ; then
+	    if test "$filelist_tag_sub" = "$supbackage" ; then
 		rpm_files_create
 	    fi
 	done

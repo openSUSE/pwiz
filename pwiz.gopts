@@ -136,7 +136,9 @@ function pwiz_prompt {
 # FIXME: Maybe global and trap
     history -r
 # FIXME: Completion
-    while read -e -r -p "$1pwiz:$PWIZ_PHASE_CURRENT[$PWIZ_STAGE_CURRENT]@$PWD> " ; do
+    while read -e -r -p "$1$PWIZ_PHASE_CURRENT[$PWIZ_STAGE_CURRENT]
+$pwiz_step_stage_code
+pwiz@$PWD> " ; do
 	if test -z "$REPLY" ; then
 	    break
 	fi
@@ -186,6 +188,15 @@ function pwiz_redirect_stdin_close {
 function pwiz_redirect_stdout_close {
     exec >&-
     exec >&6-
+}
+#@ pwiz_redirect_stdout_suspend
+function pwiz_redirect_stdout_suspend {
+    exec 8>&1
+    exec >&6
+}
+#@ pwiz_redirect_stdout_restore
+function pwiz_redirect_stdout_restore {
+    exec >&8-
 }
 #@ pwiz_redirect_stdout
 function pwiz_redirect_stderr_close {
@@ -569,7 +580,7 @@ pwiz_engine_interface pkgdb what_owns
 # Question engine is iterface for communication with users. Engine
 # asks user and waits for response.
 
-#@ pwiz_question_yesno desc longdesc [ tags ... ]
+# FIXME: obsolete #@ pwiz_question_yesno desc longdesc [ tags ... ]
 #@ Returns: 0: yes
 #@ Returns: 1: false
 #@ pwiz_question_radio desc longdesc [ tags ... ]
@@ -581,6 +592,8 @@ pwiz_engine_interface pkgdb what_owns
 #@ pwiz_question_list desc longdesc [ tags ... ]
 #@ Returns: FIXME
 
+# FIXME: obsolete yesno
+#pwiz_engine_interface question radio selection string list
 pwiz_engine_interface question yesno radio selection string list
 
 # Question engine is in most cases used through ask interface. It
@@ -698,15 +711,15 @@ function pwiz_guess_trust_version {
 pwiz_tag_inherit=80
 
 #@ pwiz_guess [ tags ]
-# Returns array of ${pwiz_guesses[]}, ${pwiz_strings[]} (optional), ${pwiz_trusts[]} for possible answers and $pwiz_guess_best
+# Returns array of ${pwiz_guesses[]}, ${pwiz_strings[]} (optional), ${pwiz_hotkeys[]} (optional), ${pwiz_trusts[]} for possible answers and $pwiz_guess_best
 # with index of best guess and $pwiz_guess_best_value.
 # FIXME: Implement knowledge!!!
-#@tags default, p, string: Array tags of guess descriptions.
+#@tags default, p, string, hotkey: Array tags of guess descriptions.
 #@tags q: Question ID.
 #@tags valid: Validity range.
 #@tags id, after, before: Tags for ordered lists.
 function pwiz_guess {
-    local key_found is_new tags count guesses_count v_total v_default v_p v_string callback
+    local key_found is_new tags count guesses_count v_total v_default v_p v_string v_hotkey callback
 
     pwiz_read_tags
     pwiz_keys_set
@@ -720,10 +733,11 @@ function pwiz_guess {
 
     # parse guesses in tags
     guesses_count=0
-    unset pwiz_guesses pwiz_strings pwiz_trusts
+    unset pwiz_guesses pwiz_strings pwiz_hotkeys pwiz_trusts
     while test $guesses_count -lt ${#pwiz_tag_default[*]} -a "${pwiz_tag_default[0]}" != @@PWIZ_UNDEFINED@@ ; do
 	pwiz_guesses[guesses_count]="${pwiz_tag_default[guesses_count]}"
 	pwiz_strings[guesses_count]="${pwiz_tag_string[guesses_count]}"
+	pwiz_hotkeys[guesses_count]="${pwiz_tag_hotkey[guesses_count]}"
 	pwiz_check_p "${pwiz_tag_p[guesses_count]}"
 	pwiz_trusts[guesses_count++]=$((${pwiz_tag_p[guesses_count]} * $pwiz_auto_guess / 100))
     done
@@ -735,13 +749,14 @@ function pwiz_guess {
 	    $callback
 	done'
 
-	# parse guesses in environment variables pwiz_guess_default_{q} pwiz_guess_p_{q} and pwiz_guess_string_{q}
+	# parse guesses in environment variables pwiz_guess_default_{q} pwiz_guess_p_{q}, pwiz_guess_string_{q} pwiz_guess_hotkey_{q}
 	# WARNING: Those quesses does not recomputed p
 	eval v_total\=\${#pwiz_guess_default_$pwiz_tag_q\[@\]}
 	for (( count=0 ; count < v_total ; count++ )) ; do
 	    eval v_default\=\"\${pwiz_guess_default_$pwiz_tag_q\[count\]}\"
 	    eval v_p\=\${pwiz_guess_p_$pwiz_tag_q\[count\]}
 	    eval v_string\=\"\${pwiz_guess_string_$pwiz_tag_q\[count\]}\"
+	    eval v_hotkey\=\"\${pwiz_guess_hotkey_$pwiz_tag_q\[count\]}\"
 	    decho_guess "found guess in variable $v_default ($v_p%)"
 	    is_new=true
 	    for (( guesses_count=0 ; guesses_count < ${#pwiz_guesses[*]} ; guesses_count++ )) ; do
@@ -758,7 +773,17 @@ function pwiz_guess {
 		if ! test -z "$v_string" ; then
 		    pwiz_strings[${#pwiz_guesses[*]}]="$v_string"
 		fi
+		if ! test -z "$v_hotkey" ; then
+		    pwiz_hotkeys[${#pwiz_guesses[*]}]="$v_hotkey"
+		fi
 		pwiz_array_add pwiz_guesses "$v_default"
+	    else
+		if ! test -z "${pwiz_strings[guesses_count]}" ; then
+		    pwiz_strings[guesses_count]="$v_string"
+		fi
+		if ! test -z "${pwiz_hotkeys[guesses_count]}" ; then
+		    pwiz_hotkeys[guesses_count]="$v_hotkey"
+		fi
 	    fi
 	done
 
@@ -815,7 +840,7 @@ pwiz_auto_guess=50
 # Default is undefined (definition prevents collision with empty strung default).
 pwiz_tag_default=@@PWIZ_UNDEFINED@@
 
-#@ pwiz_guess_add q value p [ string ]
+#@ pwiz_guess_add q value p [ string hotkey ]
 #@ Add predefined guess to environment variables pwiz_guess_default_{q} pwiz_guess_p_{q} and pwiz_guess_string_{q}
 # WARNING: Those quesses does not recomputed p
 function pwiz_guess_add {
@@ -824,6 +849,9 @@ function pwiz_guess_add {
     eval pwiz_guess_p_$1\[count\]\=\"\$3\"
     if ! test -z "$4" ; then
 	eval pwiz_guess_string_$1\[count\]\=\"\$4\"
+    fi
+    if ! test -z "$5" ; then
+	eval pwiz_guess_hotkey_$1\[count\]\=\"\$5\"
     fi
 set >/tmp/set
 }
@@ -857,13 +885,12 @@ function pwiz_key_parse {
 
 #@ pwiz_ask_core question_function desc longdesc [ tags ... ]
 # Generic asking interface function.
-# Returns in variable $pwiz_answer
+# Returns in variable $pwiz_answer and $pwiz_answer_{question}
 #@tags knowledge: Knowledge type required for answer.
 #@tags q: Question ID.
 # FIXME: implement callbacks for defaut for all questions pwiz_ask_callback_{question}
 function pwiz_ask_core {
-    local question_function desc longdesc rc knowledge
-
+    local question_function desc longdesc rc knowledge count hotkey
     question_function=$1
     desc="$2"
     longdesc="$3"
@@ -873,7 +900,33 @@ function pwiz_ask_core {
     pwiz_cache_validity_apply
 
     decho_guess "query tags: $*"
+    if ! test -z "$pwiz_tag_q" ; then
+	eval pwiz_answer\=\"\${pwiz_answer_$pwiz_tag_q-@@PWIZ_UNDEFINED@@}\"
+	if test "$pwiz_answer" != @@PWIZ_UNDEFINED@@ ; then
+	    decho_guess "already answered: $pwiz_answer"
+	    return
+	fi
+    fi
     pwiz_guess "$@"
+
+    unset pwiz_hotarray
+    # Search for unique hotkeys.
+# FIXME: elsewhere???
+    pwiz_hotarray[64#h]=h
+    # hotkey for manual is currently reserved (maybe others want to be reserved)
+    if $pwiz_tag_allow_new ; then
+	pwiz_hotarray[64#m]=m
+    fi
+    for (( count=0 ; count < ${#pwiz_guesses[*]} ; count++ )) ; do
+	hotkey="${pwiz_hotkeys[$count]}"
+	if ! test -z "$hotkey" ; then
+	    if test -z "${pwiz_hotarray[64#$hotkey]}" ; then
+		pwiz_hotarray[64#$hotkey]=$count
+	    else
+		unset pwiz_hotkeys[$count]
+	    fi
+	fi
+    done
 
     $question_function "$desc" "$longdesc" "$@"
     rc=$?
@@ -883,6 +936,7 @@ function pwiz_ask_core {
     eval knowledge\=\$pwiz_knowledge_$pwiz_tag_knowledge
     if ! test -z "$pwiz_tag_q" ; then
 	pwiz_cache_write $pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$product/$pversion/$build "$pwiz_answer" "$@" trust=$knowledge
+	eval pwiz_answer_$pwiz_tag_q\=\"\$pwiz_answer\"
     fi
 
     return $rc
@@ -896,19 +950,24 @@ pwiz_tag_knowledge=general
 # It's because, for example default[1]=* can be expanded to file name
 # "default3=dummy", if such file exists.
 
+# FIXME: The backend can use two ways: special yesno function or use it via string input.
+
 alias pwiz_ask_yesno="set -o noglob ; pwiz_ask_yesno_f"
 function pwiz_ask_yesno_f {
     set +o noglob
     local rc
-
-    pwiz_ask_core pwiz_question_yesno "$@"
-
+#    pwiz_ask_core pwiz_question_yesno "$@"
+    local desc="$1"
+    local longdesc="$2"
+    shift 2
+    pwiz_ask_core pwiz_question_string "$desc" "$longdesc" "default[0]=false" "string[0]=no" "p[0]=0" "hotkey[0]=n" "default[1]=true" "string[1]=yes" "p[1]=0" "hotkey[1]=y" yesno=true allow_new=false "$@"
     if $pwiz_answer ; then
 	return
     else
 	return 1
     fi
 }
+pwiz_tag_yesno=false
 
 #@tags callback: Callback function for "enter manually" (returns $pwiz_answer).
 #@tags allow_new: if set to false, "enter manually" is disabled (default: true).
@@ -1711,13 +1770,7 @@ while pwiz_step query ; do
 	    echo "${pwiz_result#pwiz_rem }"
 	    ;;
 	"pwiz_run_eval "* | "pwiz_rem_eval "* )
-# FIXME: Remove debug
-	    echo "*** To be evaluated ${pwiz_result}" >&2
 	    eval echo \"\${PWIZ_STAGE_EVAL_$PWIZ_PHASE_CURRENT\[$PWIZ_STAGE_CURRENT\]}\"
-	    ;;
-	* )
-# FIXME: Remove debug
-	    echo "*** internal $pwiz_tmp" >&2
 	    ;;
     esac
 done

@@ -10,7 +10,7 @@ case $1 in
 	return
 	;;
     init )
-	pwiz_module_needs filelist rpm
+	pwiz_module_needs filelist
 	filelist_inspect_provider
 	filelist_split_candidate devel
 	;;
@@ -23,36 +23,95 @@ case $1 in
 	;;
 esac
 
+shopt -s extglob
 function split_devel_filelist_inspect {
-    local active=false
+    local cache_name cache_record file_name
     filelist_read_open
     pwiz_redirect_stdout $filelist_file_tmp
+    shopt -s extglob
     while filelist_read_item ; do
+# BIG FIXME: filename x listname in biarch
+	filelist_tagx_name=${filelist_tag_name/\\%\{_lib\}/lib}
+	file_name="$PWIZ_INSTALLROOT$filelist_tagx_name"
 	case "$filelist_tag_name" in
 # FIXME: lib64 - biarch must be run before
 # FIXME: allow file list modification
-# FIXME: allow manual additions
-# FIXME: allow addition of both pathname and pathname-like patterns
-# FIXME: Check for soname - if soname is *.so, don't give it to -devel
-# FIXME: If library is module, ask user.
-# FIXME: pkgconfig to separate module
-	    $libdir/lib*.so | $libdir/lib*.*a | $includedir | $includedir/* | $libdir/pkgconfig/*.pc )
+# FIXME: allow manual additions
+# FIXME: allow addition of both pathname and pathname-like patterns
+# FIXME: pkgconfig to separate module
+# FIXME: Maybe better is to test against complete LDPATH
+	    $libdir/lib*([^/]).so )
+		# If file is a link and soname is not set to it, lib*.so can be included to devel.
+# FIXME: install root
+		if test -L "$file_name" ; then
+		    split_devel_get_soname "$file_name"
+		    if test "$pwiz_result" = "${filelist_tag_name##*/}" ; then
+			echo "$filelist_line"
+		    else
+			echo "$filelist_line@sub=devel"
+		    fi
+		else
+		    echo "$filelist_line"
+		fi
+		;;
+	    # File is not in $libdir.
+	    $libdir/*/lib*.so )
+		# If file is a link and soname is not set to it, lib*.so maybe can be included to devel.
+# FIXME: install root
+		if test -L "$file_name" ; then
+		    split_devel_get_soname "$file_name"
+		    if test "$pwiz_result" = "${filelist_tag_name##*/}" ; then
+			echo "$filelist_line"
+		    else
+			# PWIZ cache name is deduced from dirname
+			cache_name=${filelist_tagx_name%/*}
+# FIXME: Maybe create pwiz_filename_to_cachename
+			cache_name=${cache_name//[-\/.]/_}
+			pwiz_redirect_stdout_suspend
+			pwiz_ask_yesno "Pack lib*.so files in directory ${filelist_tag_name%/*} to devel subpackage?" \
+			    "It's hard to decide, whether mentioned files should go to devel subpackage or not. Maybe these files are needed for module loading and are required. Then say no. But if you check, that these files are not needed for package functionality, you can answer yes. It's safe to say no." q=split_devel__$cache_name default=false p=10
+			pwiz_redirect_stdout_restore
+			if $pwiz_answer ; then
+			    echo "$filelist_line@sub=devel"
+			else
+			    echo "$filelist_line"
+			fi
+		    fi
+		else
+		    echo "$filelist_line"
+		fi
+		;;
+	    $libdir*/lib*.la | $libdir*/lib*.a | $includedir* | $libdir/pkgconfig/*.pc )
 		echo "$filelist_line@sub=devel"
-		active=true
+		;;
+	    $bindir/*-config )
+# FIXME: Maybe create pwiz_filename_to_cachename
+		cache_name=${filelist_tagx_name//[-\/.]/_}
+		pwiz_redirect_stdout_suspend
+		pwiz_ask_yesno "Pack file $filelist_tag_name to devel subpackage?" \
+		    "It's hard to decide, whether mentioned file should go to devel subpackage or not. Maybe this file is development configuration script. Then say yes. It's safe to say no." q=split_devel__$cache_name default=false p=30
+		pwiz_redirect_stdout_restore
+		if $pwiz_answer ; then
+		    echo "$filelist_line@sub=devel"
+		else
+		    echo "$filelist_line"
+		fi
 		;;
 	    * )
 		echo "$filelist_line"
 		;;
 	esac
     done
+    shopt -u extglob
     filelist_read_close
     pwiz_redirect_stdout_close
-# FIXME
-    cp -a $filelist_file $filelist_file_tmp.spl1
-    cp -a $filelist_file_tmp $filelist_file_tmp.spl2
     mv $filelist_file_tmp $filelist_file
-# FIXME: to RPM
-    if $active ; then
-	rpm_subpackage_add devel
-    fi
+}
+shopt -u extglob
+
+# FIXME: to platform dependent part:
+#@ split_devel_get_soname file
+#@ returns in $pwiz_result
+function split_devel_get_soname {
+    pwiz_result="$(objdump -p "$1" | sed -n $'s/[ \t]*SONAME[ \t]*\(.*\)/\\1/p')"
 }

@@ -22,6 +22,7 @@ function pwiz_engine_question_dumb_quit {
 }
 
 # pwiz_question_yesno desc longdesc [ tags ... ]
+# FIXME: Probably obsolete - replaced by special case of ask_string
 function pwiz_engine_question_dumb_yesno {
     local desc longdesc guesses_count=0 true_p=0 false_p=0 REPLY
     desc="$1"
@@ -72,7 +73,7 @@ function pwiz_engine_question_dumb_yesno {
 
 # pwiz_question_string desc longdesc [ tags ... ]
 function pwiz_engine_question_dumb_string {
-    local desc longdesc guesses_count default REPLY
+    local desc longdesc guesses_count selection default REPLY
 
     desc="$1"
     longdesc="$2"
@@ -82,18 +83,22 @@ function pwiz_engine_question_dumb_string {
 	echo
 	echo "$desc"
 	guesses_count=0
-	while test $guesses_count -lt ${#pwiz_guesses[*]} ; do
+	for (( guesses_count=0 ; guesses_count < ${#pwiz_guesses[*]} ; guesses_count++ )) ; do
 	    if test $guesses_count = "$pwiz_guess_best" ; then
 		default=", default"
 	    else
 		default=
 	    fi
-	    if test -z "${pwiz_strings[$guesses_count]}" ; then
-		echo "$guesses_count) \"${pwiz_guesses[$guesses_count]}\" (${pwiz_trusts[$guesses_count]}%$default)"
+	    if test -z "${pwiz_hotkeys[$guesses_count]}" ; then
+		selection="$guesses_count"
 	    else
-		echo "$guesses_count) ${pwiz_strings[$guesses_count]} (${pwiz_trusts[$guesses_count]}%$default)"
+		selection="$guesses_count, ${pwiz_hotkeys[$guesses_count]}"
 	    fi
-	    let guesses_count++
+	    if test -z "${pwiz_strings[$guesses_count]}" ; then
+		echo "$selection) \"${pwiz_guesses[$guesses_count]}\" (${pwiz_trusts[$guesses_count]}%$default)"
+	    else
+		echo "$selection) ${pwiz_strings[$guesses_count]} (${pwiz_trusts[$guesses_count]}%$default)"
+	    fi
 	done
 	if $pwiz_tag_allow_new ; then
 	    echo "m) enter manually"
@@ -109,6 +114,8 @@ function pwiz_engine_question_dumb_string {
 		pwiz_answer="$pwiz_guess_best_value";
 		break
 		;;
+# FIXME: sometimes m and h can have other meaning
+# probably entirely rewrite to have h and m as pluggable answers
 	    m )
 		if $pwiz_tag_allow_new ; then
 		    if test -z "$pwiz_tag_callback" ; then
@@ -134,6 +141,15 @@ function pwiz_engine_question_dumb_string {
 		fi
 		pwiz_answer="${pwiz_guesses[$REPLY]}"
 		break
+		;;
+	    [a-z] )
+		if test -z "${pwiz_hotarray[64#$REPLY]}" ; then
+		    echo "No such hotkey!"
+		    continue
+		else
+		    pwiz_answer="${pwiz_guesses[${pwiz_hotarray[64#$REPLY]}]}"
+		    break
+		fi
 		;;
 	    * )
 		echo "Invalid choice!"

@@ -25,14 +25,12 @@ case $1 in
 esac
 
 function gtkdoc_split_doc_filelist_inspect {
-    local active=false
     filelist_read_open
     pwiz_redirect_stdout $filelist_file_tmp
     while filelist_read_item ; do
 	case "$filelist_tag_name" in
 	    $datadir/gtk-doc/html/* )
 		echo "$filelist_line@sub=doc"
-		active=true
 		;;
 	    * )
 		echo "$filelist_line"
@@ -41,12 +39,5 @@ function gtkdoc_split_doc_filelist_inspect {
     done
     filelist_read_close
     pwiz_redirect_stdout_close
-# FIXME
-    cp -a $filelist_file $filelist_file_tmp.spd1
-    cp -a $filelist_file_tmp $filelist_file_tmp.spd2
     mv $filelist_file_tmp $filelist_file
-# FIXME - this should be done by RPM
-    if $active ; then
-	rpm_subpackage_add doc
-    fi
 }

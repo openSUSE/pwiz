@@ -46,7 +46,9 @@ function gnu_configure_check_unpacked {
 # FIXME!!!!! installroot can or cannot be available. Use RPM %expansion
 #		pwiz_phase_add_run_eval install_action 'make DESTDIR=$PWIZ_INSTALLROOT install'
 # FIXME: pwiz_rune does not need this expansion, but direct run yes
-	    pwiz_phase_add_run install_action 'make DESTDIR=$RPM_BUILD_ROOT install'
+# maybe FIXME: activate gnu_make instead
+	    pwiz_phase_add_run install_action 'make$gnu_make_vars'
+	    pwiz_phase_add_run install_action 'make$gnu_make_vars DESTDIR=$RPM_BUILD_ROOT install'
 	fi
     fi
 }

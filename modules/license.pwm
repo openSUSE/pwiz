@@ -10,7 +10,8 @@ case $1 in
 	return
 	;;
     init )
-	pwiz_module_needs check_unpacked
+# FIXME: do not depend on rpm, but rpm on license
+	pwiz_module_needs check_unpacked rpm
 	check_unpacked_provider
 	;;
     version )
@@ -28,7 +29,7 @@ esac
 function license_check_unpacked {
 # FIXME: license_found as array to be able to search more files.
 # As last in resort: sort -u
-    license_found=
+    local license_found=
     local file
     local md5sum
     for file in COPYING COPYING.LIB ; do
@@ -38,13 +39,14 @@ function license_check_unpacked {
 	    case $md5sum in
 # GNU General Public License Version 2, June 1991
 		94d55d512a9ba36caa9b7df079bae19f )
-		    license_found="$license_found GPL"
+		    license_found="${license_found:+$license_found }GPL"
 		    ;;
 # GNU Library General Public License Version 2, June 1991
 		55ca817ccb7d5b5b66355690e9abc605 )
-		    license_found="$license_found LGPL"
+		    license_found="${license_found:+$license_found }LGPL"
 		    ;;
 	    esac
 	fi
     done
+    pwiz_guess_add rpm_license "$license_found" 50
 }
