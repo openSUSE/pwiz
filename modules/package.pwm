@@ -110,6 +110,7 @@ function package_download {
 	pwiz_ask_string "What is the latest version conforming policy?" \
 	    "This is only a rhetorical question. PWIZ searched package search URI and is nearly sure, that it is suggested one." \
 	    q=package_latest_version valid=product knowledge=none guesslevel=100
+	# FIXME: maybe tag delay=whatever
 	pwiz_project_version=$package_latest_version
     else
 	pwiz_project_version=$package_version

@@ -207,7 +207,8 @@ function gnu_configure_args {
 	"This package will use configure script with following arguments:$gnu_configure_prefix_args$gnu_configure_args
 Do you want any additional options?" \
     "Most GNU configure scripts has optional arguments to turn on or off some features or specify search paths. Some of them can be guesses, but other needs to be defined manually. Now you can define them." \
-    q=gnu_configure_extra_args importance=25 default[0]="" c[0]=1 default[1]=@@help@@ string[1]="GNU configure --help"
+    q=gnu_configure_extra_args importance=25 default[0]="" c[0]=1 default[1]=@@help@@ string[1]="GNU configure --help" \
+    delay=BUILD_COMPILE_LAST
     if test "$pwiz_answer" = "@@help@@" ; then
 # FIXME use pwiz_find
 	find -name configure -exec {} --help \;

@@ -706,6 +706,16 @@ alias pwiz_read_tags='local pwiz_tag ; for pwiz_tag in "$@" ; do pwiz_tag=${pwiz
 # WARNING: This function resets noglob shell option.
 alias pwiz_read_vtags='set -o noglob ; local pwiz_vtag ; eval '\''for pwiz_vtag in '\''"$tags"'\'' ; do pwiz_vtag=${pwiz_vtag//\'\''\'\'''\''/\'\''\'\'''\''\\\'\''\'\'''\''\'\''\'\'''\''}\'\''\'\'''\'' ; pwiz_vtag=${pwiz_vtag/=/=\'\''\'\'''\''} ; eval pwiz_vtag_"$pwiz_vtag" ; done'\'' ; set +o noglob'
 
+
+#@ pwiz_read_local_tags
+#
+# Read tags from argument of a function.
+# Does the same as @pwiz_read_tags, but reads values are read to local
+#variables pwiz_local_tag_tag='value'.
+# WARNING: This function resets noglob shell option.
+alias pwiz_read_local_tags='local pwiz_local_tag ; for pwiz_local_tag in "$@" ; do eval local pwiz_local_tag_${pwiz_local_tag%%[=[]*} ; done ; for pwiz_local_tag in "$@" ; do pwiz_local_tag=${pwiz_local_tag/\'\''/\'\''\\\'\''\'\''}\'\'' ; pwiz_local_tag=${pwiz_local_tag/=/=\'\''} ; eval pwiz_local_tag_"$pwiz_local_tag" ; done'
+unset ${!pwiz_local_tag_*}
+
 #@ pwiz_reset_tags
 #
 # Alias for unsetting all tag variables. Prevent inheritance of tags
@@ -754,6 +764,7 @@ pwiz_register_tag_default askmenu_hook=:
 pwiz_register_tag_default callback=pwiz_question_enter_string
 pwiz_register_tag_default callback_prompt="Your value: "
 pwiz_register_tag_default multiline=false
+pwiz_register_tag_default delay=
 
 #@ pwiz_default_tags
 #
@@ -966,7 +977,16 @@ function pwiz_cache_save {
     fi
     pwiz_keys_set
     pwiz_cache_validity_apply
-    pwiz_cache_write "$pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$build" "$value" "$@"
+
+    if test $answer_credit -ge $pwiz_cache_key_credit ; then
+	if test -n "$pwiz_tag_delay" ; then
+	    pwiz_phase_add "$pwiz_tag_delay" "$pwiz_credibilize $pwiz_tag_delay"
+	    pwiz_cache_delay "$pwiz_tag_delay" "$pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$build" "$value" "$@" credit=-2
+	    pwiz_cache_write "$pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$build" "$value" "$@" credit=-2
+	else
+	    pwiz_cache_write "$pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$build" "$value" "$@"
+	fi
+    fi
 
     eval $pwiz_tag_q\=\"\$value\"
 }
@@ -1042,6 +1062,45 @@ function pwiz_cache_load {
     pwiz_guess
 }
 
+# FIXME: Document: Maximal number of consecutive _ in list id is 1, in id is 2.
+
+#@@ Delayed caching
+# For some answers, it's wise to attach credit only if next phases are
+#successfully completed. For this purpose, delayed caching functions
+#are available.
+# Delayed write is a mechanism, when answer is cached, but the credit
+#is set to -2 (delayed invalid) until defined command completes.
+# The basic difference between delayed caching and standard phases
+#are:
+# - argument parsing style does not require quote ascaping
+# - easy searching for cached values
+
+# FIXME: Are delayed caching functions really needed?
+
+#@ pwiz_cache_delay phase [ pwiz_cache_write_args ... ]
+# phase: phase to delay credibilization to
+# pwiz_cache_write_args arguments for later execution
+#of @pwiz_cache_write command
+#
+# Function for delayed write. First argument is phase name, when
+#credit will become valid, the rest are arguments
+#for @pwiz_cache_write.
+function pwiz_cache_delay {
+    local phase=$1
+    shift
+    eval "pwiz_cache_delay_item___${phase}___$pwiz_cache_delay_item_count=(\"\$@\")"
+    let pwiz_cache_delay_item_count++
+}
+
+#@ pwiz_cache_credibilize phase
+# phase: phase to delay credibilization to
+function pwiz_cache_credibilize {
+    local item
+    eval for item in "\${!pwiz_cache_delay_item___$1___*}"' ; do
+	eval "pwiz_cache_write \"\${$item[@]}\""
+	unset $item
+    done'
+}
 
 #@@ Pkgdb engine
 # This engine provides interface with package database on destination
@@ -1331,6 +1390,7 @@ function pwiz_guess_credit {
 # returns $pwiz_guess_best: index of most credible guess
 # returns $pwiz_guess_best_value: value of most credible guess
 # returns $pwiz_guess_best_credit: credit of best guess
+# returns $pwiz_guess_failed_delay: was there a failed delayed save for this item? (boolean)
 # returns ${pwiz_strings[@@]}: array of string values of guesses (optional - array can be sparse)
 # returns ${pwiz_hotkeys[@@]}: array of guess hotkeys (optional - array can be sparse)
 # returns $pwiz_cache_key_value: cache value for exact match ("@@PWIZ_UNDEFINED@@" if none)
@@ -1428,6 +1488,7 @@ function pwiz_guess {
     pwiz_guess_best_value=@@PWIZ_UNDEFINED@@
     pwiz_guess_best_credit=-1
     pwiz_guess_best=-1
+    pwiz_guess_failed_delay=false
 
     for (( count=0 ; count < ${#pwiz_guesses[*]} ; count++ )) ; do
 	decho_guess "guess[$count]: \"${pwiz_guesses[count]}\" (${pwiz_credits[count]}c)"
@@ -1436,6 +1497,10 @@ function pwiz_guess {
 	    pwiz_guess_best_credit=${pwiz_credits[count]}
 	    pwiz_guess_best=$count
 	    pwiz_guess_best_value="${pwiz_guesses[count]}"
+	else
+	    if test ${pwiz_credits[count]} -eq -2 ; then
+		pwiz_guess_failed_delay=true
+	    fi
 	fi
     done
     decho_guess "available guesses: ${#pwiz_guesses[*]}"
@@ -1999,7 +2064,7 @@ function pwiz_ask_radio_f {
 # Internal core function for making a guess and asking user. Used by
 #@pwiz_ask_{function}. Uses @pwiz_guess.
 function pwiz_ask_core {
-    local question_function desc longdesc rc count hotkey credit_threshold answer_credit guesslevel knowledge pwiz_answer_save nocred_string nocred_help nocred_no
+    local question_function desc longdesc rc count hotkey credit_threshold answer_credit guesslevel knowledge pwiz_answer_save nocred_string nocred_help nocred_no credit_string
 
     # Local variables for use in guess and question engines:
     local -a pwiz_guesses pwiz_credits pwiz_strings pwiz_hotkeys
@@ -2055,6 +2120,11 @@ function pwiz_ask_core {
 	let credit_threshold=knowledge\*OPTVAL_THRESHOLD/100
 	let credit_threshold=credit_threshold\*pwiz_tag_importance/100
     fi
+    # There was a failed session with this answer. Ask for sure.
+    if $pwiz_guess_failed_delay ; then
+	credit_threshold=100
+    fi
+
     decho_guess "auto answer threshold credit: $credit_threshold"
     if test $pwiz_guess_best_credit -ge $credit_threshold ; then
 	decho_guess "PWIZ auto answer: $pwiz_answer"
@@ -2079,10 +2149,15 @@ function pwiz_ask_core {
 	    else
 		is_default=
 	    fi
+	    case ${pwiz_credits[count]} in
+		-2) credit_string="failed";;
+		-1) credit_string="unassigned";;
+		*) credit_string="${pwiz_credits[count]}c";;
+	    esac
 	    if test -z "${pwiz_strings[count]}" ; then
-		pwiz_askmenu_add pwiz_ask_core_askmenu_reply $count "\"${pwiz_guesses[count]}\" (${pwiz_credits[count]}c)" "${pwiz_hotkeys[count]}" "" head$is_default
+		pwiz_askmenu_add pwiz_ask_core_askmenu_reply $count "\"${pwiz_guesses[count]}\" ($credit_string)" "${pwiz_hotkeys[count]}" "" head$is_default
 	    else
-		pwiz_askmenu_add pwiz_ask_core_askmenu_reply $count "${pwiz_strings[count]} (${pwiz_credits[count]}c)" "${pwiz_hotkeys[count]}" "" head$is_default
+		pwiz_askmenu_add pwiz_ask_core_askmenu_reply $count "${pwiz_strings[count]} ($credit_string)" "${pwiz_hotkeys[count]}" "" head$is_default
 	    fi
 	done
 	pwiz_askmenu_complete
@@ -2179,7 +2254,13 @@ function pwiz_ask_core {
 	    fi
 	fi
 	if test $answer_credit -ge $pwiz_cache_key_credit ; then
-	    pwiz_cache_write "$pwiz_cache_key" "$pwiz_answer" "$@" credit=$answer_credit
+	    if test -n "$pwiz_tag_delay" ; then
+		pwiz_phase_add "$pwiz_tag_delay" "$pwiz_credibilize $pwiz_tag_delay"
+		pwiz_cache_delay "$pwiz_tag_delay" "$pwiz_cache_key" "$pwiz_answer" "$@" credit=$answer_credit
+		pwiz_cache_write "$pwiz_cache_key" "$pwiz_answer" "$@" credit=-2
+	    else
+		pwiz_cache_write "$pwiz_cache_key" "$pwiz_answer" "$@" credit=$answer_credit
+	    fi
 	fi
 	eval $pwiz_tag_q\=\"\$pwiz_answer\"
     fi
@@ -2323,6 +2404,7 @@ function pwiz_get_guesslevel {
 #@@ Asking for selection from list
 
 # FIXME: implement pwiz_ask_selection === unordered list
+# BIG FIXME: Implement new askmenu engine and delayed answers
 
 #@ pwiz_ask_list desc longdesc [ tags ]
 # desc: short description of feature
@@ -2557,8 +2639,13 @@ function pwiz_phase_new {
 	    * )
 		pwiz_fatal "bad specification of phase insertion type"
 	esac
-	eval declare -a PWIZ_STAGE_$1
-	eval declare -a PWIZ_STAGE_EVAL_$1
+	eval declare -a PWIZ_STAGE_ACTION_$1
+	eval declare -a PWIZ_STAGE_NOMINAL_$1
+	eval declare -a PWIZ_STAGE_FASTREVERT_$1
+	eval declare -a PWIZ_STAGE_REVERT_$1
+	eval declare -a PWIZ_STAGE_SAFEREVERT_$1
+# FIXME: removed
+#	eval declare -a PWIZ_STAGE_EVAL_$1
     else
 	if test "$3" != "ok" ; then
 	    pwiz_fatal "phase $1 already exists"
@@ -2583,26 +2670,48 @@ function pwiz_phase_list {
     done
 }
 
-#@ pwiz_phase_add phase contents
+#@ pwiz_phase_add phase contents [ tags ]
 # phase: existing phase
-# contents: contents of action to be added
+# action: contents of action to be added, optionaly containing undo
+#hooks
+# uses tag nominal: if your action includes reversibility hooks to
+#your stage contents, you probably don't want to see them in final
+#package. Use nominal to record action differently for package (should
+#have the same function as contents, but without undo hooks)
+# uses tag fast_revert: unsafe, but fast undo action
+# uses tag revert: potentionally unsafe but generally reasonable undo
+#action (implies fast_revert, if not specified)
+# uses tag safe_revert: Safe undo action (implies fast_revert and
+#revert, if not specified)
 #
-# Adds an action as a last action of a phase.
+# Adds an action as a last action of a phase. Specify undoability in
+#tags.
+# NOTE: It is recommended to add revert tags. Missing revert tags
+#increases cost of undo.
 # NOTE: If your command needs quotes and special characters, you have
 #to escape them to prevent double bash expansion.
 
 # FIXME: undo actions
 function pwiz_phase_add {
 # FIXME: for debugging only:
-    if test "$3" != "" ; then
-	pwiz_fatal "3 arguments: pwiz_phase_add $*"
-    fi
-    local tmp_phase
-    eval tmp_phase\=\$PWIZ_PHASE_AFTER_$1
+    local tmp_phase phase action revert
+    phase=$1
+    action=$2
+    shift 2
+    pwiz_read_local_tags
+    eval tmp_phase\=\$PWIZ_PHASE_AFTER_$phase
     if test "$tmp_phase" = "" ; then
-	pwiz_fatal "cannot add to phase $1 - phase does not exist"
+	pwiz_fatal "cannot add to phase $phase - phase does not exist"
     fi
-    pwiz_array_add PWIZ_STAGE_$1 "$2"
+    pwiz_array_add PWIZ_STAGE_ACTION_$phase "$action"
+    pwiz_array_add PWIZ_STAGE_NOMINAL_$phase "${pwiz_local_tag_nominal-$action}"
+# BIG FIXME: implement pwiz_engine_restart
+    revert="${pwiz_local_tag_saferevert-pwiz_engine_restart}"
+    pwiz_array_add PWIZ_STAGE_SAFEREVERT_$phase "$revert"
+    revert="${pwiz_local_tag_revert-$revert}"
+    pwiz_array_add PWIZ_STAGE_REVERT_$phase "$revert"
+    revert="${pwiz_local_tag_fastrevert-$revert}"
+    pwiz_array_add PWIZ_STAGE_FASTREVERT_$phase "$revert"
 }
 
 #@ pwiz_phase_add_callme phase [ arg ]
@@ -2829,7 +2938,7 @@ function pwiz_phase_add_rem {
 # Go to next stage.
 function pwiz_stage_next {
     local pwiz_step_phase_stages
-    eval pwiz_step_phase_stages=\${#PWIZ_STAGE_$PWIZ_PHASE_CURRENT\[\*\]}
+    eval pwiz_step_phase_stages=\${#PWIZ_STAGE_ACTION_$PWIZ_PHASE_CURRENT\[\*\]}
     let PWIZ_STAGE_CURRENT++
     if test $PWIZ_STAGE_CURRENT -ge $pwiz_step_phase_stages ; then
 	return 1
@@ -2844,7 +2953,7 @@ function pwiz_stage_next {
 # Go to previous stage.
 function pwiz_stage_prev {
     local pwiz_step_phase_stages
-    eval pwiz_step_phase_stages=\${#PWIZ_STAGE_$PWIZ_PHASE_CURRENT\[\*\]}
+    eval pwiz_step_phase_stages=\${#PWIZ_STAGE_ACTION_$PWIZ_PHASE_CURRENT\[\*\]}
     let PWIZ_STAGE_CURRENT--
     if test $PWIZ_STAGE_CURRENT -ge $pwiz_step_phase_stages -o $PWIZ_STAGE_CURRENT -lt -1 ; then
 	return 1
@@ -2862,7 +2971,7 @@ function pwiz_stage_prev {
 # FIXME: must run through undo actions
 function pwiz_stage_goto {
     local pwiz_step_phase_stages
-    eval pwiz_step_phase_stages=\${#PWIZ_STAGE_$PWIZ_PHASE_CURRENT\[\*\]}
+    eval pwiz_step_phase_stages=\${#PWIZ_STAGE_ACTION_$PWIZ_PHASE_CURRENT\[\*\]}
     PWIZ_STAGE_CURRENT=$1
     if test $PWIZ_STAGE_CURRENT -lt -1 ; then
 	return 1
@@ -2883,7 +2992,7 @@ function pwiz_phase_next {
 	if [ $PWIZ_PHASE_CURRENT = END ] ; then
 	    return 1
 	fi
-	eval pwiz_step_phase_stages=\${#PWIZ_STAGE_$PWIZ_PHASE_CURRENT\[\*\]}
+	eval pwiz_step_phase_stages=\${#PWIZ_STAGE_ACTION_$PWIZ_PHASE_CURRENT\[\*\]}
 	if test $pwiz_step_phase_stages -eq 0 ; then
 	    vvecho "Skipping empty phase $PWIZ_PHASE_CURRENT..."
 	else
@@ -2907,7 +3016,7 @@ function pwiz_phase_prev {
     if [ $PWIZ_PHASE_CURRENT = BEGIN ] ; then
 	return 1
     fi
-    eval pwiz_step_phase_stages=\${#PWIZ_STAGE_$PWIZ_PHASE_CURRENT\[\*\]}
+    eval pwiz_step_phase_stages=\${#PWIZ_STAGE_ACTION_$PWIZ_PHASE_CURRENT\[\*\]}
     if test $pwiz_step_phase_stages -eq 0 ; then
 	pwiz_phase_next
     else
@@ -2933,7 +3042,7 @@ function pwiz_phase_goto {
     fi
     PWIZ_PHASE_CURRENT=$1
     PWIZ_STAGE_CURRENT=-1
-    eval pwiz_step_phase_stages=\${#PWIZ_STAGE_$PWIZ_PHASE_CURRENT\[\*\]}
+    eval pwiz_step_phase_stages=\${#PWIZ_STAGE_ACTION_$PWIZ_PHASE_CURRENT\[\*\]}
     if test $pwiz_step_phase_stages -eq 0 ; then
 	pwiz_phase_next
     else
@@ -2955,54 +3064,144 @@ function pwiz_next {
     fi
 }
 
-#@ pwiz_step action { "query" | "run" }
-# returns: 0: phase and stage exists and executed, 1: no next stage
-#and phase
-# "query": query action, not execute
+#@ pwiz_step action { "query" { "nominal" | "safe_revert" | "revert" | "fast_revert" } | "run" | "safe_revert" | "revert" | "fast_revert" }
+# "query": query action in next argument, not execute
 # returns $pwiz_result: in query mode, stage action is returned in
 #this variable
-# "run": execute action
+# "run": standard action, optionaly containing undo hooks
+# "nominal": if your action includes reversibility hooks to your stage
+#contents, you probably don't want to see them in final package. Use
+#nominal to record action differently for package (should have the
+#same function as contents, but without undo hooks)
+# "fast_revert": unsafe, but fast undo action
+# "revert": potentionally unsafe but generally reasonable undo action
+#(implies fast_revert, if not specified)
+# "safe_revert": Safe undo action (implies fast_revert and revert, if
+#not specified)
 # returns $pwiz_rc: in run mode, it contains result code of command
 #(if any)
+# returns: 0: phase and stage exists and executed, 1: no next stage
+#and phase
 #
 # Standard step of phase engine.
 # NOTE: pwiz_step first increments counters, then executes, to enable
 #roll-ons (commands adding action immediatelly after current stage).
 # WARNING: Return code is not return code of executed stage!
 function pwiz_step {
-    local pwiz_step_stage_code rc
+    local pwiz_step_stage_code runmode=true rc
+
+    set -o >~/pwiz/pwiz_phase_state$$/set_o_$PWIZ_STAGE_COUNTER
+    shopt >~/pwiz/pwiz_phase_state$$/shopt_$PWIZ_STAGE_COUNTER
+    echo -e "set +o posix\nset +o errexit" >~/pwiz/pwiz_phase_state$$/env_$PWIZ_STAGE_COUNTER
+    export >>~/pwiz/pwiz_phase_state$$/env_$PWIZ_STAGE_COUNTER
+    ( unset POSIXLY_CORRECT ; set >>~/pwiz/pwiz_phase_state$$/env_$PWIZ_STAGE_COUNTER )
+    echo -n "$PWD" >~/pwiz/pwiz_phase_state$$/pwd_$PWIZ_STAGE_COUNTER
+
+    let PWIZ_STAGE_COUNTER++
     if pwiz_next ; then
 	vvecho "Entering stage $PWIZ_PHASE_CURRENT[$PWIZ_STAGE_CURRENT]..." >&2
-	eval pwiz_step_stage_code=\"\${PWIZ_STAGE_$PWIZ_PHASE_CURRENT\[$PWIZ_STAGE_CURRENT\]}\"
+	if test $1 = query ; then
+	    runmode=false
+	    shift
+	fi
+
 	case $1 in
-	    query )
-		pwiz_result="$pwiz_step_stage_code"
+	    "" | run )
+		eval pwiz_step_stage_code=\"\${PWIZ_STAGE_ACTION_$PWIZ_PHASE_CURRENT\[$PWIZ_STAGE_CURRENT\]}\"
 		;;
-	    run )
-# FIXME pwiz_rem and pwiz_rem_eval
-		vvecho -e "Running: $pwiz_step_stage_code"
-# FIXME: pwiz_rune does not need this expansion, but direct run yes
-# Do it better, this is a hack.
-		if $OPTARG_PROMPT ; then
-		    pwiz_prompt +
-		fi
-		if test "${pwiz_step_stage_code%% *}" = pwiz_run ; then
-		    pwiz_run "${pwiz_step_stage_code#pwiz_run }"
-		else
-		    if ! test "${pwiz_step_stage_code%% *}" = pwiz_rem ; then
-			eval "$pwiz_step_stage_code"
-		    fi
-		fi
-		pwiz_rc=$?
-		if $OPTARG_PROMPT ; then
-		    pwiz_prompt -
-		fi
+	    nominal )
+		eval pwiz_step_stage_code=\"\${PWIZ_STAGE_NOMINAL_$PWIZ_PHASE_CURRENT\[$PWIZ_STAGE_CURRENT\]}\"
+		;;
+	    safe_revert )
+		eval pwiz_step_stage_code=\"\${PWIZ_STAGE_SAFEREVERT_$PWIZ_PHASE_CURRENT\[$PWIZ_STAGE_CURRENT\]}\"
+		;;
+	    revert )
+		eval pwiz_step_stage_code=\"\${PWIZ_STAGE_REVERT_$PWIZ_PHASE_CURRENT\[$PWIZ_STAGE_CURRENT\]}\"
+		;;
+	    fast_revert )
+		eval pwiz_step_stage_code=\"\${PWIZ_STAGE_FASTREVERT_$PWIZ_PHASE_CURRENT\[$PWIZ_STAGE_CURRENT\]}\"
+		;;
+	    * )
+		pwiz_fatal "Bad arguments of pwiz_step: $*"
 		;;
 	esac
+
+	if $runmode ; then
+# FIXME pwiz_rem and pwiz_rem_eval
+	    vvecho -e "Running: $pwiz_step_stage_code"
+# FIXME: pwiz_rune does not need this expansion, but direct run yes
+# Do it better, this is a hack.
+	    if $OPTARG_PROMPT ; then
+		pwiz_prompt +
+	    fi
+	    if test "${pwiz_step_stage_code%% *}" = pwiz_run ; then
+		pwiz_run "${pwiz_step_stage_code#pwiz_run }"
+	    else
+		if ! test "${pwiz_step_stage_code%% *}" = pwiz_rem ; then
+		    eval "$pwiz_step_stage_code"
+		fi
+	    fi
+	    pwiz_rc=$?
+	    if $OPTARG_PROMPT ; then
+		pwiz_prompt -
+	    fi
+	else
+	    pwiz_result="$pwiz_step_stage_code"
+	fi
 	return 0
     else
 	return 1
     fi
+}
+
+#@ pwiz_backstep action
+# returns: 0: phase and stage exists and executed, 1: no next stage
+#and phase
+#
+# Standard step of phase engine.
+
+# There is no query mode for backstep.
+
+# NOTE: pwiz_step first increments counters, then executes, to enable
+#roll-ons (commands adding action immediatelly after current stage).
+
+# WARNING: This command will forget all variables (including local)
+#except wariables named @$pwiz_failed_*.
+
+# FIXME: Backstep UI (must return to phase engine and then perform).
+# Special return code from pwiz_ask is needed.
+
+# FIXME: Delete these files after completion.
+
+function pwiz_backstep {
+    # These variables are not really local, but locals of pwiz_step.
+# BIG FIXME: execute undo action
+    local pwiz_step_stage_code runmode rc
+    local var pwiz_failed_backstep_temp
+
+    if test $PWIZ_STAGE_COUNTER -eq 0 ; then
+	return 1
+    fi
+
+    let PWIZ_STAGE_COUNTER--
+    pwiz_failed_backstep_temp=$PWIZ_STAGE_COUNTER
+
+    # Search for all variables
+    for var in ${!a*} ${!b*} ${!c*} ${!d*} ${!e*} ${!f*} ${!g*} ${!h*} ${!i*} ${!j*} ${!k*} ${!l*} ${!m*} ${!n*} ${!o*} ${!p*} ${!q*} ${!r*} ${!s*} ${!t*} ${!u*} ${!v*} ${!w*} ${!x*} ${!y*} ${!z*} ${!A*} ${!B*} ${!C*} ${!D*} ${!E*} ${!F*} ${!G*} ${!H*} ${!I*} ${!J*} ${!K*} ${!L*} ${!M*} ${!N*} ${!O*} ${!P*} ${!Q*} ${!R*} ${!S*} ${!T*} ${!U*} ${!V*} ${!W*} ${!X*} ${!Y*} ${!Z*} ${!_*} ; do
+	case "$var" in
+# Exclude BASH_LINENO, BASH_SOURCE, FUNCNAME, otherwise bash will segfault.
+# execute_function() in execute_cmd.c, array_pop ()
+	    pwiz_failed_* | BASH_LINENO | BASH_SOURCE | FUNCNAME )
+		;;
+	    * )
+		unset $var 2>/dev/null
+		;;
+	esac
+    done
+    cd "$(<~/pwiz/pwiz_phase_state$$/pwd_$pwiz_failed_backstep_temp)"
+    . ~/pwiz/pwiz_phase_state$$/env_$pwiz_failed_backstep_temp 2>/dev/null
+    eval 'eval "$(exec <'~/pwiz/pwiz_phase_state$$/shopt_$PWIZ_STAGE_COUNTER$' ; while read ; do if test "${REPLY##*\t}" = on ; then echo "shopt -s ${REPLY%%\t*}" ; else echo "shopt -u ${REPLY%%\t*}" ; fi ; done)"'
+    eval 'eval "$(exec <'~/pwiz/pwiz_phase_state$$/set_o_$PWIZ_STAGE_COUNTER$' ; while read ; do if test "${REPLY##*\t}" = on ; then echo "set -o ${REPLY%%\t*}" ; else echo "set +o ${REPLY%%\t*}" ; fi ; done)"'
 }
 
 #@ pwiz_phase_reset
@@ -3012,6 +3211,8 @@ function pwiz_step {
 function pwiz_phase_reset {
     PWIZ_PHASE_CURRENT=BEGIN
     PWIZ_STAGE_CURRENT=0
+    PWIZ_STAGE_COUNTER=0
+    mkdir -p ~/pwiz/pwiz_phase_state$$
 }
 pwiz_phase_reset
 

@@ -526,7 +526,7 @@ function rpm_write_spec_preamble {
 function rpm_write_spec_body {
     pwiz_phase_save
     pwiz_phase_reset
-    while pwiz_step query ; do
+    while pwiz_step query nominal ; do
 	case "$pwiz_result" in
 	    "pwiz_run "* )
 		echo "${pwiz_result#pwiz_run }"

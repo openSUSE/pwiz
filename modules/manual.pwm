@@ -60,6 +60,8 @@ function manual_action_new_me {
     manual_action_add "$1" manual_command "add command manually"
 }
 
+# BIG FIXME: add delay= to these questions
+
 #@ manual_action_ask action_id
 # action_id: id of existing action
 #
