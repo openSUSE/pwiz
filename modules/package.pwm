@@ -50,10 +50,11 @@ function package_basename_prepare {
 }
 
 function package_basename_set {
+# FIXME: setting valid=product is not perfect, but in this moment we do not know version.
     if test -z "$package_basename" ; then
 	pwiz_ask_string "Global project source base file name." \
 	    "Now you should enter project base file name (i. e. name without prefix, suffix and version). This can be a string or extended pattern (see extglob in bash(1))." \
-	    q=package_base default="$pwiz_project_project" p=70
+	    q=package_base default="$pwiz_project_project" valid=product p=50
 	package_basename="$pwiz_answer"
     fi
 }

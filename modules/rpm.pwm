@@ -69,6 +69,9 @@ esac
 function rpm_setup {
     # Initialize dummy entries.
     rpm_add_preamble basic  Name         $pwiz_project_project
+    if test "$package_basename" != "$pwiz_project_project" ; then
+	rpm_add_preamble_line basic "%define _name $package_basename"
+    fi
     rpm_add_preamble basic  Version      $pwiz_project_version
     rpm_add_preamble basic  Group        "Other"
     rpm_add_preamble basic  License      "Unknown"
@@ -80,7 +83,8 @@ function rpm_setup {
 
 # FIXME: define source list dynamically
 function rpm_source {
-    rpm_add_preamble source Source       $package_uri
+    rpm_subst_names "$package_uri"
+    rpm_add_preamble source Source       $pwiz_result
 }
 
 function rpm_files_finish {
@@ -140,7 +144,11 @@ function unpack_prepare {
 #    cd -
 #    rm -rf $PWIZ_TMPDIR/rpm_unpack
 # FIXME:
-    pwiz_phase_add_run unpack '%setup'
+    rpm_setup_args=
+    if test "$package_basename" != "$pwiz_project_project" ; then
+	rpm_setup_args=' -n %{_name}-%{version}'
+    fi
+    pwiz_phase_add_run unpack "%setup$rpm_setup_args"
 # FIXME: probably obsolete
 #    pwiz_phase_add     unpack 'rpm_section=prep_after_setup'
 }
@@ -197,7 +205,7 @@ function rpm_create_dummy_spec {
 
     echo "%prep"
     if $3 ; then
-	echo "%setup"
+	echo "%setup$rpm_setup_args"
     fi
     if test $2 != prep ; then
 	echo -e "\n%$2"
@@ -234,7 +242,7 @@ function rpm_projectdirs_init_callback {
 }
 
 #@ rpm_subst "string"
-#@ substitute %{name}, %{version}
+#@ substitute %{name}, %{_name}, %{version}
 #@ FIXME: implement and substitute %{_name}
 #@ BIG FIXME: crashes for packages with "name" and "version" in package name
 #@ Returns: $pwiz_result
@@ -242,6 +250,9 @@ function rpm_projectdirs_init_callback {
 function rpm_subst_names {
     pwiz_result="$1"
     pwiz_result=${pwiz_result//$pwiz_project_project/%\{name\}}
+    if test "$package_basename" != "$pwiz_project_project" ; then
+	pwiz_result=${pwiz_result//$package_basename/%\{_name\}}
+    fi
     pwiz_result=${pwiz_result//$pwiz_project_version/%\{version\}}
 }
 
@@ -311,6 +322,9 @@ function rpm_set_attributes {
     unset rpm_preamble__basic_
     unset rpm_preamble__temp_
     rpm_add_preamble basic  Name         $pwiz_project_project
+    if test "$package_basename" != "$pwiz_project_project" ; then
+	rpm_add_preamble_line basic "%define _name $package_basename"
+    fi
     rpm_add_preamble basic  Version      $pwiz_project_version
     pwiz_ask_string "Enter RPM group for main package." \
 	"RPM requires assigning group attribute for any package created. You should select one of the list." \

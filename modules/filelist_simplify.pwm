@@ -11,7 +11,10 @@ case $1 in
 	;;
     init )
 	pwiz_module_needs filelist
+	pwiz_module_uses package
 	pwiz_phase_new_call filelist_simplify before filelist_finish
+# FIXME: Sometimes creates ugly simplifications:
+#	pwiz_phase_add_callme PREPARE
 	pwiz_debug_feature simplify "file list simplification" "This feature lists messages explaining file list simplification (i. e. using wildcards instead of more files)."
 	;;
     version )
@@ -306,6 +309,18 @@ filelist_simplify_add_pattern "*.*a" "*.so.*" "*.so"
 filelist_simplify_add_pattern "*-config"
 
 filelist_simplify_add_fallback_pattern "*"
+
+# FIXME: causes ugly /opt/gnome/bin/eog -> /opt/gnome/bin/*eog
+function filelist_simplify_PREPARE {
+    filelist_simplify_add_pattern "*$pwiz_project_project"
+    filelist_simplify_add_pattern "$pwiz_project_project*"
+    filelist_simplify_add_pattern "*$pwiz_project_version"
+    filelist_simplify_add_pattern "$pwiz_project_version*"
+    filelist_simplify_add_pattern "*$package_basename"
+    filelist_simplify_add_pattern "$package_basename*"
+}
+
+# FIXME: Maybe nice to have name-* name-name2-* *.ext1.ext2 etc.
 
 # Add a callback pattern *.ext for any extension
 function filelist_simplify_dotsep_callback {
