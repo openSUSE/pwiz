@@ -1920,6 +1920,8 @@ function pwiz_get_guesslevel {
 # tags: optional tags
 # uses tag q: question ID
 # uses tag importance: answer importance (i. e. whether can pwiz continue with default)
+# uses tag default[@@]: predefined defaults
+# uses tag c[@@]: credits of predefined defaults (optional - array can be sparse)
 # returns ${pwiz_list_all[@@]}: string with list of available items
 #(used by backend (in form ${q}_${list_item})
 # returns ${pwiz_list_c_{tag q}[@@]}: credits of selectable items in

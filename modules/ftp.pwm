@@ -40,7 +40,8 @@ esac
 # NOTE: If @$2 == "", then $pwiz_callback is used (probably echo).
 function ftp_list {
     mkdir -p $PWIZ_CACHEDIR/ftp
-    if ! $ftp_WGET -P $PWIZ_CACHEDIR/ftp -N -nr -r -l 1 "$1/" ; then
+    $ftp_WGET -P $PWIZ_CACHEDIR/ftp -N  --no-remove-listing -r -l 1 "$1/"
+    if ! test -f "$PWIZ_CACHEDIR/ftp/${1#ftp://}/.listing" ; then
 	echo "*** $1 not found"
 	return 1
     fi
@@ -56,10 +57,12 @@ function ftp_list {
 # NOTE: If @$2 == "", then $pwiz_callback is used (probably echo).
 
 # FIXME: Check, whether works for atypical characters in URI
+# FIXME: replace echo by debug commands
 function ftp_list_recursive {
     local pwiz_callback_save pwiz_callback_sub
     mkdir -p $PWIZ_CACHEDIR/ftp
-    if ! $ftp_WGET -P $PWIZ_CACHEDIR/ftp -N -nr -r -R '*' "$1/" ; then
+    $ftp_WGET -P $PWIZ_CACHEDIR/ftp -N  --no-remove-listing -r -R '*' "$1/"
+    if ! test -f "$PWIZ_CACHEDIR/ftp/${1#ftp://}/.listing" ; then
 	echo "*** $1 not found"
 	return 1
     fi

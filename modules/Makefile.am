@@ -37,7 +37,7 @@ installwatch_clean_SOURCES=installwatch_clean.c
 EXTRA_DIST=\
 	biarch.pwm\
 	filelist.pwm\
-	filelist_simplify.pwm\
+	filelist_simplify.pwm.in\
 	find_lang.pwm\
 	ftp.pwm\
 	gnome.pwm\

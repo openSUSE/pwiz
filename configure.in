@@ -41,9 +41,14 @@ AC_FUNC_MALLOC
 AC_FUNC_REALLOC
 AC_FUNC_UTIME_NULL
 AC_CHECK_FUNCS([ftruncate getcwd lchown mkdir realpath rmdir strdup strerror strstr utime])
+
+# Checks for features.
+AC_BASH_PARAMETER_STAR_EXPANSION_BUG
+
 AC_CONFIG_FILES([
 genopts/Makefile
 modules/Makefile
+modules/filelist_simplify.pwm
 engines/Makefile
 engines/cache/Makefile
 engines/pkgdb/Makefile

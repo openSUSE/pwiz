@@ -55,5 +55,10 @@ function biarch_filelist_inspect {
 # File name with path changed to bi-arch one using RPM macros.
 function biarch_replace {
 # FIXME: libdir?
-    pwiz_result=${1/#$prefix\/lib/$prefix/%\{_lib\}}
+# FIXME: better detection
+    if test -e /lib64 ; then
+	pwiz_result=${1/#$prefix\/lib64/$prefix/%\{_lib\}}
+    else
+	pwiz_result=${1/#$prefix\/lib/$prefix/%\{_lib\}}
+    fi
 }

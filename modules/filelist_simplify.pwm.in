@@ -300,8 +300,8 @@ function filelist_simplify_add_fallback_pattern {
 # NOTE: Unused function.
 function filelist_simplify_compare_file_pattern {
     local rc=1
-    local extpat=${2//\\*/*([^/])}
-    extpat=${extpat//\\?/[^/]}
+    local extpat=${2//@BASH_PARAMETER_STAR_ESCAPE@*/*([^/])}
+    extpat=${extpat//@BASH_PARAMETER_STAR_ESCAPE@?/[^/]}
     shopt -s extglob
     case "$1" in
 	$extpat )
@@ -319,8 +319,8 @@ function filelist_simplify_compare_file_pattern {
 #of @filelist_simplify_compare_file_pattern in two parts increases
 #efficiency of comparing many files with the same pattern.
 function filelist_simplify_compare_file_pattern_gen {
-    filelist_simplify_compare_file_pattern_pregen=${1//\\*/*([^/])}
-    filelist_simplify_compare_file_pattern_pregen=${filelist_simplify_compare_file_pattern_pregen//\\?/[^/]}
+    filelist_simplify_compare_file_pattern_pregen=${1//@BASH_PARAMETER_STAR_ESCAPE@*/*([^/])}
+    filelist_simplify_compare_file_pattern_pregen=${filelist_simplify_compare_file_pattern_pregen//@BASH_PARAMETER_STAR_ESCAPE@?/[^/]}
 }
 
 #@ filelist_simplify_compare_filename_pattern_gen filename
