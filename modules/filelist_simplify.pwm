@@ -14,7 +14,6 @@ case $1 in
 	pwiz_phase_new_callme filelist_simplify before filelist_finish
 	;;
     filelist_simplify )
-set -x
 	unset filelist_simplify_files
 	unset filelist_simplify_types
 	unset filelist_simplify_taglines
@@ -35,6 +34,7 @@ set -x
 
 # FIXME:  Simplify on predefined pattern
 	# Make a simplification.
+	shopt -s extglob
 	for (( filelist_simplify_count=0 ; filelist_simplify_count < ${#filelist_simplify_files[@]} ; filelist_simplify_count++ )) ; do
 	    filelist_simplify_file="${filelist_simplify_files[filelist_simplify_count]}"
 	    filelist_simplify_type="${filelist_simplify_types[filelist_simplify_count]}"
@@ -64,19 +64,28 @@ set -x
 	    # If directory is in list, it cannot be in unowned list.
 	    # It means, if pattern fits and directory is oned, don't use "*".
 	    if test "$filelist_simplify_type" = dir ; then
-# FIXME: move path part cutting down to while and don't add components
-		filelist_simplify_path="$filelist_simplify_file/dir"
-	    else
 		filelist_simplify_path="$filelist_simplify_file"
+	    else
+		filelist_simplify_path="${filelist_simplify_file%/*}"
 	    fi
 
 # FIXME: If path is not absolute, dead loop occurs
-	    while test "$filelist_simplify_path" != "" ; do
-		# Cut rightmost part of path.
-		filelist_simplify_path="${filelist_simplify_path%/*}"
+	    until test "$filelist_simplify_path" = "" ; do
 
-# FIXME: There can be more patterns in future.
-		for filelist_simplify_pattern in "$filelist_simplify_path/*" ; do
+		for filelist_simplify_callback in "${filelist_simplify_callbacks[@]}" ; do
+		    $filelist_simplify_callback "$filelist_simplify_file"
+		done
+		for filelist_simplify_pattern in "" "${filelist_simplify_patterns[@]}" "${filelist_simplify_fallback_patterns[@]}" ; do
+		    # Expand variables inside pattern
+		    eval filelist_simplify_pattern\=\""\$filelist_simplify_path$filelist_simplify_pattern"\"
+		    filelist_simplify_compare_file_pattern_gen "$filelist_simplify_pattern"
+		    echo "*** checking against pattern $filelist_simplify_pattern"
+		    # If test pattern is not valid for current file, skip it.
+		    if ! filelist_simplify_compare_file_pattern_use "$filelist_simplify_file" ; then
+			echo "*** does not fit to this pattern"
+			filelist_simplify_usable=false
+			continue
+		    fi
 		    filelist_simplify_usable=true
 		    echo "*** simplify pattern: $filelist_simplify_pattern"
 		    for (( filelist_simplify_count2=0 ; filelist_simplify_count2 < ${#filelist_simplify_files[@]} ; filelist_simplify_count2++ )) ; do
@@ -86,38 +95,35 @@ set -x
 			if test "$filelist_simplify_type2" = odir -o  "$filelist_simplify_type2" = ofile ; then
 			    echo "*** (unowned)"
 			    # If any unowned object match, the simplicifation is invalid.
-			    case "$filelist_simplify_file2" in
-				$filelist_simplify_pattern )
-				    echo "*** $filelist_simplify_file2 breaks this simplification"
-				    filelist_simplify_usable=false
-				    break
-				    ;;
-			    esac
+			    if filelist_simplify_compare_file_pattern_use "$filelist_simplify_file2" ; then
+				echo "*** $filelist_simplify_file2 breaks this simplification"
+				filelist_simplify_usable=false
+				break
+			    fi
 			else
 			    echo "*** (owned)"
 			    # If any owned object with different attributes match, the simplicifation is invalid.
-			    case "$filelist_simplify_file2" in
-				$filelist_simplify_pattern )
+			    if filelist_simplify_compare_file_pattern_use "$filelist_simplify_file2" ; then
 # FIXME: Write filelist_simplify_make_tagext
-				    filelist_simplify_tagline2="${filelist_simplify_taglines[filelist_simplify_count2]}"
-				    filelist_simplify_tagext2="${filelist_simplify_tagline2#*@}"
-				    if test "$filelist_simplify_tagext2" = "$filelist_simplify_tagline2" ; then
-					filelist_simplify_tagext2=
-				    fi
-				    if test "$filelist_simplify_tagext" != "$filelist_simplify_tagext2" ; then
-					echo "*** $filelist_simplify_file2 attributes breaks this simplification"
-					filelist_simplify_usable=false
-					break
-				    fi
-				    ;;
-			    esac
+				filelist_simplify_tagline2="${filelist_simplify_taglines[filelist_simplify_count2]}"
+				filelist_simplify_tagext2="${filelist_simplify_tagline2#*@}"
+				if test "$filelist_simplify_tagext2" = "$filelist_simplify_tagline2" ; then
+				    filelist_simplify_tagext2=
+				fi
+				if test "$filelist_simplify_tagext" != "$filelist_simplify_tagext2" ; then
+				    echo "*** $filelist_simplify_file2 attributes breaks this simplification"
+				    filelist_simplify_usable=false
+				    break
+				fi
+			    fi
 			fi
 		    done
 
-		    # Usable pattern found. Let's break a pattern loop.
+		    # Valid pattern found! Break a pattern loop.
 		    if $filelist_simplify_usable ; then
 			break
 		    fi
+
 		done
 
 
@@ -141,7 +147,14 @@ set -x
 		    # This simplification is not usable. Don't try any shorter.
 		    break
 		fi
-# Loop to try to find even better simplification.
+
+		# Now cut rightmost part of path and try again with shorter pattern
+		# and loop to try to find even better simplification.
+		if test "$filelist_simplify_path" = / ; then
+		    filelist_simplify_path=
+		else
+		    filelist_simplify_path="${filelist_simplify_path%/*}"
+		fi
 	    done
 
 # Pattern searching finished.
@@ -162,15 +175,14 @@ set -x
 # FIXME: Note: Matches cannot contain unowned object.
 		# Clean current item explicitly (for directory with contents case).
 		filelist_simplify_files[filelist_simplify_count]=
+		filelist_simplify_compare_file_pattern_gen "$filelist_simplify_valid_glob_pattern"
 		for (( filelist_simplify_count2=0 ; filelist_simplify_count2 < ${#filelist_simplify_files[@]} ; filelist_simplify_count2++ )) ; do
-		    case "${filelist_simplify_files[filelist_simplify_count2]}" in
+		    if filelist_simplify_compare_file_pattern_use "${filelist_simplify_files[filelist_simplify_count2]}" ; then
 			# Check against "/*" ending version of string, not against glob string.
 			# (Directory itself contents is by glob itself.)
-			$filelist_simplify_valid_glob_pattern )
-			    echo "*** removing globbed ${filelist_simplify_files[filelist_simplify_count2]}"
-			    filelist_simplify_files[filelist_simplify_count2]=
-			    ;;
-		    esac
+			echo "*** removing globbed ${filelist_simplify_files[filelist_simplify_count2]}"
+			filelist_simplify_files[filelist_simplify_count2]=
+		    fi
 		done
 
 		# Replace object with glob list.
@@ -180,6 +192,7 @@ set -x
 	    fi
 	# Go to next object in list.
 	done
+	shopt -u extglob
 
 # FIXME:
 set >$filelist_file_tmp.set
@@ -194,7 +207,6 @@ set >$filelist_file_tmp.set
 	unset filelist_simplify_types
 	unset filelist_simplify_taglines
 	pwiz_redirect_stdout_close
-set +x
 # FIXME:
 cp -a $filelist_file $filelist_file_tmp.sim1
 cp -a $filelist_file_tmp $filelist_file_tmp.sim2
@@ -209,3 +221,99 @@ cp -a $filelist_file_tmp $filelist_file_tmp.sim2
 	return
 	;;
 esac
+
+#@ filelist_simplify_add_callback function ...
+#@ callback format: function file
+# Add Callback for pre-creating pattern guesses.
+function filelist_simplify_add_callback {
+    local func
+    for func in "$@" ; do
+	filelist_simplify_callbacks[${#filelist_simplify_callbacks[@]}]=$func
+    done
+}
+
+#@ filelist_simplify_add_pattern pattern ...
+# Add a pattern to list of pattern guesses.
+# Variables in those patterns are expanded each time they are used.
+# Preferred patterns: Those are used, even if * is valid.
+function filelist_simplify_add_pattern {
+    local patt
+    for patt in "$@" ; do
+	filelist_simplify_patterns[${#filelist_simplify_patterns[@]}]="/$patt"
+    done
+}
+
+#@ filelist_simplify_add_fallback_pattern pattern ...
+# Add a pattern to list of fallback pattern guesses (i. e. those last in resort).
+# Variables in those patterns are expanded each time they are used.
+# Unpreferred patterns: Those are used, if * is not valid.
+# NOTE: If you prefer *.ext1 and *.ext2 instead of *, use:
+#	filelist_simplify_fallback_patterns[1000-${#filelist_simplify_fallback_patterns[@]}]="/$patt"
+# (and fix directory match)
+function filelist_simplify_add_fallback_pattern {
+    local patt
+    for patt in "$@" ; do
+	filelist_simplify_fallback_patterns[${#filelist_simplify_fallback_patterns[@]}]="/$patt"
+    done
+}
+
+#@ filelist_simplify_compare_filename_pattern filename pattern
+#@ Check, whether filename matches pattern
+#@ Returns: OK/fail
+# NOTE: "case" and string replacement in Bash uses different pattern
+# matching (filename-like expansion).
+# FIXME: Fails for extglob filename patterns.
+# NOTE: Unused function.
+function filelist_simplify_compare_file_pattern {
+    local rc=1
+    local extpat=${2//\\*/*([^/])}
+    extpat=${extpat//\\?/[^/]}
+    shopt -s extglob
+    case "$1" in
+	$extpat )
+	    rc=0
+	    ;;
+    esac
+    shopt -u extglob
+    return $rc
+}
+#@ filelist_simplify_compare_filename_pattern_gen generate extglob pattern.
+#@ Two phase call increases efficiency of comparing many files with the same pattern.
+function filelist_simplify_compare_file_pattern_gen {
+    filelist_simplify_compare_file_pattern_pregen=${1//\\*/*([^/])}
+    filelist_simplify_compare_file_pattern_pregen=${filelist_simplify_compare_file_pattern_pregen//\\?/[^/]}
+}
+#@ filelist_simplify_compare_filename_pattern_use use extglob pattern.
+#@ Two phase call increases efficiency of comparing many files with the same pattern.
+# WARNING: Must be run in extglob mode!
+function filelist_simplify_compare_file_pattern_use {
+    local rc=1
+    case "$1" in
+	$filelist_simplify_compare_file_pattern_pregen )
+	    rc=0
+	    ;;
+	# NOTE: Special addition against filename expansion: /p/a/t/h will matches its contents, too.
+	$filelist_simplify_compare_file_pattern_pregen/* )
+	    rc=0
+	    ;;
+    esac
+    return $rc
+}
+
+filelist_simplify_add_pattern "man?/*.*"
+filelist_simplify_add_pattern "*.*a" "*.so.*" "*.so"
+
+filelist_simplify_add_fallback_pattern "*"
+
+# Add a callback pattern *.ext for any extension
+function filelist_simplify_dotsep_callback {
+    local basename="${1##*/}"
+    local ext="${basename##*.}"
+    if test "$ext" = "$basename" ; then
+	filelist_simplify_dotsep_pattern=
+    else
+	filelist_simplify_dotsep_pattern="*.$ext"
+    fi
+}
+filelist_simplify_add_callback filelist_simplify_dotsep_callback
+filelist_simplify_add_fallback_pattern '$filelist_simplify_dotsep_pattern'
