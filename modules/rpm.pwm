@@ -80,7 +80,7 @@ function rpm_setup {
     rpm_add_preamble basic  Version      $pwiz_project_version
     rpm_add_preamble basic  Group        "Other"
     rpm_add_preamble basic  License      "Unknown"
-    rpm_add_preamble basic  Summary      "DUMMY"
+    rpm_add_preamble basic  Summary      "PWIZ_DUMMY"
     rpm_add_preamble basic  Release      0
     rpm_add_preamble ext    Autoreqprov  on
     rpm_add_preamble ext    BuildRoot    %{_tmppath}/%{name}-%{version}-build
@@ -344,7 +344,7 @@ function rpm_files_create {
 function rpm_subpackage_add {
     pwiz_array_add rpm_subpackage_list "$1"
     rpm_add_preamble basic  Group        "Other" $subpackage
-    rpm_add_preamble basic  Summary      "DUMMY" $subpackage
+    rpm_add_preamble basic  Summary      "PWIZ_DUMMY" $subpackage
 }
 # FIXME: declare -a ?
 unset rpm_subpackage_list
@@ -412,33 +412,33 @@ function rpm_set_attributes {
     rpm_add_preamble basic  Version      $pwiz_project_version
     pwiz_ask_string "Enter RPM group for main package." \
 	"RPM requires assigning group attribute for any package created. You should select one of the list." \
-	q=rpm_group__ default=Other
+	q=rpm_group__ importance=20 default=Other
     if ! test -z "$package_home_page" ; then
 	rpm_add_preamble basic  URL          "$package_home_page"
     fi
     rpm_add_preamble basic  Group        "$rpm_group__"
     pwiz_ask_string "Enter RPM license for main package." \
 	"RPM requires assigning license attribute for any package created. You should select one of the list." \
-	q=rpm_license default=Unknown
+	q=rpm_license importance=10 default=Unknown
     rpm_add_preamble basic  License      "$rpm_license"
     rpm_add_preamble basic  Release      0
     pwiz_ask_string "Enter RPM summary for main package." \
 	"RPM requires assigning one-line summary attribute for any package created. You should now write any." \
-	q=rpm_summary__
+	q=rpm_summary__  importance=20 default=PWIZ_DUMMY c=-1
     rpm_add_preamble basic  Summary      "$rpm_summary__"
     pwiz_ask_string "Enter RPM prerequires for main package." \
-	"RPM prerequires are packages required for installing this package." q=rpm_prereq__ default=PWIZ_DUMMY c=-1 p=70
+	"RPM prerequires are packages required for installing this package." q=rpm_prereq__ importance=10
     if ! test -z "$pwiz_answer" ; then
 	rpm_add_preamble ext    PreReq       "$pwiz_answer"
     fi
     pwiz_ask_string "Enter RPM requires for main package." \
-	"RPM requires are packages required for using this package." q=rpm_requires__ default="" p=70
+	"RPM requires are packages required for using this package." q=rpm_requires__ default="" importance=10
     if ! test -z "$pwiz_answer" ; then
 	rpm_add_preamble ext    Requires     "$pwiz_answer"
     fi
     pwiz_ask_string "Enter RPM description for main package." \
 	"RPM requires assigning multiple line description attribute for any package created. You should now write any." \
-	multiline=true q=rpm_description__ default=
+	multiline=true q=rpm_description__ importance=20 default=
     rpm_add_description           "$rpm_description__"
 
     for subpackage in "${rpm_subpackage_list[@]}" ; do
@@ -447,29 +447,29 @@ function rpm_set_attributes {
 # FIXME:
 	pwiz_ask_string "Enter RPM group for subpackage $subpackage." \
 	    "PWIZ decided to split binary RPM. It requires assigning group attribute for subpackage $subpackage. You should select one of the list." \
-	    q=rpm_group__$subpackage default="$rpm_group__" c=50 p=80
+	    q=rpm_group__$subpackage importance=3 default="$rpm_group__" c=50
 	rpm_add_preamble basic  Group        "$pwiz_answer" $subpackage
 	pwiz_ask_string "Enter RPM summary for subpackage $subpackage." \
 	    "PWIZ decided to split binary RPM. It requires assigning one-line summary for subpackage $subpackage. You should now write any." \
-	    q=rpm_summary__$subpackage default="$rpm_summary__" c=50 p=80
+	    q=rpm_summary__$subpackage importance=7 default="$rpm_summary__" c=50
 	rpm_add_preamble basic  Summary      "$pwiz_answer" $subpackage
 	eval 'string="${filelist_split_candidate_prerequires__'$subpackage'[*]}"'
 # FIXME: should be ask_list or ask per package and ask user for extras
 	pwiz_ask_string "Enter RPM prerequires for subpackage $subpackage." \
-	    "RPM prerequires are packages required for installing this subpackage." q=rpm_prereq__$subpackage default="$string" c=30 p=80
+	    "RPM prerequires are packages required for installing this subpackage." q=rpm_prereq__$subpackage importance=10 default="$string" c=30
 	if ! test -z "$pwiz_answer" ; then
 	    rpm_add_preamble ext    PreReq       "$pwiz_answer" $subpackage
 	fi
 	eval 'string="${filelist_split_candidate_requires__'$subpackage'[*]}"'
 # FIXME: should be ask_list or ask per package and ask user for extras
 	pwiz_ask_string "Enter RPM requires for subpackage $subpackage." \
-	    "RPM requires are packages required for using this subpackage." q=rpm_requires__$subpackage default="$string" c=30 p=80
+	    "RPM requires are packages required for using this subpackage." q=rpm_requires__$subpackage importance=10 default="$string"
 	if ! test -z "$pwiz_answer" ; then
 	    rpm_add_preamble ext    Requires     "$pwiz_answer" $subpackage
 	fi
 	pwiz_ask_string "Enter RPM description for subpackage $subpackage." \
 	    "PWIZ decided to split binary RPM. It requires assigning multiple line description attribute for any package created. You should now write any." \
-	    multiline=true q=rpm_description__ default="$rpm_description__"
+	    multiline=true q=rpm_description__ importance=7 default="$rpm_description__"
 	rpm_add_description           "$pwiz_answer" $subpackage
     done
 }
@@ -608,9 +608,9 @@ function rpm_source {
     cp -a $PWIZ_RESULTDIR/$pwiz_answer $PWIZ_SOURCESDIR
     local -a addons
     if test "$PWIZ_PHASE_CURRENT" = manual_PREPARE_PREUNPACK ; then
-	addons=( "default[2]=\"@setup@-b#\"" "p[2]=0" "string[2]=\"unpack during %setup before changing directory\"" "default[3]=\"@setup@-a#\"" "p[3]=10" "string[3]=\"unpack during %setup after changing directory\"" )
+	addons=( "default[2]=\"@setup@-b#\"" "c[2]=0" "string[2]=\"unpack during %setup before changing directory\"" "default[3]=\"@setup@-a#\"" "c[3]=1" "string[3]=\"unpack during %setup after changing directory\"" )
     fi
-    pwiz_ask_string "What do you want to do with this source (\"#\" is source number)." "Because RPM sources and patches in PWIZ are ID based, you need to enter eventual commands here. Use \"#\" instead of source number and ## instead of #." default[0]="@cp@%{S:#}" p[0]=10 string[0]="copy to actual directory" default[1]="@cpi@%{S:#}" p[1]=20 string[1]="copy to actual directory and install later" "${addons[@]}" q=rpm_source_name__$1__$2
+    pwiz_ask_string "What do you want to do with this source (\"#\" is source number)." "Because RPM sources and patches in PWIZ are ID based, you need to enter eventual commands here. Use \"#\" instead of source number and ## instead of #." importance=50 default[0]="@cp@%{S:#}" c[0]=1 string[0]="copy to actual directory" default[1]="@cpi@%{S:#}" c[1]=2 string[1]="copy to actual directory and install later" "${addons[@]}" q=rpm_source_name__$1__$2
     eval local sourceno\=\$rpm_sourceno__$2
     local sourcestring=${pwiz_answer//\\#\\#/@@rpm_crosshash@@}
     sourcestring=${sourcestring//\\#/$sourceno}
@@ -704,7 +704,7 @@ function rpm_patch {
 # FIXME: Ask for patch description string.
     cp -a $PWIZ_RESULTDIR/$pwiz_answer $PWIZ_SOURCESDIR
     local -a addons
-    pwiz_ask_string "What do you want to do with this patch (\"#\" is patch number)." "Because RPM patches and patches in PWIZ are ID based, you need to enter eventual commands here. Use \"#\" instead of patch number and ## instead of #." default[0]="@patch@%patch#" p[0]=30 string[0]="apply patch" q=rpm_patch_name__$1__$2
+    pwiz_ask_string "What do you want to do with this patch (\"#\" is patch number)." "Because RPM patches and patches in PWIZ are ID based, you need to enter eventual commands here. Use \"#\" instead of patch number and ## instead of #." importance=50 default[0]="@patch@%patch#" c[0]=3 string[0]="apply patch" q=rpm_patch_name__$1__$2
     eval local patchno\=\$rpm_patchno__$2
     pwiz_answer=${pwiz_answer//\\#\\#/@@rpm_crosshash@@}
     pwiz_answer=${pwiz_answer//\\#/$patchno}
@@ -712,7 +712,7 @@ function rpm_patch {
     local patchcmd="$pwiz_answer"
     case $pwiz_answer in
 	@patch@* )
-	    pwiz_ask_string "Enter arguments of %patch." "You should %patch arguments. It can be, for example \"-p1\"" default[0]="" p[0]=20 default[1]="-p1" p[1]=10
+	    pwiz_ask_string "Enter arguments of %patch." "You should %patch arguments. It can be, for example \"-p1\"" importance=40 default[0]="" c[0]=2 default[1]="-p1" c[1]=1
 	    pwiz_phase_add_run $1 "${patchcmd#@patch@}${pwiz_answer:+ $pwiz_answer}"
 	    ;;
 	* )

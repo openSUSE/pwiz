@@ -88,7 +88,7 @@ function version_compare {
 function version_policy_register {
     local id=$1
     shift
-    pwiz_guess_add version_project_policy $id "" "" "$@"
+    pwiz_guess_add version_project_policy $id "" "$@"
 }
 version_policy_register_string=""
 version_policy_register_counter=0
@@ -139,9 +139,9 @@ function version_ask_policy {
 function version_ask_product_policy {
 	pwiz_ask_string "Select project version policy for your product." \
 	    "Project version policy of your product, means, which version will qualify to your product." \
-	    q=version_policy_product_threshold \
-	    string[0]="all versions will qualify" default[0]=1 p[0]=30 \
-	    string[1]="only stable versions will qualify" default[1]=0 p[1]=70 \
+	    q=version_policy_product_threshold importance=30 \
+	    string[0]="all versions will qualify" default[0]=1 c[0]=3 \
+	    string[1]="only stable versions will qualify" default[1]=0 c[1]=7 \
 	    valid=product allow_new=false
 }
 

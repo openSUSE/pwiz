@@ -149,11 +149,11 @@ function rpm_doc_filelist_install {
 	fi
 	pwiz_cache_save true q=rpm_doc_wants_docdir
 	pwiz_ask_string "Package has ugly located documentation. What to do now?" "In SuSE Linux, documentation is centralized in /usr/share/doc/packages directory. But your package has at least directory \"$ugly_dir\" located in non-standard location. You should move it to standard place, if there is no special reason to keep it at place." \
-	    q=rpm_doc_ugly_doc \
-	    default[0]=keep string[0]="keep it in place" p[0]=50 \
-	    default[1]=move string[1]="move it to standard RPM docdir" p[1]=20 \
-	    default[2]=movesubdir string[2]="move it to subdirectory of standard RPM docdir" p[2]=20 \
-	    default[3]=config string[3]="go back to configure phase and set proper configure option (recommeded if possible, needs pwiz restart" p[3]=10
+	    q=rpm_doc_ugly_doc importance=50 \
+	    default[0]=keep string[0]="keep it in place" c[0]=1 \
+	    default[1]=move string[1]="move it to standard RPM docdir" c[1]=2 \
+	    default[2]=movesubdir string[2]="move it to subdirectory of standard RPM docdir" c[2]=2 \
+	    default[3]=config string[3]="go back to configure phase and set proper configure option (recommeded if possible, needs pwiz restart" c[3]=3
 	case $pwiz_answer in
 	    move )
 		rpm_doc_has_doc_files_addon=true

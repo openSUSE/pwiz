@@ -18,6 +18,7 @@ case $1 in
 	pwiz_phase_new_3_guess package_basename after package_project_set
 	pwiz_phase_new_3_guess package_home_page after package_basename_set
 	pwiz_phase_new_3_guess package_search_uri after package_home_page_set
+	pwiz_guess_add package_search_uri "" 0 "I will enter directly manually download URI."
 # FIXME: finish splitting
 	pwiz_phase_new_call package_download after package_search_uri_set
 	pwiz_debug_feature uri "URI search progress" "This feature turns on verbose displaying of searching of URI."
@@ -53,7 +54,7 @@ function package_basename_set {
 # FIXME: setting valid=product is not perfect, but in this moment we do not know version.
     pwiz_ask_string "Global project source base file name." \
 	"Now you should enter project base file name (i. e. name without prefix, suffix and version). This can be a string or extended pattern (see extglob in bash(1))." \
-	q=package_basename default="$pwiz_project_project" valid=product p=80 c=25
+	q=package_basename default="$pwiz_project_project" valid=product importance=40 c=25
 }
 
 function package_home_page_prepare {
@@ -72,7 +73,7 @@ function package_search_uri_prepare {
 
 function package_search_uri_set {
     pwiz_ask_string "Enter package search URI." \
-	"Package search URI is top-level URI, where sources are searched. Can be space separated list." \
+	"Package search URI is top-level URI, where sources are searched. Can be space separated list. Note that it works for FTP only now." \
 	q=package_search_uri valid=project
 }
 
@@ -86,9 +87,9 @@ function package_download {
     fi
 #    if pwiz_ask_yesno "Do FTP lookup now?" \
 #	"Now you can lookup for FTP. Stored version will be used otherwise." \
-#	default=$package_default p=90 ; then
+#	default=$package_default importance=5 ; then
     ftp_list_recursive $package_search_uri package_collect_uri
-    pwiz_guess_add package_version latest 0 100 "latest conforming policy"
+    pwiz_guess_add package_version latest 5 "latest conforming policy"
     pwiz_ask_string "Enter required version." \
 	"Now you can specify required version. Default is most probably the latest conforming policy. In this case you will be asked for policy to identify latest version. If you are entering version manually, use version string for forced version and \"latest\" for current latest version." \
 	q=package_version valid=product
@@ -105,7 +106,7 @@ function package_download {
 	# You will be notified about update.
 	# FIXME: Auto-update feature (d not ask before overwriting)
 	# means implementing volatile=true
-	pwiz_guess_add package_latest_version "$pwiz_result" 100 100
+	pwiz_guess_add package_latest_version "$pwiz_result" 100
 	pwiz_ask_string "What is the latest version conforming policy?" \
 	    "This is only a rhetorical question. PWIZ searched package search URI and is nearly sure, that it is suggested one." \
 	    q=package_latest_version valid=product knowledge=none guesslevel=100
@@ -124,13 +125,13 @@ function package_download {
     if test -f "$PWIZ_CACHEDIR/${package_uri##*/}" ; then
 	if pwiz_ask_yesno "Download file now?" \
 	    "Now you can dowload file." \
-	    default=false p=90 ; then
+	    default=false c=1 importance=10 ; then
 	    ftp_get "$package_uri"
 	fi
     else
 	if pwiz_ask_yesno "Download file now?" \
 	    "Now you can dowload file." \
-	    default=true p=90 ; then
+	    default=true c=20 importance=10 ; then
 	    ftp_get "$package_uri"
 	fi
     fi
@@ -161,7 +162,7 @@ function package_collect_uri {
 	    pwiz_result="${pwiz_result#[-_]}"
 	    let unpack_credit=90+unpack_priority
 	    pwiz_guess_add package_uri_${pwiz_result//[.-]/_} "$1" $unpack_credit
-	    pwiz_guess_add package_version "$pwiz_result" 0 0 "force $pwiz_result"
+	    pwiz_guess_add package_version "$pwiz_result" 0 "force $pwiz_result"
 	fi
     else
 	decho_uri " not archive"

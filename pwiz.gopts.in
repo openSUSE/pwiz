@@ -56,7 +56,7 @@ increase: ask more; decrease: ask less
 @option CREDIT -c --credit=CREDIT
 Set credit threshold. If credible enough answer
 exists, don't ask. Default is user's knownledge
-skill.
+skill. Answer importance is ignored.
 increase: ask more; decrease: ask less
 
 @switch FAST -f --fast
@@ -748,6 +748,7 @@ pwiz_register_tag_default no_default=false
 pwiz_register_tag_default item_type=string
 pwiz_register_tag_default valid=exact
 pwiz_register_tag_default knowledge=general
+pwiz_register_tag_default importance=25
 
 #@ pwiz_default_tags
 #
@@ -765,7 +766,7 @@ function pwiz_default_vtags {
 pwiz_default_tags
 pwiz_default_vtags
 
-# FIXME: probably obsolete
+# FIXME: probably obsolete
 # Default is undefined (definition prevents collision with empty string default).
 #unset pwiz_tag_default
     # Credit level of automatic guesses.
@@ -990,8 +991,6 @@ function pwiz_cache_remove {
 # returns $pwiz_guess_best: index of most credible guess
 # returns $pwiz_guess_best_value: value of most credible guess ("@@PWIZ_UNDEFINED@@" if none)
 # returns $pwiz_guess_best_credit: credit of best guess
-# returns ${pwiz_p[@@]}: probability of possible answers and $pwiz_guess_best
-# returns $pwiz_p_other: probability of unlisted answer
 # returns ${pwiz_strings[@@]}: array of string values of guesses (optional - array can be sparse)
 # returns ${pwiz_hotkeys[@@]}: array of guess hotkeys (optional - array can be sparse)
 # returns $pwiz_cache_key_value: cache value for exact match ("@@PWIZ_UNDEFINED@@" if none)
@@ -1050,7 +1049,7 @@ function pwiz_cache_load {
 #
 # Ask package database, which of installed packages owns file.
 
-# FIXME: Does it need implementation?
+# FIXME: Does it need implementation?
 # pwiz_pkgdb_package_to_project package
 # returns $pwiz_result: list of packages owning file or directory
 #
@@ -1156,7 +1155,7 @@ pwiz_key_list="project subproject version patchlevel vendor build"
 # Build number. Needed to discriminate exact environment used for
 #build (other package was updated, change in package is needed).
 
-#@ pwiz_keys_set
+#@ pwiz_keys_set
 #
 # Alias for cloning global variables $pwiz_project_{key} to local
 #variables ${key}. It is used by functions, which need to alter these
@@ -1176,7 +1175,7 @@ pwiz_key_list="project subproject version patchlevel vendor build"
 #validity range name (used in tags as "valid={name}"), you should
 #define function pwiz_cache_validity_{name}.
 
-#@ pwiz_cache_validity_apply
+#@ pwiz_cache_validity_apply
 #
 # Remove cahe keys, where exact match will be required. Removes values
 #unappropriate for defined validity range - if there is no function to
@@ -1320,8 +1319,6 @@ function pwiz_guess_credit {
 	fi
     done
     pwiz_credit=$subcredit
-    # FIXME: Ignore cached probability?
-    #This is not sufficient: pwiz_p=$pwiz_tag_p
 }
 
 #@ pwiz_guess [ tags ]
@@ -1330,8 +1327,6 @@ function pwiz_guess_credit {
 # returns $pwiz_guess_best: index of most credible guess
 # returns $pwiz_guess_best_value: value of most credible guess
 # returns $pwiz_guess_best_credit: credit of best guess
-# returns ${pwiz_p[@@]}: probability of possible answers and $pwiz_guess_best
-# returns $pwiz_p_other: probability of unlisted answer
 # returns ${pwiz_strings[@@]}: array of string values of guesses (optional - array can be sparse)
 # returns ${pwiz_hotkeys[@@]}: array of guess hotkeys (optional - array can be sparse)
 # returns $pwiz_cache_key_value: cache value for exact match ("@@PWIZ_UNDEFINED@@" if none)
@@ -1341,7 +1336,6 @@ function pwiz_guess_credit {
 # uses tag q: question ID
 # uses tag default[@@]: predefined defaults
 # uses tag c[@@]: credits of predefined defaults (optional - array can be sparse)
-# uses tag p[@@]: probabilities for predefined defaults (optional - array can be sparse)
 # uses tag string[@@]: string value for predefined defaults (optional - array can be sparse)
 # uses tag hotkey[@@]: guess hotkey for predefined defaults (optional - array can be sparse)
 # uses tag valid: validity range (see @pwiz_cache_validity_{name}) (default exact)
@@ -1350,8 +1344,6 @@ function pwiz_guess_credit {
 # uses ${pwiz_guess_default_{tag q}[@@]}: predefined defaults in variables
 # uses ${pwiz_guess_c_{tag q}[@@]}: credits of predefined defaults in
 #variables (optional - array can be sparse)
-# uses ${pwiz_guess_p_{tag q}[@@]}: probabilities for predefined
-#defaults in variables (optional - array can be sparse)
 # uses ${pwiz_guess_string_{tag q}[@@}]: string value for predefined
 #defaults in variables (optional - array can be sparse)
 # uses ${pwiz_guess_hotkey_{tag q}[@@]}: guess hotkey for predefined
@@ -1360,19 +1352,15 @@ function pwiz_guess_credit {
 # This function collects all available guesses. Function is used
 #internally by @pwiz_ask_core.
 function pwiz_guess {
-    local key_found is_new tags count v_total v_default v_c v_p v_string v_hotkey callback
+    local key_found is_new tags count v_total v_default v_c v_string v_hotkey callback
 
     # Imported local variables:
-    # pwiz_guesses pwiz_credits pwiz_p pwiz_pc pwiz_strings pwiz_hotkeys pwiz_p_other
-    local -a pwiz_pc pwiz_pc_other pwiz_pp_other
+    # pwiz_guesses pwiz_credits pwiz_strings pwiz_hotkeys
 
-    # Defaults.
-    pwiz_p_other=0
-    pwiz_pc_other=0
     # Defaults for Boolean.
     if $pwiz_tag_yesno ; then
-	pwiz_guess_eval false 0 "" "no" n
-	pwiz_guess_eval true  0 "" "yes" y
+	pwiz_guess_eval false 0 "no" n
+	pwiz_guess_eval true  0 "yes" y
     fi
 
     # callback of pwiz_guess_callback_{q}[*]
@@ -1383,30 +1371,25 @@ function pwiz_guess {
     fi
 
     # parse guesses in tags
-    pwiz_pp_other=100
     for (( count=0 ; count < ${#pwiz_tag_default[@]} ; count++ )) ; do
-	decho_guess "guess in tags: ${pwiz_tag_default[count]} (${pwiz_tag_c[count]:-0}c, ${pwiz_tag_p[count]:-0}%)"
-	pwiz_guess_eval "${pwiz_tag_default[count]}" "${pwiz_tag_c[count]}" "${pwiz_tag_p[count]}"\
+	decho_guess "guess in tags: ${pwiz_tag_default[count]} (${pwiz_tag_c[count]:-0}c)"
+	pwiz_guess_eval "${pwiz_tag_default[count]}" "${pwiz_tag_c[count]}"\
 	    "${pwiz_tag_string[count]}" "${pwiz_tag_hotkey[count]}"
     done
-    pwiz_other_eval
 
     if ! test -z "$pwiz_tag_q" ; then
 
-	# parse guesses in environment variables pwiz_guess_default_{q} pwiz_guess_p_{q}, pwiz_guess_string_{q} pwiz_guess_hotkey_{q}
+	# parse guesses in environment variables pwiz_guess_default_{q}, pwiz_guess_string_{q} pwiz_guess_hotkey_{q}
 	# WARNING: Those quesses does not recomputed p
-	pwiz_pp_other=100
 	eval v_total\=\${#pwiz_guess_default_$pwiz_tag_q\[@\]}
 	for (( count=0 ; count < v_total ; count++ )) ; do
 	    eval v_default\=\"\${pwiz_guess_default_$pwiz_tag_q\[count\]}\"
 	    eval v_c\=\${pwiz_guess_c_$pwiz_tag_q\[count\]}
-	    eval v_p\=\${pwiz_guess_p_$pwiz_tag_q\[count\]}
 	    eval v_string\=\"\${pwiz_guess_string_$pwiz_tag_q\[count\]}\"
 	    eval v_hotkey\=\"\${pwiz_guess_hotkey_$pwiz_tag_q\[count\]}\"
-	    decho_guess "guess in variable: $v_default (${v_c:-0}c, ${v_p:-?}%)"
-	    pwiz_guess_eval "$v_default" "$v_c" "$v_p" "$v_string" "$v_hotkey"
+	    decho_guess "guess in variable: $v_default (${v_c:-0}c)"
+	    pwiz_guess_eval "$v_default" "$v_c" "$v_string" "$v_hotkey"
 	done
-	pwiz_other_eval
 
 	# parse cached guesses
 	pwiz_cache_key_value=@@PWIZ_UNDEFINED@@
@@ -1416,8 +1399,6 @@ function pwiz_guess {
 	decho_guess "cache query:  $pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$build"
 	pwiz_cache_list "$pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$build"
 	for key_found in $pwiz_result ; do
-	    # FIXME: Ignore cached probability?
-	    #pwiz_pp_other=100
 	    decho_guess "found: $key_found"
 	    pwiz_key_parse $key_found
 	    pwiz_cache_read_tags $key_found
@@ -1431,15 +1412,11 @@ function pwiz_guess {
 		pwiz_cache_key_tags="$tags"
 		pwiz_cache_key_credit="$pwiz_vtag_credit"
 	    fi
-	    # FIXME: Probably ignore cached probability.
 	    pwiz_guess_credit
 # FIXME: Maybe parse tags to find string and hotkey.
 # FIXME: Maybe implement allow_inherited_tags=true to allow to parse tags in old values.
-	    # FIXME: Ignore cached probability or use something better than pwiz_p?
-	    pwiz_guess_eval "$pwiz_result" "$pwiz_credit" "" "" ""
-	    decho_guess "result: $pwiz_result (${pwiz_credit:-0}c, ?%)"
-	    # FIXME: Ignore cached probability?
-#	    pwiz_other_eval
+	    pwiz_guess_eval "$pwiz_result" "$pwiz_credit" "" ""
+	    decho_guess "result: $pwiz_result (${pwiz_credit:-0}c)"
 	done
 
     fi
@@ -1447,29 +1424,9 @@ function pwiz_guess {
     pwiz_guess_best_value=@@PWIZ_UNDEFINED@@
     pwiz_guess_best_credit=-1
     pwiz_guess_best=-1
-    if test $pwiz_pc_other -gt 0 ; then
-	let pwiz_p_other/=pwiz_pc_other
-    else
-	pwiz_p_other="?"
-    fi
 
     for (( count=0 ; count < ${#pwiz_guesses[*]} ; count++ )) ; do
-	# Compute average probablility and probability for other values.
-	if test ${pwiz_pc[count]} -gt 0 ; then
-	    pwiz_p[count]=$(( pwiz_p[count] / pwiz_pc[count] ))
-	    # Adapt credits a bit from average probability, if available.
-	    # Maximum probability credit: 100% = 10c. FIXME: Maybe parametrizable.
-	    pwiz_credits[count]=$(( pwiz_credits[count] + pwiz_p[count] / 10 ))
-	else
-	    if $pwiz_tag_allow_new ; then
-		pwiz_p[count]="?"
-	    else
-		# FIXME: Maybe bad value
-		pwiz_p[count]=$pwiz_p_other
-		#pwiz_p_other=0
-	    fi
-	fi
-	decho_guess "guess[$count]: \"${pwiz_guesses[count]}\" (${pwiz_credits[count]}c, ${pwiz_p[count]}%)"
+	decho_guess "guess[$count]: \"${pwiz_guesses[count]}\" (${pwiz_credits[count]}c)"
 	# Evaluate best guess.
 	if test ${pwiz_credits[count]} -ge $pwiz_guess_best_credit ; then
 	    pwiz_guess_best_credit=${pwiz_credits[count]}
@@ -1482,10 +1439,9 @@ function pwiz_guess {
     decho_guess "best guess credit: $pwiz_guess_best_credit"
 }
 
-#@ pwiz_guess_eval guess credit probability string hotkey
+#@ pwiz_guess_eval guess credit string hotkey
 # guess: value of guess
 # credit: credit of guess (can be empty string)
-# probability: probability of guess (can be empty string)
 # string: string value for guess (can be empty string)
 # hotkey: guess hotkey (can be empty string)
 #
@@ -1502,11 +1458,6 @@ function pwiz_guess_eval {
 	    if test ${2:-0} -gt ${pwiz_credits[count]} ; then
 		pwiz_credits[count]=${2:-0}
 	    fi
-	    # If guess provides probability, create a sum.
-	    if test "$3" != "" ; then
-		pwiz_p[count]=$(( pwiz_p[count] + $3 ))
-		pwiz_pc[count]=$(( pwiz_pc[count] + 1 ))
-	    fi
 	    is_new=false
 	    break
 	fi
@@ -1514,66 +1465,44 @@ function pwiz_guess_eval {
 # FIXME: Maybe test -z is not required.
     if $is_new ; then
 	pwiz_credits[size]=${2:-0}
-	if test "$3" != "" ; then
-	    pwiz_p[size]=$3
-	    pwiz_pc[size]=1
-	else
-	    pwiz_pc[size]=0
+	if ! test -z "$3" ; then
+	    pwiz_strings[size]="$3"
 	fi
 	if ! test -z "$4" ; then
-	    pwiz_strings[size]="$4"
-	fi
-	if ! test -z "$5" ; then
-	    pwiz_hotkeys[size]="$5"
+	    pwiz_hotkeys[size]="$4"
 	fi
 	pwiz_array_add pwiz_guesses "$1"
     else
-	if test -z "${pwiz_strings[count]}" -a ! -z "$4" ; then
-	    pwiz_strings[count]="$4"
+	if test -z "${pwiz_strings[count]}" -a ! -z "$3" ; then
+	    pwiz_strings[count]="$3"
 	fi
-	if test -z "${pwiz_hotkeys[count]}" -a ! -z "$5" ; then
-	    pwiz_hotkeys[count]="$5"
+	if test -z "${pwiz_hotkeys[count]}" -a ! -z "$4" ; then
+	    pwiz_hotkeys[count]="$4"
 	fi
-    fi
-    let pwiz_pp_other-=${3:-0}
-}
-
-#@ pwiz_other_eval
-#
-# This internal function evaluates probability of unlisted value. Used
-#by @pwiz_guess.
-function pwiz_other_eval {
-    if test $pwiz_pp_other -lt 100 ; then
-	decho_guess "rest for other values: $pwiz_pp_other%"
-	let pwiz_p_other+=pwiz_pp_other
-	let pwiz_pc_other++
     fi
 }
 
-#@ pwiz_guess_add id guess credit probability string hotkey
+#@ pwiz_guess_add id guess credit string hotkey
 # q: question ID (corresponds to tag q)
 # guess: value of guess
 # credit: credit of guess (can be empty string)
-# probability: probability of guess (can be empty string)
 # string: string value for guess (can be empty string)
 # hotkey: guess hotkey (can be empty string)
 #
 # Add a guess to environment variables ${pwiz_guess_default_{q}},
-#${pwiz_guess_c_{q}}, ${pwiz_guess_p_{q}}, ${pwiz_guess_string_{q}}
-#and ${pwiz_guess_string_{q}}. Later @pwiz_guess can take it in
-#account.
+#${pwiz_guess_c_{q}}, ${pwiz_guess_p_{q}} and
+#${pwiz_guess_string_{q}}. Later @pwiz_guess can take it in account.
 # NOTE: Credit is considered as absolute. No user credibility is
 #evaluated.
 function pwiz_guess_add {
     eval local count\=\${#pwiz_guess_default_$1\[@\]}
     eval pwiz_guess_default_$1\[count\]\=\"\$2\"
     eval pwiz_guess_c_$1\[count\]\=\"\$3\"
-    eval pwiz_guess_p_$1\[count\]\=\"\$4\"
-    if ! test -z "$5" ; then
-	eval pwiz_guess_string_$1\[count\]\=\"\$5\"
+    if ! test -z "$4" ; then
+	eval pwiz_guess_string_$1\[count\]\=\"\$4\"
     fi
-    if ! test -z "$6" ; then
-	eval pwiz_guess_hotkey_$1\[count\]\=\"\$6\"
+    if ! test -z "$5" ; then
+	eval pwiz_guess_hotkey_$1\[count\]\=\"\$5\"
     fi
 }
 
@@ -1606,7 +1535,7 @@ function pwiz_key_parse {
 #"tag[number]=*", especially in nullglob mode.
 
 # dummy function for list tag item_type=none
-# FIXME: Should disappear in future.
+# FIXME: Should disappear in future.
 function pwiz_ask_none {
     :
 }
@@ -1683,9 +1612,9 @@ function pwiz_ask_radio_f {
 # returns ${q tag}: answer is also stored to environment variable
 #named as q tag
 # uses tag q: question ID
+# uses tag importance: answer importance (i. e. whether can pwiz continue with default)
 # uses tag default[@@]: predefined defaults
 # uses tag c[@@]: credits of predefined defaults (optional - array can be sparse)
-# uses tag p[@@]: probabilities for predefined defaults (optional - array can be sparse)
 # uses tag string[@@]: string value for predefined defaults (optional - array can be sparse)
 # uses tag hotkey[@@]: guess hotkey for predefined defaults (optional - array can be sparse)
 # uses tag valid: validity range (see @pwiz_cache_validity_{name}) (default=exact)
@@ -1706,8 +1635,7 @@ function pwiz_ask_core {
     local question_function desc longdesc rc=0 count hotkey credit_threshold answer_credit guesslevel knowledge pwiz_answer_save nocred_string nocred_help nocred_no
 
     # Local variables for use in guess and question engines:
-    local -a pwiz_guesses pwiz_credits pwiz_p pwiz_strings pwiz_hotkeys
-    local pwiz_p_other
+    local -a pwiz_guesses pwiz_credits pwiz_strings pwiz_hotkeys
 
     question_function=$1
     desc="$2"
@@ -1758,6 +1686,7 @@ function pwiz_ask_core {
 	credit_threshold=$OPTVAL_CREDIT
     else
 	let credit_threshold=knowledge\*OPTVAL_THRESHOLD/100
+	let credit_threshold=credit_threshold\*pwiz_tag_importance/100
     fi
     decho_guess "auto answer threshold credit: $credit_threshold"
     if test $pwiz_guess_best_credit -ge $credit_threshold ; then
@@ -1933,17 +1862,17 @@ function pwiz_get_knowledge {
     pwiz_ask_string "Please qualify your knowledge skills for area \"$desc\"."\
 	"$longdesc Defining knowledge skills helps PWIZ to decide, whether to ask you with particular packaging question."\
 	q=pwiz_knowledge_$1 valid=setup knowledge=total\
-	default[0]=0 string[0]="No knowledges (0c)." p[0]=30\
-	default[1]=25 string[1]="Small knowledges (25c)." p[1]=25\
-	default[2]=50 string[2]="Average knowledges (50c)." p[2]=20\
-	default[3]=75 string[3]="Good knowledges (75c)." p[3]=15\
-	default[4]=100 string[4]="Perfect knowledges (100c)." p[4]=10
+	default[0]=0 string[0]="No knowledges (0c)." c[0]=4\
+	default[1]=25 string[1]="Small knowledges (25c)." c[1]=3\
+	default[2]=50 string[2]="Average knowledges (50c)." c[2]=2\
+	default[3]=75 string[3]="Good knowledges (75c)." c[3]=1\
+	default[4]=100 string[4]="Perfect knowledges (100c)." c[4]=0
 }
 # Special knowledge for questions with total knowledge credit.
-# Used internally and for questions with total credibility.
+# Used internally and for questions with total credibility.
 pwiz_knowledge_total=100
 # Special knowledge for questions with no knowledge credit.
-# Used internally and for questions with total incredibility.
+# Used internally and for questions with total incredibility.
 pwiz_knowledge_none=0
 
 #@ pwiz_get_guesslevel
@@ -1958,25 +1887,25 @@ function pwiz_get_guesslevel {
 	    guesslevel=$OPTVAL_DEFGUESSLEVEL
 	    return
 	else
-	    p0=30 p25=25 p50=20 p75=15 p100=10
+	    c0=4 c25=3 c50=2 c75=1 c100=0
 	fi
     else
 	if $OPTARG_GUESSLEVEL ; then
 	    guesslevel=$OPTVAL_GUESSLEVEL
 	    return
 	else
-	    p0=10 p25=30 p50=25 p75=20 p100=15
+	    c0=0 c25=4 c50=3 c75=2 c100=1
 	fi
     fi
 # FIXME: implement and add " or specify guess level in your answer (if it is supported by question engine)"
     pwiz_ask_string "Specify, how sure you are."\
 	"You should say, how sure you are with last answer. If you are sure, you will not be asked next time. If you are unsure, next time you will be asked again. If you don't want to see this dialog after each question, use proper command line argument. On the other side, this additional question allows you to press Enter without thinking and giving extra credit to your answer."\
 	knowledge=total\
-	default[0]=0 string[0]="Random guess. (0%)." p[0]=$p0\
-	default[1]=25 string[1]="I'm trying. (25%)." p[1]=$p25\
-	default[2]=50 string[2]="Very probably. (50%)." p[2]=$p50\
-	default[3]=75 string[3]="Nearly sure. (75%)." p[3]=$p75\
-	default[4]=100 string[4]="Absolutely sure. (100%)." p[4]=$p100\
+	default[0]=0 string[0]="Random guess. (0%)." c[0]=$c0\
+	default[1]=25 string[1]="I'm trying. (25%)." c[1]=$c25\
+	default[2]=50 string[2]="Very probably. (50%)." c[2]=$c50\
+	default[3]=75 string[3]="Nearly sure. (75%)." c[3]=$c75\
+	default[4]=100 string[4]="Absolutely sure. (100%)." c[4]=$c100\
 	guesslevel=100
 }
 
@@ -1989,12 +1918,12 @@ function pwiz_get_guesslevel {
 # desc: short description of feature
 # longdesc: long description of feature
 # tags: optional tags
+# uses tag q: question ID
+# uses tag importance: answer importance (i. e. whether can pwiz continue with default)
 # returns ${pwiz_list_all[@@]}: string with list of available items
 #(used by backend (in form ${q}_${list_item})
 # returns ${pwiz_list_c_{tag q}[@@]}: credits of selectable items in
 #variables (optional - array can be sparse)
-# returns ${pwiz_list_p_{tag q}[@@]}: probabilities of selectable
-#items in variables (optional - array can be sparse)
 # returns ${pwiz_list_string_{tag q}[@@]}: strings value of selectable
 #items in variables (optional - array can be sparse)
 # returns ${pwiz_list_c_{tag q}[@@]}: guess hotkey of selectable items
@@ -2004,8 +1933,6 @@ function pwiz_get_guesslevel {
 #variables
 # uses ${pwiz_list_item_c_{tag q}[@@]}: credits of selectable items in
 #variables (optional - array can be sparse)
-# uses ${pwiz_list_item_p_{tag q}[@@]}: probabilities for selectable
-#items in variables (optional - array can be sparse)
 # uses ${pwiz_list_item_string_{tag q}[@@}]: string value for
 #selectable items in variables (optional - array can be sparse)
 # uses ${pwiz_list_item_hotkey_{tag q}[@@]}: guess hotkey for
@@ -2018,7 +1945,7 @@ function pwiz_get_guesslevel {
 # NOTE: During parsing of arguments of @pwiz_ask_list, globbing is
 #temporarilly turned off. It prevents accidental expansion of
 #"tag[number]=*", especially in nullglob mode.
-# NOTE: defaults different from best guess are ignored. There can be
+# NOTE: defaults different from best guess are ignored. There can be
 #only one default preset is available.
 
 # FIXME: Maybe {key}_{tag} can be reduced to {tag} while calling subsequent questions
@@ -2053,22 +1980,21 @@ function pwiz_ask_list_f {
     done
     pwiz_cache_validity_apply
 
-# FIXME: Is it still true? Probably not.
+# FIXME: Is it still true? Probably not.
     if test -z "$pwiz_tag_q" ; then
 	pwiz_fatal "pwiz_ask_list must contain tag q"
     fi
 
-    local -a pwiz_list_all pwiz_list_c pwiz_list_p pwiz_list_strings pwiz_list_hotkeys v_item v_c v_p v_string v_hotkey
+    local -a pwiz_list_all pwiz_list_c pwiz_list_strings pwiz_list_hotkeys v_item v_c v_string v_hotkey
 
 #    if ! test -z "$pwiz_tag_q" ; then
 
-	# parse items in environment variables pwiz_list_item_{q} pwiz_list_c_{q} pwiz_list_p_{q} pwiz_list_string_{q} pwiz_list_hotkey_{q}
+	# parse items in environment variables pwiz_list_item_{q} pwiz_list_c_{q} pwiz_list_string_{q} pwiz_list_hotkey_{q}
 	# WARNING: Those quesses does not recomputed p
 	eval v_total\=\${#pwiz_list_item_$pwiz_tag_q\[@\]}
 	for (( count=0 ; count < v_total ; count++ )) ; do
 	    eval v_item\=\"\${pwiz_list_item_$pwiz_tag_q\[count\]}\"
 	    eval v_c\=\${pwiz_list_item_c_$pwiz_tag_q\[count\]}
-	    eval v_p\=\${pwiz_list_item_p_$pwiz_tag_q\[count\]}
 	    eval v_string\=\"\${pwiz_list_item_string_$pwiz_tag_q\[count\]}\"
 	    eval v_hotkey\=\"\${pwiz_list_item_hotkey_$pwiz_tag_q\[count\]}\"
 	    decho_guess "list item in variable: $v_item"
@@ -2085,7 +2011,7 @@ function pwiz_ask_list_f {
     # parse items in tags
     for (( count=0 ; count < ${#pwiz_tag_item[@]} ; count++ )) ; do
 	decho_guess "list item in tags: ${pwiz_tag_item[count]}"
-# FIXME: read itemstring tag and probability...
+# FIXME: read itemstring tag...
 	pwiz_list_eval "${pwiz_tag_item[count]}" 0
     done
 
@@ -2099,26 +2025,14 @@ function pwiz_ask_list_f {
 # FIXME: try to read string tag
 	pwiz_list_eval "$key" 0
     done
-
-    for (( count=0 ; count < ${#pwiz_list_all[*]} ; count++ )) ; do
-	# Compute average probablility and probability for other values.
-	if test ${pwiz_list_pc[count]} -gt 0 ; then
-	    pwiz_list_p[count]=$(( pwiz_list_p[count] / pwiz_list_pc[count] ))
-	    # Adapt credits a bit from average probability, if available.
-	    # Maximum probability credit: 100% = 10c. FIXME: Maybe parametrizable.
-	    pwiz_list_c[count]=$(( pwiz_list_c[count] + pwiz_list_p[count] / 10 ))
-	fi
-    done
-
     pwiz_ask_core pwiz_question_list "$desc" "$longdesc" "$@"
 
 # FIXME: Return usable result in array.
 }
 
-#@ pwiz_list_eval item credit probability string hotkey
+#@ pwiz_list_eval item credit string hotkey
 # item: list item
 # credit: credit of guess (can be empty string)
-# probability: probability of guess (can be empty string)
 # string: string value for guess (can be empty string)
 # hotkey: guess hotkey (can be empty string)
 #
@@ -2137,11 +2051,6 @@ function pwiz_list_eval {
 	    if test ${2:-0} -gt ${pwiz_list_c[count]} ; then
 		pwiz_list_c[count]=${2:-0}
 	    fi
-	    # If guess provides probability, create a sum.
-	    if test "$3" != "" ; then
-		pwiz_list_p[count]=$(( pwiz_list_p[count] + $3 ))
-		pwiz_list_pc[count]=$(( pwiz_list_pc[count] + 1 ))
-	    fi
 	    is_new=false
 	    break
 	fi
@@ -2149,33 +2058,26 @@ function pwiz_list_eval {
 # FIXME: Maybe test -z is not required.
     if $is_new ; then
 	pwiz_list_c[size]=${2:-0}
-	if test "$3" != "" ; then
-	    pwiz_list_p[size]=$3
-	    pwiz_list_pc[size]=1
-	else
-	    pwiz_list_pc[size]=0
+	if ! test -z "$3" ; then
+	    pwiz_list_strings[size]="$3"
 	fi
 	if ! test -z "$4" ; then
-	    pwiz_list_strings[size]="$4"
-	fi
-	if ! test -z "$5" ; then
-	    pwiz_list_hotkeys[size]="$5"
+	    pwiz_list_hotkeys[size]="$4"
 	fi
 	pwiz_array_add pwiz_list_all "$1"
     else
-	if test -z "${pwiz_list_strings[count]}" -a ! -z "$4" ; then
-	    pwiz_list_strings[count]="$4"
+	if test -z "${pwiz_list_strings[count]}" -a ! -z "$3" ; then
+	    pwiz_list_strings[count]="$3"
 	fi
-	if test -z "${pwiz_list_hotkeys[count]}" -a ! -z "$5" ; then
-	    pwiz_list_hotkeys[count]="$5"
+	if test -z "${pwiz_list_hotkeys[count]}" -a ! -z "$4" ; then
+	    pwiz_list_hotkeys[count]="$4"
 	fi
     fi
 }
 
-#@ pwiz_list_add id item credit probability string hotkey
+#@ pwiz_list_add id item credit string hotkey
 # id: list question ID (corresponds to tag q)
 # credit: credit of item (can be empty string)
-# probability: probability of item (can be empty string)
 # string: string value for item (can be empty string)
 # hotkey: item hotkey (can be empty string)
 #
@@ -2192,12 +2094,11 @@ function pwiz_list_add {
     eval local count\=\${#pwiz_list_item_$1\[@\]}
     eval pwiz_list_item_$1\[count\]\=\"\$2\"
     eval pwiz_list_item_c_$1\[count\]\=\"\$3\"
-    eval pwiz_list_item_p_$1\[count\]\=\"\$4\"
-    if ! test -z "$5" ; then
-	eval pwiz_list_item_string_$1\[count\]\=\"\$5\"
+    if ! test -z "$4" ; then
+	eval pwiz_list_item_string_$1\[count\]\=\"\$4\"
     fi
-    if ! test -z "$6" ; then
-	eval pwiz_list_item_hotkey_$1\[count\]\=\"\$6\"
+    if ! test -z "$5" ; then
+	eval pwiz_list_item_hotkey_$1\[count\]\=\"\$5\"
     fi
 }
 
@@ -2412,10 +2313,9 @@ function pwiz_phase_new_3 {
 #have to escape them to prevent double bash expansion.
 # WARNING: This function cannot be called outside module init.
 
-#@ {phase}_guess guess credit probability string hotkey
+#@ {phase}_guess guess credit string hotkey
 # guess: value of guess
 # credit: credit of guess (can be empty string)
-# probability: probability of guess (can be empty string)
 # string: string value for guess (can be empty string)
 # hotkey: guess hotkey (can be empty string)
 #

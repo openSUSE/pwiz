@@ -83,7 +83,7 @@ function split_devel_filelist_inspect {
 			cache_name=${cache_name//[-\/.]/_}
 			pwiz_redirect_stdout_suspend
 			pwiz_ask_yesno "Pack lib*.so files in directory ${filelist_tag_name%/*} to devel subpackage?" \
-			    "It's hard to decide, whether mentioned files should go to devel subpackage or not. Maybe these files are needed for module loading and are required. Then say no. But if you check, that these files are not needed for package functionality, you can answer yes. It's safe to say no." q=split_devel__$cache_name default=false p=70 c=25
+			    "It's hard to decide, whether mentioned files should go to devel subpackage or not. Maybe these files are needed for module loading and are required. Then say no. But if you check, that these files are not needed for package functionality, you can answer yes. It's safe to say no." q=split_devel__$cache_name default=false importance=35 c=25
 			pwiz_redirect_stdout_restore
 			if $pwiz_answer ; then
 			    echo "$filelist_line@sub=devel"
@@ -103,7 +103,7 @@ function split_devel_filelist_inspect {
 		cache_name=${filelist_tagx_name//[-\/.]/_}
 		pwiz_redirect_stdout_suspend
 		pwiz_ask_yesno "Pack file $filelist_tag_name to devel subpackage?" \
-		    "It's hard to decide, whether mentioned file should go to devel subpackage or not. Maybe this file is development configuration script. Then say yes. It's safe to say no." q=split_devel__$cache_name default=false p=70 c=10
+		    "It's hard to decide, whether mentioned file should go to devel subpackage or not. Maybe this file is development configuration script. Then say yes. It's safe to say no." q=split_devel__$cache_name default=false importance=35 c=10
 		pwiz_redirect_stdout_restore
 		if $pwiz_answer ; then
 		    echo "$filelist_line@sub=devel"

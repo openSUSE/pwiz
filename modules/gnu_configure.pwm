@@ -207,7 +207,7 @@ function gnu_configure_args {
 	"This package will use configure script with following arguments:$gnu_configure_prefix_args$gnu_configure_args
 Do you want any additional options?" \
     "Most GNU configure scripts has optional arguments to turn on or off some features or specify search paths. Some of them can be guesses, but other needs to be defined manually. Now you can define them." \
-    q=gnu_configure_extra_args default[0]="" p[0]=50 default[1]=@@help@@ string[1]="GNU configure --help"
+    q=gnu_configure_extra_args importance=25 default[0]="" c[0]=1 default[1]=@@help@@ string[1]="GNU configure --help"
     if test "$pwiz_answer" = "@@help@@" ; then
 # FIXME use pwiz_find
 	find -name configure -exec {} --help \;
@@ -255,7 +255,7 @@ function gnu_configure_fallback_check {
 	pwiz_ask_radio \
 	    "GNU configure failed and there is no known way fo fix the problem. What to do now?" \
 	    "PWIZ modules can have detection of some types of errors. None of these checks was successfull. It means: You must fix it manually!" \
-	    q=gnu_configure_fallback_check default[0]=reconfigure string[0]="Try another configure options." p[0]=30 default[1]=repatch string[1]="Go back to patch phase." p[1]=30
+	    q=gnu_configure_fallback_check importance=90 default[0]=reconfigure string[0]="Try another configure options." default[1]=repatch string[1]="Go back to patch phase."
 	case $pwiz_answer in
 	    reconfigure )
 		pwiz_phase_goto configure

@@ -86,13 +86,13 @@ function pwiz_engine_question_dumb_string {
 		selection="$guesses_count, ${pwiz_hotkeys[guesses_count]}"
 	    fi
 	    if test -z "${pwiz_strings[guesses_count]}" ; then
-		echo "$selection) \"$bdefault${pwiz_guesses[guesses_count]}$edefault\" (${pwiz_credits[guesses_count]}c, ${pwiz_p[guesses_count]}%$default)"
+		echo "$selection) \"$bdefault${pwiz_guesses[guesses_count]}$edefault\" (${pwiz_credits[guesses_count]}c$default)"
 	    else
-		echo "$selection) $bdefault${pwiz_strings[guesses_count]}$edefault (${pwiz_credits[guesses_count]}c, ${pwiz_p[guesses_count]}%$default)"
+		echo "$selection) $bdefault${pwiz_strings[guesses_count]}$edefault (${pwiz_credits[guesses_count]}c$default)"
 	    fi
 	done
 	if $pwiz_tag_allow_new ; then
-	    echo "m) enter manually ($pwiz_p_other%)"
+	    echo "m) enter manually"
 	    echo "e[number]) edit manually (start with answer number)"
 	fi
 	echo -n "$pwiz_engine_question_dumb_question_end"
@@ -196,9 +196,9 @@ function pwiz_engine_question_dumb_radio_remove_me {
 		default=
 	    fi
 	    if test -z "${pwiz_strings[guesses_count]}" ; then
-		echo "$guesses_count) \"$bdefault${pwiz_guesses[guesses_count]}$edefault\" (${pwiz_credits[guesses_count]}c, ${pwiz_p[guesses_count]}%$default)"
+		echo "$guesses_count) \"$bdefault${pwiz_guesses[guesses_count]}$edefault\" (${pwiz_credits[guesses_count]}c$default)"
 	    else
-		echo "$guesses_count) $bdefault${pwiz_strings[guesses_count]}$edefault (${pwiz_credits[guesses_count]}c, ${pwiz_p[guesses_count]}%$default)"
+		echo "$guesses_count) $bdefault${pwiz_strings[guesses_count]}$edefault (${pwiz_credits[guesses_count]}c$default)"
 	    fi
 	done
 	echo -n "$pwiz_engine_question_dumb_question_end"

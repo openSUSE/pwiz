@@ -67,7 +67,7 @@ function manual_action_new_me {
 function manual_action_ask {
     local item
 # FIXME: After chaning ask_list callback interface, fix it to allow to ask in time of adding ID.
-    eval "pwiz_ask_list \"Manual action point: \$manual_action_desc_$1\" \"\$manual_action_longdesc_$1\" q=$1 allow_new=false item_type=none"
+    eval "pwiz_ask_list \"Manual action point: \$manual_action_desc_$1\" \"\$manual_action_longdesc_$1\" q=$1 importance=12 allow_new=false item_type=none" default="" c=10
     for item in $pwiz_answer ; do
 	pwiz_phase_add "$1" "$item $1"
     done
@@ -82,7 +82,7 @@ function manual_action_ask {
 # Add a new item to manual action.
 # callback convention: function manual_point_id
 function manual_action_add {
-    pwiz_list_add "manual_$1" "$2" 0 0 "$3" "$4"
+    pwiz_list_add "manual_$1" "$2" 0 "$3" "$4"
 }
 
 #@ manual_command manual_action_point
