@@ -11,7 +11,7 @@ shopt -s nullglob
 
 @program pwiz
 
-@version 0.0
+@version 0.01
 
 @year 2004
 
@@ -116,9 +116,7 @@ trap "echo \"PWIZ must be error-less\" ; exit 1" ERR
 pwiz_project_subproject=-
 #pwiz_project_version=2.4.0
 pwiz_project_patchlevel=0
-pwiz_project_vendor=SuSE
-pwiz_project_product=Linux
-pwiz_project_pversion=9.0
+pwiz_project_vendor=SuSE-Linux-9.0
 pwiz_project_build=0
 
 # Knowledge defaults.
@@ -446,7 +444,6 @@ function pwiz_run_eval {
 #@ pwiz_rem string
 #@ Remark function. Action will appear in stage, but is not executed.
 #@ Primarily intended for exporting comments to final build script.
-# FIXME: multi-line
 # FIXME: now probably obsolete
 function pwiz_rem {
     :
@@ -624,10 +621,10 @@ alias pwiz_read_tags='local pwiz_tag ; for pwiz_tag in "$@" ; do eval local pwiz
 # Asking interface is used for querying users, saving and re-using results.
 
 #@ keys for question id
-pwiz_key_list="project subproject version patchlevel vendor product pversion build"
+pwiz_key_list="project subproject version patchlevel vendor build"
 
 #@ Set local key variables from global ones.
-#alias pwiz_keys_set='local project subproject version patchlevel vendor product pversion build ; project=$pwiz_project_project subproject=$pwiz_project_subproject version=$pwiz_project_version patchlevel=$pwiz_project_patchlevel vendor=$pwiz_project_vendor product=$pwiz_project_product pversion=$pwiz_project_pversion build=$pwiz_project_build'
+#alias pwiz_keys_set='local project subproject version patchlevel vendor build ; project=$pwiz_project_project subproject=$pwiz_project_subproject version=$pwiz_project_version patchlevel=$pwiz_project_patchlevel vendor=$pwiz_project_vendor build=$pwiz_project_build'
 alias pwiz_keys_set='local pwiz_key ; for pwiz_key in $pwiz_key_list ; do local $pwiz_key ; eval $pwiz_key\=\$pwiz_project_$pwiz_key ; done'
 
 #@ cache validities
@@ -648,17 +645,6 @@ function pwiz_cache_validity_exact {
 function pwiz_cache_validity_source {
     patchlevel=@
     vendor=@
-    product=@
-    pversion=@
-    build=@
-}
-
-# Vendor's policy, independent on package.
-function pwiz_cache_validity_vendor {
-    project=@
-    subproject=@
-    version=@
-    patchlevel=@
     build=@
 }
 
@@ -669,8 +655,6 @@ function pwiz_cache_validity_setup {
     version=@
     patchlevel=@
     vendor=@
-    product=@
-    pversion=@
     build=@
 }
 
@@ -680,8 +664,15 @@ function pwiz_cache_validity_project {
     version=@
     patchlevel=@
     vendor=@
-    product=@
-    pversion=@
+    build=@
+}
+
+# Vendor's policy, independent on package.
+function pwiz_cache_validity_vendor {
+    project=@
+    subproject=@
+    version=@
+    patchlevel=@
     build=@
 }
 
@@ -784,8 +775,8 @@ function pwiz_guess {
 	done
 
     # parse cached guesses
-	decho_guess "cache query:  $pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$product/$pversion/$build"
-	pwiz_cache_list "$pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$product/$pversion/$build"
+	decho_guess "cache query:  $pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$build"
+	pwiz_cache_list "$pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$build"
 	for key_found in $pwiz_result ; do
 	    decho_guess "found: $key_found"
 	    pwiz_key_parse $key_found
@@ -954,7 +945,7 @@ function pwiz_ask_core {
     # FIXME: implement delayed write (write to cache if module confirms or command is successfull).
     eval knowledge\=\$pwiz_knowledge_$pwiz_tag_knowledge
     if ! test -z "$pwiz_tag_q" ; then
-	pwiz_cache_write $pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$product/$pversion/$build "$pwiz_answer" "$@" trust=$knowledge
+	pwiz_cache_write $pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$build "$pwiz_answer" "$@" trust=$knowledge
 	eval pwiz_answer_$pwiz_tag_q\=\"\$pwiz_answer\"
     fi
 
@@ -1084,8 +1075,8 @@ function pwiz_ask_list_f {
     done
 
     # parse items in cache
-    decho_guess "list query: $pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$product/$pversion/$build"
-    pwiz_cache_list "${pwiz_tag_q}_*/$project/$subproject/$version/$patchlevel/$vendor/$product/$pversion/$build"
+    decho_guess "list query: $pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$build"
+    pwiz_cache_list "${pwiz_tag_q}_*/$project/$subproject/$version/$patchlevel/$vendor/$build"
     for key_found in $pwiz_result ; do
         pwiz_key_parse $key_found
 	eval 'key="${pwiz_item_q#'$pwiz_tag_q'_}"'
