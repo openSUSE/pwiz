@@ -50,7 +50,7 @@ function ftp_list {
 function ftp_list_recursive {
     local pwiz_callback_save pwiz_callback_sub
     mkdir -p $PWIZ_CACHEDIR/ftp
-    if ! $ftp_WGET -P $PWIZ_CACHEDIR/ftp -N -nr -r -R '*' "$1" ; then
+    if ! $ftp_WGET -P $PWIZ_CACHEDIR/ftp -N -nr -r -R '*' "$1/" ; then
 	echo "*** $1 not found"
 	return 1
     fi
@@ -72,7 +72,8 @@ function ftp_list_callback {
 	exec 3<"$PWIZ_CACHEDIR/ftp/$1"
 	while read -u3 flags links user group size mount day yearhour name ; do
 	    eval name=$'"${name%%\r}"'
-	    $2 "ftp://${1%/.listing}/$name"
+	    pwiz_canonize "ftp://${1%/.listing}/$name"
+	    $2 "$pwiz_result"
 	done
 	exec 3<&-
     fi

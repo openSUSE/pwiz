@@ -79,7 +79,7 @@ function package_search_uri_prepare {
 
 function package_search_uri_set {
     if test -z "$package_search_uri" ; then
-	pwiz_ask_string "Enter package search URI (use terminal slash for FTP)." \
+	pwiz_ask_string "Enter package search URI." \
 	    "Package search URI is top-level URI, where sources are searched. Can be space separated list." \
 	    q=package_search_uri valid=project
 	package_search_uri="$pwiz_answer"
