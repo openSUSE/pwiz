@@ -34,4 +34,5 @@ doc: pwizdoc $(top_srcdir)/modules/*.pwm $(top_srcdir)/modules/*.pwm.in pwiz.gop
 EXTRA_DIST=\
 	pwiz.gopts.in\
 	pwizdoc\
+	TODO\
 	$(pwizdoc_DATA)

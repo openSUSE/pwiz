@@ -42,38 +42,41 @@ List all modules and exit.
 @cntswitch VERBOSE -v --verbose
 Increase level of verbosity.
 
-@cntswitch QUIET -q --quiet
-Decrease level of verbosity.
-
 @option DEBUG -d --debug=TYPE
 Comma separated list of specific debugging messages.
-Try --debug=list for all available types.
+Use --debug=list for all available types.
 Use --debug=all for all available debuggings.
+
+@option THRESHOLD -t --threshold=PERCENT 70
+Set credit threshold in percents of knownledge
+skill (default 70).
+Has no effect with -f, -a and -c.
+increase: ask more; decrease: ask less
 
 @option CREDIT -c --credit=CREDIT
 Set credit threshold. If credible enough answer
 exists, don't ask. Default is user's knownledge
 skill.
+increase: ask more; decrease: ask less
 
 @switch FAST -f --fast
 Run in fast mode. Equivalent of --credit=0.
+means: ask nearly nothing
 
 @switch ASK_ALL -a --ask-all
 Ask for all questions. Equivalent of --credit=111.
-
-@option THRESHOLD -t --threshold=PERCENT 100
-Set credit threshold in percents of knownledge
-skill (default 100).
-Has no effect with -f, -a and -c.
+means: ask nearly all
 
 @option GUESSLEVEL -g --guess=PERCENT
 Set guess level for selected answers. Force guess
 level for user answers instead of asking user.
+means: for selected answer don't prompt for: "How sure are you"
 
 @option DEFGUESSLEVEL -G --defguess=PERCENT
 Set guess level for default answers. Force guess
 level for default answers (i. e. when user does not
 change anything) instead of asking user.
+means: for default answer don't prompt for: "How sure are you"
 
 @options_only
 
@@ -567,6 +570,9 @@ function pwiz_run_prepare {
 #
 # Run command in protected build environment.
 # $pwiz_run_rc is restored before next pwiz_run.
+# WARNING: Direct calling of pwiz_run without adding it to phase
+#engine is not listed in query mode. If you want to have command in
+#resulting package, you must not use pwiz_run directly!
 # WARNING: Do not alter pwiz_run_rc!
 function pwiz_run {
 # FIXME: for debugging only:
@@ -651,229 +657,6 @@ function pwiz_exit {
     exit "$@"
 }
 
-
-#@@@ PWIZ engines
-
-#@ $not_implemented
-# PWIZ error code for not implemented functions (6).
-not_implemented=6
-
-#@@ Engine description
-# Engine is a piece of bash code, sourced from PWIZ core. It typically
-#implements an independent interface for communication with outer
-#world.
-
-#@ {engine_class}/{engine_name}.pwe [ command ]
-# command: Command for engine.
-#
-# Run engine with command.
-# Available commands:
-# @"no command": Load engine.
-# @desc: show description and return
-# @longdesc: show long description and return
-
-#@ pwiz_engine_{engine_class}_{engine_name}_{command} [ optional arguments ]
-# engine_class: class of engine (only one in each class can be active)
-# engine_name: name of engine (implementation of engine class)
-#
-# Engine must define all class specific functions defined by
-#@pwiz_engine_interface plus @init and @quit.
-# Engine functions are not called directly, but using
-#@"pwiz_{engine_class}_{command} [ optional arguments ]".
-
-#@ pwiz_engine_desc engine_class engine_name
-# engine_class: class of engine (only one in each class can be active)
-# engine_name: name of engine (implementation of engine class)
-#
-# Show description of engine implementation.
-function pwiz_engine_desc {
-    . @PW_DATADIR@/engines/$1/$2.pwe desc
-}
-
-#@ pwiz_engine_longdesc engine_class engine_name
-# engine_class: class of engine (only one in each class can be active)
-# engine_name: name of engine (implementation of engine class)
-#
-# Show long description of engine implementation.
-function pwiz_engine_longdesc {
-    . @PW_DATADIR@/engines/$1/$2.pwe longdesc
-}
-
-#@ pwiz_engine_load engine_class engine_name
-# engine_class: class of engine (only one in each class can be active)
-# engine_name: name of engine (implementation of engine class)
-#
-# Source engine (load function definitions to PWIZ) and define calling
-#functions to use this engine.
-function pwiz_engine_load {
-    local interface i
-    . @PW_DATADIR@/engines/$1/$2.pwe
-    pwiz_engine_${1}_${2}_init
-    pwiz_add_exit pwiz_engine_${1}_${2}_quit
-    eval interface\=\"\$PWIZ_ENGINE_INTERFACE_$1\"
-    for i in init quit $interface
-    do
-	eval function pwiz_${1}_${i} "{
-	    eval pwiz_engine_${1}_${2}_${i} \\\"\\\$@\\\"
-	}"
-    done
-}
-
-#@ pwiz_engine_load engine_class engine_name
-# engine_class: class of engine (only one in each class can be active)
-# engine_name: name of engine (implementation of engine class)
-#
-# Source engine (load function definitions to PWIZ) and define calling
-#functions to use this engine.
-
-#@ pwiz_engine_list engine_class
-# engine_class: class of engine (only one in each class can be active)
-# returns: list of engines to stdout (FIXME will change to
-#$pwiz_result in future versions)
-#
-# List all available engines of defined class.
-function pwiz_engine_list {
-    (
-	cd @PW_DATADIR@/engines/$1
-# FIXME not sed, use pwiz_result instead of redirection
-	ls -1 | sed 's/\.pwe$//'
-    )
-}
-
-#@ pwiz_engine_interface engine_class function1 [ function2 ... ]
-# engine_class: class of engine (only one in each class can be active)
-# function...: Required functions in defined engine_class.
-#
-# While defining new engine class, using @pwiz_engine_interface you
-#define a list of function, which shall be provided by each engine of
-#this class.
-function pwiz_engine_interface {
-    local class
-    class=$1
-    shift
-    eval PWIZ_ENGINE_INTERFACE_$class\=\"\$\*\"
-}
-
-#@@ Cache engine
-# Cache engine is designed for writing and reading answers and other
-#useful information (tags) in per-package/version/product etc. basis.
-#Address space is defined by keys. Keys are similar to filesystem
-#paths. All functions returns result in $pwiz_result, if any
-
-# FIXME: cache engine should test, whether all key items are non empty
-
-#@ pwiz_cache_read key
-# key: key for data you want to read from cache
-#
-# Read data associated with key from cache.
-
-#@ pwiz_cache_read_tags key
-# key: key for data you want to read from cache
-#
-# Read tags associated with key from cache.
-
-# WARNING: pwiz_cache_read_tags reads all tags in single string. To
-#get particular tags, it must be further expanded by @eval or
-#@pwiz_read_tags.
-
-#@ pwiz_cache_write key value [ tags ]
-# key: key for data you want to write to cache
-# value: data to be written
-# tags: tags to be written
-#
-# Write data and tags to cache (associate data and tags with key).
-
-#@ pwiz_cache_delete key
-# key: key for data you delete from cache
-#
-# Delete data and tags from cache (unassociate data and tags with key).
-
-#@ pwiz_cache_list pattern
-# pattern: pattern for keys you want to query
-# returns ${pwiz_result[@@]}: array of keys found (can be empty)
-#
-# Find all keys in cache which corresponds to defined pattern.
-# NOTE: Patterns are standard path-element patterns (for globbing over
-#more key elements you need to use more askerisks).
-# WARNING: Implementation must support subpatterns at least for q
-#element (i. e. not only "/*/", but also "/subkey*/".
-
-pwiz_engine_interface cache read read_tags write delete list
-
-#@@ Pkgdb engine
-# This engine provides interface with package database on destination
-#system.
-
-#@ pwiz_pkgdb_what_owns file [ ... ]
-# file: queried file
-# returns: 0: OK, 1: problem
-# returns ${pwiz_result[@@]}: array of owning packages
-#
-# Ask package database, which of installed packages owns file.
-
-# FIXME: Does it need implementation?
-# pwiz_pkgdb_package_to_project package
-# returns $pwiz_result: list of packages owning file or directory
-#
-# (can be more items at once)
-
-pwiz_engine_interface pkgdb what_owns
-
-#@@ Question engine
-# Question engine is interface for communication with users. Engine
-#asks user and waits for response.
-# Any question can contain callback functions (which can be
-#implementation alternative interface for "enter manually").
-# WARNING: This is an internal class of engines and programmers should
-#not use these functions directly. Use @pwiz_ask_{function} instead.
-#Those functions do additional answer caching and guess evaluation.
-
-#@ pwiz_question_string desc longdesc [ tags ... ]
-# returns $pwiz_answer: user's answer
-# returns $pwiz_fallback_answer: user selected default answer (default false)
-# uses tag yesno: tag for boolean questions (default false)
-# uses tag allow_new: if set to false, "enter manually" is disabled
-#(default true)
-# uses tag no_default: no preselected default - user have to respond
-#(default false)
-# uses tag callback: callback function for "enter manually" (returns
-#$pwiz_answer) (default string)
-# can use tag multiline: allow multiple-line strings (default false)
-#
-# Interface to ask user for string. Alternating this interface, you
-#can also obtain radio: @allow_new=false, yes/no: @yesno=true.
-
-#@ pwiz_question_list desc longdesc [ tags ... ]
-# returns $pwiz_answer: user's answer
-# returns $pwiz_fallback_answer: user selected default answer (default false)
-# uses tag allow_new: if set to false, "enter manually" is disabled
-#(default true)
-# uses tag no_default: no preselected default - user have to respond
-#(default false)
-# uses tag callback: callback function for "enter manually" (returns
-#$pwiz_answer) (default string)
-# uses tag item_type: type of item for asking "new item" (default
-#string)
-#
-# Interface to ask user for a selection from list.
-
-# FIXME: those are probably obsolete
-# pwiz_question_yesno desc longdesc [ tags ... ]
-# Returns: 0: yes
-# Returns: 1: false
-# pwiz_question_radio desc longdesc [ tags ... ]
-# Returns: $pwiz_answer with selection.
-# pwiz_question_selection desc longdesc [ tags ... ]
-# Returns: FIXME
-
-# FIXME: obsolete yesno
-# FIXME: pwiz_ask_radio is obsolete use ask_string with allow_new=false
-#pwiz_engine_interface question radio selection string list
-pwiz_engine_interface question yesno radio selection string list auto_answer
-
-# Question engine is in most cases used through ask interface. It
-# accomplishes question, caching answer and querying for reasonable
-# guesses.
 
 #@@ Tags
 # Tags are used to simplify calls of functions with many optional
@@ -1001,6 +784,345 @@ pwiz_default_vtags
 #    pwiz_auto_guess=50
 
 
+# @@Aliases
+# @ Aliases must be here, otherwise are not valid for function
+# definitions, but documentation is lower, where logically belongs.
+alias pwiz_cache_validity_apply='local pwiz_cache_validity=pwiz_cache_validity_"$pwiz_tag_valid" ; if test "$(type -t "$pwiz_cache_validity")" != function ; then pwiz_fatal "invalid validitity range $pwiz_tag_valid (tag \"valid\")" ; fi ; $pwiz_cache_validity'
+alias pwiz_keys_set='local pwiz_key ; for pwiz_key in $pwiz_key_list ; do local $pwiz_key ; eval $pwiz_key\=\$pwiz_project_$pwiz_key ; done'
+
+
+#@@@ PWIZ engines
+
+#@ $not_implemented
+# PWIZ error code for not implemented functions (6).
+not_implemented=6
+
+#@@ Engine description
+# Engine is a piece of bash code, sourced from PWIZ core. It typically
+#implements an independent interface for communication with outer
+#world.
+
+#@ {engine_class}/{engine_name}.pwe [ command ]
+# command: Command for engine.
+#
+# Run engine with command.
+# Available commands:
+# @"no command": Load engine.
+# @desc: show description and return
+# @longdesc: show long description and return
+
+#@ pwiz_engine_{engine_class}_{engine_name}_{command} [ optional arguments ]
+# engine_class: class of engine (only one in each class can be active)
+# engine_name: name of engine (implementation of engine class)
+#
+# Engine must define all class specific functions defined by
+#@pwiz_engine_interface plus @init and @quit.
+# Engine functions are not called directly, but using
+#@"pwiz_{engine_class}_{command} [ optional arguments ]".
+
+#@ pwiz_engine_desc engine_class engine_name
+# engine_class: class of engine (only one in each class can be active)
+# engine_name: name of engine (implementation of engine class)
+#
+# Show description of engine implementation.
+function pwiz_engine_desc {
+    . @PW_DATADIR@/engines/$1/$2.pwe desc
+}
+
+#@ pwiz_engine_longdesc engine_class engine_name
+# engine_class: class of engine (only one in each class can be active)
+# engine_name: name of engine (implementation of engine class)
+#
+# Show long description of engine implementation.
+function pwiz_engine_longdesc {
+    . @PW_DATADIR@/engines/$1/$2.pwe longdesc
+}
+
+#@ pwiz_engine_load engine_class engine_name
+# engine_class: class of engine (only one in each class can be active)
+# engine_name: name of engine (implementation of engine class)
+#
+# Source engine (load function definitions to PWIZ) and define calling
+#functions to use this engine.
+function pwiz_engine_load {
+    local interface i
+    . @PW_DATADIR@/engines/$1/$2.pwe
+    pwiz_engine_${1}_${2}_init
+    pwiz_add_exit pwiz_engine_${1}_${2}_quit
+    eval interface\=\"\$PWIZ_ENGINE_INTERFACE_$1\"
+    for i in init quit $interface
+    do
+	eval function pwiz_${1}_${i} "{
+	    eval pwiz_engine_${1}_${2}_${i} \\\"\\\$@\\\"
+	}"
+    done
+}
+
+#@ pwiz_engine_load engine_class engine_name
+# engine_class: class of engine (only one in each class can be active)
+# engine_name: name of engine (implementation of engine class)
+#
+# Source engine (load function definitions to PWIZ) and define calling
+#functions to use this engine.
+
+#@ pwiz_engine_list engine_class
+# engine_class: class of engine (only one in each class can be active)
+# returns: list of engines to stdout (FIXME will change to
+#$pwiz_result in future versions)
+#
+# List all available engines of defined class.
+function pwiz_engine_list {
+    (
+	cd @PW_DATADIR@/engines/$1
+# FIXME not sed, use pwiz_result instead of redirection
+	ls -1 | sed 's/\.pwe$//'
+    )
+}
+
+#@ pwiz_engine_interface engine_class function1 [ function2 ... ]
+# engine_class: class of engine (only one in each class can be active)
+# function...: Required functions in defined engine_class.
+#
+# While defining new engine class, using @pwiz_engine_interface you
+#define a list of function, which shall be provided by each engine of
+#this class.
+function pwiz_engine_interface {
+    local class
+    class=$1
+    shift
+    eval PWIZ_ENGINE_INTERFACE_$class\=\"\$\*\"
+}
+
+#@@ Cache engine
+# Cache engine is designed for writing and reading answers and other
+#useful information (tags) in per-package/version/product etc. basis.
+#Address space is defined by keys. Keys are similar to filesystem
+#paths. All functions returns result in $pwiz_result, if any
+# WARNING: Cache engine functions are "low level" and not recommended
+#for direct use by programmers. Use cache interface functions instead.
+
+# FIXME: cache engine should test, whether all key items are non empty
+
+#@ pwiz_cache_read key
+# key: key for data you want to read from cache
+#
+# Read data associated with key from cache.
+
+#@ pwiz_cache_read_tags key
+# key: key for data you want to read from cache
+#
+# Read tags associated with key from cache.
+
+# WARNING: pwiz_cache_read_tags reads all tags in single string. To
+#get particular tags, it must be further expanded by @eval or
+#@pwiz_read_tags.
+
+#@ pwiz_cache_write key value [ tags ]
+# key: key for data you want to write to cache
+# value: data to be written
+# tags: tags to be written
+#
+# Write data and tags to cache (associate data and tags with key).
+
+#@ pwiz_cache_delete key
+# key: key for data you delete from cache
+#
+# Delete data and tags from cache (unassociate data and tags with key).
+
+#@ pwiz_cache_list pattern
+# pattern: pattern for keys you want to query
+# returns ${pwiz_result[@@]}: array of keys found (can be empty)
+#
+# Find all keys in cache which corresponds to defined pattern.
+# NOTE: Patterns are standard path-element patterns (for globbing over
+#more key elements you need to use more askerisks).
+# WARNING: Implementation must support subpatterns at least for q
+#element (i. e. not only "/*/", but also "/subkey*/".
+
+pwiz_engine_interface cache read read_tags write delete list
+
+#@@ Cache interface
+
+# Cache user interface are high-level functions used for access to
+#cache values. It has the same logical structure of addressing as ask
+#interface. It is used, if you want to save some information in PWIZ
+#cache, but don't need to ask user for anything.
+# Use these function for saving information needed in next pwiz run
+#for earlier stages.
+
+#@ pwiz_cache_save value [ tags ... ]
+# returns ${q tag}: value is stored to environment variable named as q
+#tag
+# uses tag q: question ID (required)
+# uses tag credit: credit of saved value (default 100 - diffferent default from other functions!)
+# uses tag valid: validity range (see @pwiz_cache_validity_{name}) (default=exact)
+#
+# Fuction for saving value to cache. Uses the same tag naming style as
+#ask interface uses. You only have to specify q tag.
+function pwiz_cache_save {
+    local value=$1
+    shift
+    pwiz_reset_tags
+    # Change the default credit to 100.
+    pwiz_tag_credit=100
+    pwiz_read_tags
+    if test -z "$pwiz_tag_q" ; then
+	pwiz_fatal "pwiz_cache_save called without q tag"
+    fi
+    pwiz_keys_set
+    pwiz_cache_validity_apply
+    pwiz_cache_write "$pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$build" "$value" "$@"
+
+    eval $pwiz_tag_q\=\"\$value\"
+}
+
+#@ pwiz_cache_remove value [ tags ... ]
+# uses tag q: question ID (required)
+# uses tag valid: validity range (see @pwiz_cache_validity_{name}) (default=exact)
+#
+# Fuction for deleting value from cache. Uses the same tag naming style as
+#ask interface uses. You only have to specify q tag.
+function pwiz_cache_remove {
+    local value=$1
+    shift
+    pwiz_reset_tags
+    pwiz_read_tags
+    if test -z "$pwiz_tag_q" ; then
+	pwiz_fatal "pwiz_cache_remove called without q tag"
+    fi
+    pwiz_keys_set
+    pwiz_cache_validity_apply
+    pwiz_cache_delete "$pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$build"
+}
+
+#@ pwiz_cache_load value [ tags ... ]
+# returns ${pwiz_guesses[@@]}: array of all acceptablee guesses found
+# returns ${pwiz_credits[@@]}: array of credits of guesses
+# returns $pwiz_guess_best: index of most credible guess
+# returns $pwiz_guess_best_value: value of most credible guess ("@@PWIZ_UNDEFINED@@" if none)
+# returns $pwiz_guess_best_credit: credit of best guess
+# returns ${pwiz_p[@@]}: probability of possible answers and $pwiz_guess_best
+# returns $pwiz_p_other: probability of unlisted answer
+# returns ${pwiz_strings[@@]}: array of string values of guesses (optional - array can be sparse)
+# returns ${pwiz_hotkeys[@@]}: array of guess hotkeys (optional - array can be sparse)
+# returns $pwiz_cache_key_value: cache value for exact match ("@@PWIZ_UNDEFINED@@" if none)
+# returns $pwiz_cache_key_tags: cache tags for exact match (undefined if none)
+# returns $pwiz_cache_key_credit: cached credit for exact match
+# uses tag q: question ID (required)
+# uses tag credit: credit of saved value (default 100 - diffferent default from other functions!)
+# uses tag valid: validity range (see @pwiz_cache_validity_{name}) (default=exact)
+# uses tag default: default value, used if no cached guess is available
+#
+# Fuction for reading value from cache. Uses the same tag naming style
+#as ask interface uses, including guessing and answer credit. You have
+#to specify q tag.
+# WARNING: In difference to ask interface and @pwiz_cache_save, value
+#is not cached in local variable. It is because you can want read best
+#guess or exact guess.
+function pwiz_cache_load {
+    pwiz_reset_tags
+    pwiz_read_tags
+    if test -z "$pwiz_tag_q" ; then
+	pwiz_fatal "pwiz_cache_remove called without q tag"
+    fi
+    pwiz_keys_set
+
+    # Add '*' to pattern for keys, where credit inheritance function exists.
+    # This is really needed in pwiz_guess, but it's simpler to set it here.
+    for pwiz_key in $pwiz_key_list ; do
+	if test "$(type -t "pwiz_guess_credit_$pwiz_key")" = function ; then
+	    eval $pwiz_key\=\'\*\'
+	fi
+    done
+    pwiz_cache_validity_apply
+
+    decho_guess "cache load tags: $*"
+    if ! test -z "$pwiz_tag_q" ; then
+	eval pwiz_answer\=\"\${$pwiz_tag_q-@@PWIZ_UNDEFINED@@}\"
+	if test "$pwiz_answer" != @@PWIZ_UNDEFINED@@ ; then
+	    decho_guess "cache already loaded: $pwiz_answer"
+	    return
+	fi
+    fi
+    pwiz_guess
+}
+
+
+#@@ Pkgdb engine
+# This engine provides interface with package database on destination
+#system.
+
+#@ pwiz_pkgdb_what_owns file [ ... ]
+# file: queried file
+# returns: 0: OK, 1: problem
+# returns ${pwiz_result[@@]}: array of owning packages
+#
+# Ask package database, which of installed packages owns file.
+
+# FIXME: Does it need implementation?
+# pwiz_pkgdb_package_to_project package
+# returns $pwiz_result: list of packages owning file or directory
+#
+# (can be more items at once)
+
+pwiz_engine_interface pkgdb what_owns
+
+#@@ Question engine
+# Question engine is interface for communication with users. Engine
+#asks user and waits for response.
+# Any question can contain callback functions (which can be
+#implementation alternative interface for "enter manually").
+# WARNING: This is an internal class of engines and programmers should
+#not use these functions directly. Use @pwiz_ask_{function} instead.
+#Those functions do additional answer caching and guess evaluation.
+
+#@ pwiz_question_string desc longdesc [ tags ... ]
+# returns $pwiz_answer: user's answer
+# returns $pwiz_fallback_answer: user selected default answer (default false)
+# uses tag yesno: tag for boolean questions (default false)
+# uses tag allow_new: if set to false, "enter manually" is disabled
+#(default true)
+# uses tag no_default: no preselected default - user have to respond
+#(default false)
+# uses tag callback: callback function for "enter manually" (returns
+#$pwiz_answer) (default string)
+# can use tag multiline: allow multiple-line strings (default false)
+#
+# Interface to ask user for string. Alternating this interface, you
+#can also obtain radio: @allow_new=false, yes/no: @yesno=true.
+
+#@ pwiz_question_list desc longdesc [ tags ... ]
+# returns $pwiz_answer: user's answer
+# returns $pwiz_fallback_answer: user selected default answer (default false)
+# uses tag allow_new: if set to false, "enter manually" is disabled
+#(default true)
+# uses tag no_default: no preselected default - user have to respond
+#(default false)
+# uses tag callback: callback function for "enter manually" (returns
+#$pwiz_answer) (default string)
+# uses tag item_type: type of item for asking "new item" (default
+#string)
+#
+# Interface to ask user for a selection from list.
+
+# FIXME: those are probably obsolete
+# pwiz_question_yesno desc longdesc [ tags ... ]
+# Returns: 0: yes
+# Returns: 1: false
+# pwiz_question_radio desc longdesc [ tags ... ]
+# Returns: $pwiz_answer with selection.
+# pwiz_question_selection desc longdesc [ tags ... ]
+# Returns: FIXME
+
+# FIXME: obsolete yesno
+# FIXME: pwiz_ask_radio is obsolete use ask_string with allow_new=false
+#pwiz_engine_interface question radio selection string list
+pwiz_engine_interface question yesno radio selection string list auto_answer
+
+# Question engine is in most cases used through ask interface. It
+# accomplishes question, caching answer and querying for reasonable
+# guesses.
+
 #@@@ Asking interface and guesses
 # Asking interface is used for querying users, saving and re-using
 #results. It is based on question interface and is intended for use by
@@ -1048,7 +1170,8 @@ pwiz_key_list="project subproject version patchlevel vendor build"
 # Alias for cloning global variables $pwiz_project_{key} to local
 #variables ${key}. It is used by functions, which need to alter these
 #values internally.
-alias pwiz_keys_set='local pwiz_key ; for pwiz_key in $pwiz_key_list ; do local $pwiz_key ; eval $pwiz_key\=\$pwiz_project_$pwiz_key ; done'
+
+# See definition upper, where it must be due to alias axpansion.
 
 #@@ Cache validities
 # When searching guess for question, PWIZ needs to run through all
@@ -1068,7 +1191,8 @@ alias pwiz_keys_set='local pwiz_key ; for pwiz_key in $pwiz_key_list ; do local 
 #unappropriate for defined validity range - if there is no function to
 #compare similarity, key is removed and exact key match will be
 #required.
-alias pwiz_cache_validity_apply='local pwiz_cache_validity=pwiz_cache_validity_"$pwiz_tag_valid" ; if test "$(type -t "$pwiz_cache_validity")" != function ; then pwiz_fatal "invalid validitity range $pwiz_tag_valid (tag \"valid\")" ; fi ; $pwiz_cache_validity'
+
+# See definition upper, where it must be due to alias axpansion.
 
 #@ pwiz_cache_validity_exact
 #
@@ -1223,7 +1347,7 @@ function pwiz_guess_credit {
 # returns $pwiz_cache_key_tags: cache tags for exact match (undefined if none)
 # returns $pwiz_cache_key_credit: cached credit for exact match
 #(without cache source credit applied) (undefined if none)
-# uses tag q: Question ID.
+# uses tag q: question ID
 # uses tag default[@@]: predefined defaults
 # uses tag c[@@]: credits of predefined defaults (optional - array can be sparse)
 # uses tag p[@@]: probabilities for predefined defaults (optional - array can be sparse)
@@ -1567,7 +1691,7 @@ function pwiz_ask_radio_f {
 # returns $pwiz_answer: question result
 # returns ${q tag}: answer is also stored to environment variable
 #named as q tag
-# uses tag q: Question ID.
+# uses tag q: question ID
 # uses tag default[@@]: predefined defaults
 # uses tag c[@@]: credits of predefined defaults (optional - array can be sparse)
 # uses tag p[@@]: probabilities for predefined defaults (optional - array can be sparse)
@@ -1644,6 +1768,7 @@ function pwiz_ask_core {
     else
 	let credit_threshold=knowledge\*OPTVAL_THRESHOLD/100
     fi
+    decho_guess "auto answer threshold credit: $credit_threshold"
     if test $pwiz_guess_best_credit -ge $credit_threshold ; then
 	decho_guess "PWIZ auto answer: $pwiz_answer"
 	pwiz_question_auto_answer "$desc" "$longdesc" "$pwiz_guess_best"
@@ -1657,7 +1782,6 @@ function pwiz_ask_core {
 	fi
 	guesslevel=100
     else
-
 	local pwiz_hotarray
 	# Search for unique hotkeys.
 # FIXME: elsewhere???
@@ -2973,8 +3097,5 @@ pwiz_projectdirs_init
 while pwiz_step run ; do
     :
 done
-
-# FIXME:
-set >$PWIZ_TMPDIR/pwiz.set
 
 pwiz_exit

@@ -12,6 +12,9 @@ case $1 in
     init )
 	pwiz_module_needs rpm
 	pwiz_phase_new_call rpm_doc_check after BUILD_POSTCOMPILE
+	pwiz_phase_new_call rpm_doc_copy after INSTALL_POSTCHECK
+	filelist_install_provider
+	filelist_inspect_provider
 	;;
     version )
 	echo "0.1"
@@ -67,9 +70,110 @@ function rpm_doc_check {
 }
 shopt -u extglob
 
+function rpm_doc_copy {
+    if $rpm_doc_has_doc_files_addon ; then
+	# mkdir check not needed, done by adding actions.
+	pwiz_phase_add_run rpm_doc_copy "cp ${rpm_doc_files[*]} \$RPM_BUILD_ROOT%{_defaultdocdir}"
+    fi
+}
+rpm_doc_has_doc_files_addon=false
+
 #@ rpm_doc_files_list
 #
 # Adds %doc for selected files to filelist. (internal)
 function rpm_doc_files_list {
-    pwiz_phase_add_rem rpm_files_list "%doc ${rpm_doc_files[*]}"
+    if ! $rpm_doc_has_doc_files_addon ; then
+	pwiz_phase_add_rem rpm_files_list "%doc ${rpm_doc_files[*]}"
+    fi
+}
+
+#@ rpm_doc_filelist_install
+#
+# Passes all files, but if any file is in datadir/doc or prefix/doc,
+#ask user for moving it.
+
+# FIXME: /usr/share/doc/packages is SuSE specific, but %doc not.
+# Make a fix to prevent removing of files in %files %doc.
+function rpm_doc_filelist_install {
+    local has_ugly_doc=false
+    local has_doc_packages=false
+    local ugly_file ugly_datadir
+    filelist_read_open
+    while filelist_read_item ; do
+	if test "${filelist_tag_name#/usr/share/doc/packages}" != "$filelist_tag_name" ; then
+	    has_doc_packages=true
+	else
+	    if test "${filelist_tag_name#$datadir/doc}" != "$filelist_tag_name" ; then
+		ugly_file=$filelist_tag_name
+		ugly_datadir=true
+		has_ugly_doc=true
+	    else
+		if test "${filelist_tag_name#$prefix/doc}" != "$filelist_tag_name" ; then
+		    ugly_file=$filelist_tag_name
+		    ugly_datadir=false
+		    has_ugly_doc=true
+		fi
+	    fi
+	fi
+    done
+    filelist_read_close
+    if $has_ugly_doc ; then
+	if $ugly_datadir ; then
+	    ugly_dir=${ugly_file#$datadir/doc/}
+	    ugly_dir="$datadir/doc/${ugly_dir%%/*}"
+	else
+	    ugly_dir=${ugly_file#$prefix/doc/}
+	    ugly_dir="$prefix/doc/${ugly_dir%%/*}"
+	fi
+	pwiz_cache_save true q=rpm_doc_wants_docdir
+	pwiz_ask_string "Package has ugly located documentation. What to do now?" "In SuSE Linux, documentation is centralized in /usr/share/doc/packages directory. But your package has at least directory \"$ugly_dir\" located in non-standard location. You should move it to standard place, if there is no special reason to keep it at place." \
+	    q=rpm_doc_ugly_doc \
+	    default[0]=keep string[0]="keep it in place" p[0]=50 \
+	    default[1]=move string[1]="move it to standard RPM docdir" p[1]=20 \
+	    default[2]=movesubdir string[2]="move it to subdirectory of standard RPM docdir" p[2]=20 \
+	    default[3]=config string[3]="go back to configure phase and set proper configure option (recommeded if possible, needs pwiz restart" p[3]=10
+	case $pwiz_answer in
+	    move )
+		rpm_doc_has_doc_files_addon=true
+		# FIXME: Use path from RPM
+		if ! test -d "$PWIZ_INSTALLROOT/usr/share/doc/packages/$pwiz_project_project-$pwiz_project_version" ; then
+		    pwiz_phase_add_run rpm_doc_copy "mkdir -p \$RPM_BUILD_ROOT%{_defaultdocdir}"
+		fi
+		pwiz_phase_add_run rpm_doc_copy "mv \$RPM_BUILD_ROOT$ugly_dir/* \$RPM_BUILD_ROOT%{_defaultdocdir}"
+		;;
+	    movesubdir )
+		rpm_doc_has_doc_files_addon=true
+		pwiz_ask_string "Enter docdir subdirectory." "You have decided to package documentation to subdirectory of defaultdocdir. Now you should enter its name." \
+		    q=rpm_doc_move_subdir
+		# FIXME: Use path from RPM
+		if ! test -d "$PWIZ_INSTALLROOT/usr/share/doc/packages/$pwiz_project_project-$pwiz_project_version" ; then
+		    pwiz_phase_add_run rpm_doc_copy "mkdir -p \$RPM_BUILD_ROOT%{_defaultdocdir}/$pwiz_answer"
+		fi
+		pwiz_phase_add_run rpm_doc_copy "mv \$RPM_BUILD_ROOT$ugly_dir \$RPM_BUILD_ROOT%{_defaultdocdir}/$pwiz_answer"
+		;;
+	    config )
+		pwiz_exit
+		;;
+	esac
+    else
+	pwiz_cache_save false q=rpm_doc_wants_docdir
+    fi
+}
+
+function rpm_doc_filelist_inspect {
+    filelist_read_open
+    pwiz_redirect_stdout $filelist_file_tmp
+    while filelist_read_item ; do
+	case "$filelist_tag_name" in
+	    /usr/share/doc/packages/* | $mandir/* | $infodir/* )
+		echo "$filelist_tag_name $filelist_tagline@attr=doc"
+		;;
+	    * )
+		echo "$filelist_tag_name $filelist_tagline"
+		;;
+	esac
+    done
+    filelist_read_close
+    pwiz_redirect_stdout_close
+    mv $filelist_file_tmp $filelist_file
 }

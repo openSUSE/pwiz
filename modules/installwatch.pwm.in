@@ -30,7 +30,7 @@ function installwatch_SETUP {
     pwiz_phase_add SOURCE "mkdir -p $PWIZ_TMPDIR/installwatch"
 }
 
-#@ installwatch_filelist_raw
+#@ installwatch_filelist_raw
 #
 # Creates raw filelist from collected information. (internal)
 function installwatch_filelist_raw {

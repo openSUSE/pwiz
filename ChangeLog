@@ -1,3 +1,10 @@
+2004-07-16  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/filelist.pwm, modules/installwatch.pwm.in,
+	modules/rpm_doc.pwm, Makefile.am, README, pwiz.gopts.in:
+	Documetation fixes. Documentation packaging fixes. Added
+	high-level caching functions.
+
 2004-07-13  Stanislav Brabec  <sbrabec@suse.cz>
 
 	* engines/question/dumb.pwe, pwiz.gopts.in: Removed old tags

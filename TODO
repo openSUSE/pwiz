@@ -1,0 +1,25 @@
+Support for other version lookups than FTP.
+(work-around: copy required files to ~/pwiz/tmpcache)
+
+Improve patch manager.
+(partial work-around: copy required files to ~/pwiz/results/{package})
+
+Error processing and phase engine backstepping.
+
+Support for automatic BuildRequires and Requires.
+
+Support for %pre, %post, %postun, %preun splitting to subpackages.
+
+Support for building in chroot environments.
+
+FIXMEs in code.
+
+RPM %files suid support.
+
+RPM CXXFLAGS are now hardwired, even if they are unused.
+
+Support for RPM %ghost.
+
+Support for not GNU configure based programs.
+
+Support for more cache sources and force-overwrite in local cache.

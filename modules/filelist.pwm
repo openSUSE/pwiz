@@ -179,7 +179,8 @@ function filelist_raw_close {
 #@{module}_filelist_raw
 # uses $filelist_raw_file: File name of destination raw file.
 #
-# Function, which generates raw file list.
+# Function, which generates raw file list, which is later parsed by
+#PWIZ.
 
 function filelist_raw_provider {
     filelist_raw_provider_function=${pwiz_module_current}_filelist_raw
@@ -199,7 +200,25 @@ function filelist_raw_provider {
 #
 # Function, which inspects file list. it can add, remove or modify
 #files in file list.
-
+# Example of simple inspect provider, which includes all files (valid
+#for all list inspectors):
+#@<
+#... init
+#    filelist_inspect_provider
+#...
+#function mymodule_filelist_inspect {
+#    filelist_read_open
+#    pwiz_redirect_stdout $filelist_file_tmp
+#    while filelist_read_item ; do
+#	echo "$filelist_tag_name $filelist_tagline"
+#    done
+#    filelist_read_close
+#    pwiz_redirect_stdout_close
+#    mv $filelist_file_tmp $filelist_file
+#}
+#@>
+# Note: you don't have to write any file, if you want to pass all
+#files in all cases.
 function filelist_inspect_provider {
     pwiz_phase_add_callme filelist_inspect
 }
@@ -215,24 +234,8 @@ function filelist_inspect_provider {
 #
 # Function, which inspects preliminary file list during INSTALL phase.
 #it can add, remove or modify files in file list.
-# Example of simple inspect provider, which includes all files (valid
-#for all list inspectors):
-#@<
-#... init
-#    filelist_inspect_provider
-#...
-#function mymodule_filelist_inspect {
-#    local name
-#    filelist_read_open
-#    pwiz_redirect_stdout $filelist_file_tmp
-#    while filelist_read_item ; do
-#	echo "$filelist_tag_name $filelist_tagline"
-#    done
-#    filelist_read_close
-#    pwiz_redirect_stdout_close
-#    mv $filelist_file_tmp $filelist_file
-#}
-#@>
+# See @{module}_filelist_inspect for example of simple instalt
+#provider.
 
 function filelist_install_provider {
     pwiz_phase_add_callme filelist_install
@@ -280,6 +283,11 @@ function filelist_read_close {
 # $filelist_tag_attr: attributes of file in package (not permissions,
 #but attributes like doc, man, noverify etc.)
 # $filelist_tag_sub: subpackage
+# Filelist line format (for writing to list):
+#@<
+#filename type@sub=subname@attr=doc
+#filename2 type
+#@>
 function filelist_read_item {
     local stream=${1:-3}
     local var
