@@ -92,10 +92,10 @@ function rpm_files_finish {
 function rpm_files_list {
 # FIXME: move to globals or other section, do not create final list, but replace dir -> systemdir
     local subpackage
+    pwiz_phase_add_rem rpm_files_list "%defattr (-, root, root)"
     for callback in "${rpm_files_list_callback__[@]}" ; do
 	$callback
     done
-    pwiz_phase_add_rem rpm_files_list "%defattr (-, root, root)"
     filelist_read_open
     exec 4>$PWIZ_TMPDIR/rpm_sub_tmp
     while filelist_read_item ; do
