@@ -29,7 +29,7 @@ function version_parse {
     vstr="$1"
     shopt -s extglob
     while ! test -z "$vstr" ; do
-	substr="${vstr#+([0-9])}"
+	substr="${vstr##+([0-9])}"
 	pwiz_result[$count]="${vstr%$substr}"
 	if test "$vstr" != "$substr" ; then
 # known version element separators
@@ -49,20 +49,21 @@ function version_parse {
 # Returns: 0: p1 newer than p2
 # Returns: 1: p1 older than p2
 # Returns: 2: p1 equal to p2
+# NOTE: p2 can be an empty array
 function version_compare {
     local -a p1 p2 count
     eval p1='( "${'$1'[@]}" )'
     eval p2='( "${'$2'[@]}" )'
-    if test ${#p1[@]} -gt ${#p2[@]} ; then
-	local max=${#p1[@]}
-    else
-	local max=${#p2[@]}
-    fi
+    local max=${#p1[@]}
     for (( count=0 ; count < $max ; count++ )) ; do
-	if [[ "${p1[$count]}" > "${p2[$count]}" ]] ; then
+	# 2.3.1 > 2.3
+	if test -z "${p2[$count]}" ; then
+	    return 0
+	fi
+	if test "${p1[$count]}" -gt "${p2[$count]}" ; then
 	    return 0
 	else
-	    if [[ "${p1[$count]}" < "${p2[$count]}" ]] ; then
+	    if test "${p1[$count]}" -lt "${p2[$count]}" ; then
 		return 1
 	    fi
 	fi
