@@ -94,6 +94,7 @@ function package_download {
 # FIXME: If new version comes, has less priority than old one. The same for URI.
 # FIXME: p=200
 	unset package_latest_version_array
+	package_latest_unpack_priority=0
 	ftp_list_recursive $package_search_uri package_parse_uri
 	decho_uri "latest URI: $package_latest_uri"
 	decho_uri "latest version: $package_latest_version"
@@ -154,19 +155,30 @@ function package_parse_uri {
 	    shopt -u extglob
 # package-version separators
 	    pwiz_result="${pwiz_result#[-_]}"
-	    decho_uri -n "is archive of ${pwiz_result##*/}"
+	    decho_uri -n " is archive of ${pwiz_result##*/}"
 #!!!!! FIXME
 	    version_save="$pwiz_result"
 	    version_parse "$pwiz_result"
-	    version_compare pwiz_result package_latest_version_array
-
 	    if version_policy_check pwiz_result ; then
-		decho_uri " latest version yet found"
-		package_latest_version="$version_save"
-		package_latest_version_array=( "${pwiz_result[@]}" )
-		package_latest_uri="$1"
+		if version_compare pwiz_result package_latest_version_array ; then
+		    decho_uri " - latest version yet found"
+		    package_latest_version="$version_save"
+		    package_latest_version_array=( "${pwiz_result[@]}" )
+		    package_latest_uri="$1"
+		    package_latest_unpack_priority=$unpack_priority
+		else
+		    if test $? = 2 -a $unpack_priority -gt $package_latest_unpack_priority ; then
+			decho_uri " - equal to latest version, but has preferred format"
+			package_latest_version="$version_save"
+			package_latest_version_array=( "${pwiz_result[@]}" )
+			package_latest_uri="$1"
+			package_latest_unpack_priority=$unpack_priority
+		    else
+			decho_uri " - newer or equal version exists"
+		    fi
+		fi
 	    else
-		decho_uri " latest version yet found, disabled by policy"
+		decho_uri " - disabled by policy"
 	    fi
 	fi
     else

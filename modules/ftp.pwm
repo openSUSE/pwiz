@@ -48,16 +48,17 @@ function ftp_list {
 #@ if $2 == "", then $pwiz_callback is used
 # FIXME: Check, whether works for atypical characters in URL
 function ftp_list_recursive {
-    local pwiz_callback_save
+    local pwiz_callback_save pwiz_callback_sub
     mkdir -p $PWIZ_CACHEDIR/ftp
     if ! $ftp_WGET -P $PWIZ_CACHEDIR/ftp -N -nr -r -R '*' "$1" ; then
 	echo "*** $1 not found"
 	return 1
     fi
     shopt -s dotglob
-    pwiz_callback_save=${2:-$pwiz_callback}
+    pwiz_callback_save=$pwiz_callback
+    pwiz_callback_sub=${2:-$pwiz_callback}
     pwiz_callback=ftp_list_callback
-    pwiz_find "${1#ftp://}" $PWIZ_CACHEDIR/ftp/ "$pwiz_callback_save"
+    pwiz_find "${1#ftp://}" $PWIZ_CACHEDIR/ftp/ "$pwiz_callback_sub"
     pwiz_callback=$pwiz_callback_save
     shopt -u dotglob
 }

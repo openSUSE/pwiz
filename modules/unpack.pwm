@@ -52,28 +52,34 @@ function unpack_search_dirname {
     done
 }
 
-#@ Output: pwiz_result:
+#@ Output: pwiz_result, unpack_priority:
 # FIXME: is ugly, has no callback
+# FIXME: modifyable priority
 function unpack_check_extension {
     local ext
     case "$1" in
 	*.tar.gz )
 	    ext=.tar.gz
 	    unpack_seq="tar -z -x -f"
+	    unpack_priority=1
 	    ;;
 	*.tgz )
 	    ext=.tgz
 	    unpack_seq="tar -z -x -f"
+	    unpack_priority=1
 	    ;;
 	*.tar.bz2 )
 	    ext=.tar.bz2
 	    unpack_seq="tar -j -x -f"
+	    unpack_priority=2
 	    ;;
 	*.tbz2 )
 	    ext=.tbz2
 	    unpack_seq="tar -j -x -f"
+	    unpack_priority=2
 	    ;;
 	* )
+	    unpack_priority=0
 	    return 1
 	    ;;
     esac

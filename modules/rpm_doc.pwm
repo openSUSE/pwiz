@@ -1,0 +1,65 @@
+#! /bin/bash
+
+case $1 in
+    desc )
+	echo "RPM %doc support for PWIZ"
+	return
+	;;
+    longdesc )
+	echo "This module adds basic documentation files RPM and overwrites some default definitions."
+	return
+	;;
+    init )
+	pwiz_module_needs rpm
+	pwiz_phase_new_call rpm_doc_check after BUILD_POSTCOMPILE
+	;;
+    version )
+	echo "0.1"
+	return
+	;;
+    * )
+	return
+	;;
+esac
+
+shopt -s extglob
+function rpm_doc_check {
+    local LC_ALL=C
+    local doc_active=false
+    shopt -s extglob
+    for file in * ; do
+	if ! test -f "$file" ; then
+	    confinue
+	fi
+	case "$file" in
+	    INSTALL )
+		md5sum="$(md5sum "$file")"
+		md5sum=${md5sum%% *}
+		case $md5sum in
+# FIXME: Make it configurable
+# Default GNU install files. No useful per-package information.
+		    0d6be33865b76025c20b48bcac87adb7 )
+			;;
+		    * )
+			pwiz_array_add rpm_doc_files "$file"
+			doc_active=true
+			;;
+		esac
+		;;
+# ChangeLog and uppercase named files are probably basic documentation.
+	    ChangeLog | *([-._A-Z]) )
+		pwiz_array_add rpm_doc_files "$file"
+		doc_active=true
+		;;
+	esac
+    done
+    shopt -u extglob
+    if $doc_active ; then
+	pwiz_array_add rpm_files_list_callback__ rpm_doc_files_list
+    fi
+}
+shopt -u extglob
+
+function rpm_doc_files_list {
+    pwiz_phase_add_rem rpm_files_list "%doc ${rpm_doc_files[*]}"
+}
