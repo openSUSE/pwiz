@@ -29,15 +29,19 @@ function biarch_prefix_set {
 }
 
 function biarch_filelist_inspect {
-    local filelist_tag_name_new
+    local name
     filelist_read_open
     pwiz_redirect_stdout $filelist_file_tmp
     while filelist_read_item ; do
-# FIXME: libdir?
-	filelist_tag_name_new=${filelist_tag_name/#$prefix\/lib/$prefix/%\{_lib\}}
-	echo "$filelist_tag_name_new $filelist_tagline"
+	biarch_replace "$filelist_tag_name"
+	echo "$pwiz_result $filelist_tagline"
     done
     filelist_read_close
     pwiz_redirect_stdout_close
     mv $filelist_file_tmp $filelist_file
+}
+
+function biarch_replace {
+# FIXME: libdir?
+    pwiz_result=${1/#$prefix\/lib/$prefix/%\{_lib\}}
 }

@@ -507,26 +507,64 @@ function rpm_source {
 # FIXME: Maybe use answer variables instead of new ones.
     pwiz_ask_string "Enter source $2 name." "Enter here source name for source id $2. File itself must be copied to $PWIZ_RESULTDIR." q=rpm_source__$1__$2
     rpm_source_add $2 "$pwiz_answer"
+    local sourcename=$pwiz_answer
 # FIXME: Ask for source description string.
     cp -a $PWIZ_RESULTDIR/$pwiz_answer $PWIZ_SOURCESDIR
     local -a addons
     if test "$PWIZ_PHASE_CURRENT" = manual_PREPARE_PREUNPACK ; then
-	addons=( "default[1]=\"@setup@-b#\"" "p[1]=0" "string[1]=\"unpack during %setup before changing directory\"" "default[2]=\"@setup@-a#\"" "p[2]=10" "string[2]=\"unpack during %setup after changing directory\"" )
+	addons=( "default[2]=\"@setup@-b#\"" "p[2]=0" "string[2]=\"unpack during %setup before changing directory\"" "default[3]=\"@setup@-a#\"" "p[3]=10" "string[3]=\"unpack during %setup after changing directory\"" )
     fi
-    pwiz_ask_string "What do you want to do with this source (\"#\" is source number)." "Because RPM sources and patches in PWIZ are ID based, you need to enter eventual commands here. Use \"#\" instead of source number and ## instead of #." default[0]="cp -a %{S:#} ." p[0]=0 string[0]="copy to actual directory" "${addons[@]}" q=rpm_source_name__$1__$2
+    pwiz_ask_string "What do you want to do with this source (\"#\" is source number)." "Because RPM sources and patches in PWIZ are ID based, you need to enter eventual commands here. Use \"#\" instead of source number and ## instead of #." default[0]="@cp@%{S:#}" p[0]=10 string[0]="copy to actual directory" default[1]="@cpi@%{S:#}" p[1]=20 string[1]="copy to actual directory and install later" "${addons[@]}" q=rpm_source_name__$1__$2
     eval local sourceno\=\$rpm_sourceno__$2
-    pwiz_answer=${pwiz_answer//\\#\\#/@@rpm_crosshash@@}
-    pwiz_answer=${pwiz_answer//\\#/$sourceno}
-    pwiz_answer=${pwiz_answer//@@rpm_crosshash@@/#}
-    case $pwiz_answer in
+    local sourcestring=${pwiz_answer//\\#\\#/@@rpm_crosshash@@}
+    sourcestring=${sourcestring//\\#/$sourceno}
+    sourcestring=${sourcestring//@@rpm_crosshash@@/#}
+    case $sourcestring in
 	@setup@* )
-	    rpm_setup_args="$rpm_setup_args ${pwiz_answer#@setup@}"
+	    rpm_setup_args="$rpm_setup_args ${sourcestring#@setup@}"
+	    ;;
+	@cp@* )
+# FIXME: pwiz_string_escape
+	    rpm_source_cp_args="$rpm_source_cp_args ${sourcestring#@cp@}"
+	    ;;
+	@cpi@* )
+# FIXME: pwiz_string_escape
+	    rpm_source_cp_args="$rpm_source_cp_args ${sourcestring#@cpi@}"
+	    pwiz_ask_string "Enter RPM destination of file $sourcename" "Now you should enter location of file in final RPM. Do not use build root paths." q=rpm_source_dest__$1__$2
+# FIXME: pwiz_string_escape
+	    pwiz_phase_add rpm_source_dest_check "rpm_source_dest_check $1 $2 \"$sourcename\" \"$pwiz_answer\""
 	    ;;
 	* )
-	    pwiz_phase_add_run $1 "$pwiz_answer"
+	    pwiz_phase_add_run $1 "$sourcestring"
 	    ;;
     esac
 }
+
+#@ rpm_source_cp_check manual_id (internal)
+# Copy extra sources, all at once.
+function rpm_source_cp_check {
+    if ! test -z "$rpm_source_cp_args" ; then
+# FIXME: pwiz_string_escape
+	    pwiz_phase_add_run $1 "cp -a$rpm_source_cp_args ."
+    fi
+    rpm_source_cp_args=
+}
+rpm_source_cp_args=
+
+#@ rpm_source_dest_check manual_id source_id source_filename dest_filename (internal)
+# Check build root and generate proper commands.
+function rpm_source_dest_check {
+    if ! test -d "$RPM_BUILD_ROOT${4%/*}" ; then
+	mkdir -p "$RPM_BUILD_ROOT${4%/*}"
+# FIXME: pwiz_string_escape
+	biarch_replace "$4"
+	pwiz_phase_add_run rpm_source_dest_mkdir "mkdir -p \\$RPM_BUILD_ROOT${pwiz_result%/*}"
+	pwiz_phase_add_run rpm_source_dest_cp "cp $3 \\$RPM_BUILD_ROOT$pwiz_result"
+    fi
+}
+pwiz_phase_new rpm_source_dest_check after INSTALL_POSTACTION
+pwiz_phase_new rpm_source_dest_mkdir after rpm_source_dest_check
+pwiz_phase_new rpm_source_dest_cp after rpm_source_dest_mkdir
 
 # rpm_source_add id name
 function rpm_source_add {
@@ -577,12 +615,16 @@ function rpm_patch_add {
     pwiz_array_add rpm_patches "$pwiz_result"
 }
 
-manual_action_add PREPARE_PREUNPACK rpm_manual_source "manage extra RPM sources"
+for rpm_tmp_phase in PREPARE_PREUNPACK PREPARE_POSTUNPACK PREPARE_RECHECK ; do
+    manual_action_add $rpm_tmp_phase rpm_manual_source "manage extra RPM sources"
+    pwiz_phase_new rpm_source_cp_$rpm_tmp_phase after manual_$rpm_tmp_phase
+    pwiz_phase_add rpm_source_cp_$rpm_tmp_phase "rpm_source_cp_check $rpm_tmp_phase"
+done
+unset rpm_tmp_phase
 
-manual_action_add PREPARE_POSTUNPACK rpm_manual_source "manage extra RPM sources"
 manual_action_add PREPARE_POSTUNPACK rpm_manual_patch  "manage enhancement RPM patches"
 
-manual_action_add PREPARE_RECHECK rpm_manual_source "manage extra RPM sources"
 manual_action_add PREPARE_RECHECK rpm_manual_patch  "manage bugfix RPM patches"
+
 
 # FIXME: be able to add additional source late during install and send event back
