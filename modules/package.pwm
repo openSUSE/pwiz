@@ -12,32 +12,67 @@ case $1 in
     init )
 	pwiz_module_uses unpack version
 	pwiz_phase_new package after PROJECT
-	pwiz_phase_add_callme package
+	pwiz_phase_new_3_guess package_project after PROJECT
+	pwiz_phase_new_3_guess package_basename after package_project_set
+	pwiz_phase_new_3_guess package_search_uri after package_basename_set
+	pwiz_phase_new_callme policy after package_search_uri_set
+# FIXME: finish splitting
+	pwiz_phase_new_callme download after policy
 	;;
-package )
-# FIXME: split to more phases
+    package_project_prepare )
+	pwiz_project_project=
+	return
+	;;
+    package_project_set )
 # FIXME: implement selection "try another version" and search this version' URL
 # FIXME: implement to all error questions: error_default_list
 # FIXME: pwiz_project_ -> package_ for names not present in key
-	pwiz_ask_string "Project name (name of project for PWIZ)." \
-	    "Now you should enter canonical project name. The name can be global project name, or any selected, if there is a reason for different name." \
-	    q=package_name valid=setup
-	pwiz_project_project="$pwiz_answer"
-	pwiz_ask_string "Global project source base file name." \
-	    "Now you should enter project base file name (i. e. name without prefix, suffix and version). This can be a string or extended pattern (see extglob in bash(1))." \
-	    q=package_base default="$pwiz_project_project" p=70
-	pwiz_project_base="$pwiz_answer"
+	if test -z "$pwiz_project_project" ; then
+	    pwiz_ask_string "Project name (name of project for PWIZ)." \
+		"Now you should enter canonical project name. The name can be global project name, or any selected, if there is a reason for different name." \
+		q=package_project valid=setup
+	    pwiz_project_project="$pwiz_answer"
+	fi
+	return
+	;;
+
+    package_basename_prepare )
+	package_basename=
+	return
+	;;
+    package_basename_set )
+	if test -z "$package_basename" ; then
+	    pwiz_ask_string "Global project source base file name." \
+		"Now you should enter project base file name (i. e. name without prefix, suffix and version). This can be a string or extended pattern (see extglob in bash(1))." \
+		q=package_base default="$pwiz_project_project" p=70
+	    package_basename="$pwiz_answer"
+	fi
+	return
+	;;
+    package_search_uri_prepare )
+	package_search_uri=
+	return
+	;;
+    package_search_uri_set )
+	if test -z "$package_search_uri" ; then
+echo "$package_search_uri_guesses"
 # FIXME ask for home page
-# FIXME !!!!!!!!!!!!!!!!!! ask for URI, call URI guessers
-	pwiz_ask_string "Enter package search URI." \
-	    "Package search URI is top-level URI, where sources are searched. Can be space separated list." \
-	    q=package_search_uri valid=project
-	package_search_uri="$pwiz_answer"
+	    pwiz_ask_string "Enter package search URI." \
+		"Package search URI is top-level URI, where sources are searched. Can be space separated list." \
+		q=package_search_uri valid=project
+	    package_search_uri="$pwiz_answer"
+	fi
+	return
+	;;
+    policy )
 # FIXME: subproject
 # FIXME: more sources with more policies
 	version_ask_policy
 	version_ask_product_policy
-
+	return
+	;;
+# FIXME: finish splitting
+    download )
 # FIXME: ugly temporary solution:
 	if test -d "$PWIZ_CACHEDIR/ftp/${package_search_uri#ftp://}" ; then
 	    package_default=false
@@ -48,10 +83,8 @@ package )
 	    "Now you can lookup for FTP. Stored version will be used otherwise." \
 	    default=$package_default p=90 ; then
 # FIXME: ugly callback
-	    pwiz_callback=package_parse_uri
 	    unset package_latest_version_array
-	    ftp_list_recursive $package_search_uri
-	    pwiz_callback=echo
+	    ftp_list_recursive $package_search_uri package_parse_uri
 	    echo "*** Latest URI: $package_latest_uri"
 	    echo "*** Latest URI: Latest version: $package_latest_version"
 	    pwiz_ask_string "Enter latest version." \
@@ -111,12 +144,12 @@ function package_parse_uri {
     if unpack_check_extension "$1" ; then
 	pwiz_result="${pwiz_result##*/}"
 	shopt -s extglob
-	if test "$pwiz_result" = "${pwiz_result#$pwiz_project_base}" ; then
+	if test "$pwiz_result" = "${pwiz_result#$package_basename}" ; then
 	    echo "is not archive of required package"
 	    shopt -u extglob
 	    return 1
 	else
-	    pwiz_result="${pwiz_result#$pwiz_project_base}"
+	    pwiz_result="${pwiz_result#$package_basename}"
 	    shopt -u extglob
 # package-version separators
 	    pwiz_result="${pwiz_result#[-_]}"

@@ -10,9 +10,10 @@ case $1 in
 	return
 	;;
     init )
-	pwiz_module_needs check_unpacked prefix ldconfig
+	pwiz_module_needs check_unpacked prefix ldconfig package
 	pwiz_phase_new gnome_gconf_install after ldconfig
 	prefix_provider
+	package_search_uri_provider
 	check_unpacked_provider
 	filelist_install_provider
 	gnome_prefix_global=NONE
@@ -26,6 +27,20 @@ case $1 in
 		q=gnome_prefix default=true p[0]=70 ; then
 	    prefix="$gnome_prefix_global"
 	    fi
+	fi
+	return
+	;;
+    package_search_uri )
+# FIXME: ugly temporary solution:
+	if test -d "$PWIZ_CACHEDIR/ftp/${package_search_uri#ftp://}/.listing" ; then
+	    package_default=false
+	else
+	    package_default=true
+	fi
+	if pwiz_ask_yesno "Do FTP lookup now?" \
+	    "Now you can lookup for FTP. Stored version will be used otherwise." \
+	    default=$package_default p=90 ; then
+	    ftp_list ftp://ftp.gnome.org/pub/GNOME/sources gnome_check_uri
 	fi
 	return
 	;;
@@ -81,5 +96,14 @@ function gnome_default_prefix {
 	    "In some products, all GNOME2 related packages can have different prefix, than rest of system. You should now enter this prefix. It is a directory, where most GNOME2 packages should go. Use /usr/local for manual installations, /usr for installations with packaging system, eventually $HOME for userland installation." \
 	    q=gnome_prefix_global valid=product default[0]=@global@ string[0]="PWIZ system default prefix ($prefix_global)" p[0]=50 default[1]=/opt/gnome p[1]=40
 	gnome_prefix_global=$pwiz_answer
+    fi
+}
+
+# FIXME: maybe to FTP module, at least partially?
+# Internal callback.
+function gnome_check_uri {
+    if test "${1##*/}" = "$package_basename" ; then
+# Setting low p=20, because many foreign packages are outdated there.
+	package_search_uri_guess "$1" 10
     fi
 }

@@ -9,7 +9,6 @@ trap "echo \"PWIZ must be error-less\" ; exit 1" ERR
 # These will be variables in future, not constants.
 # FIXME: All those should be queried:
 #pwiz_project_project=gnome-panel
-#pwiz_project_base=gnome-panel
 #pwiz_project_version_policy=even_subversion_is_stable
 pwiz_project_subproject=-
 #pwiz_project_version=2.4.0
@@ -568,7 +567,7 @@ pwiz_tag_inherit=80
 #@tags valid: Validity range.
 #@tags id, after, before: Tags for ordered lists.
 function pwiz_guess {
-    local key_found is_new tags guesses_count
+    local key_found is_new tags count guesses_count v_total v_default v_p v_string
 
     pwiz_read_tags
     pwiz_keys_set
@@ -580,6 +579,7 @@ function pwiz_guess {
     done
     pwiz_cache_validity_apply
 
+    # parse guesses in tags
     guesses_count=0
     unset pwiz_guesses pwiz_strings pwiz_trusts
     while test $guesses_count -lt ${#pwiz_tag_default[*]} -a "${pwiz_tag_default[0]}" != @@PWIZ_UNDEFINED@@ ; do
@@ -590,6 +590,42 @@ function pwiz_guess {
     done
 
     if ! test -z "$pwiz_tag_q" ; then
+
+	# functional callback of pwiz_guess_callback_{q}
+	if test "$(type -t "pwiz_guess_callback_$pwiz_tag_q")" = function ; then
+	    eval \$pwiz_guess_callback_$pwiz_tag_q
+	fi
+
+	# parse guesses in environment variables pwiz_guess_default_{q} pwiz_guess_p_{q} and pwiz_guess_string_{q}
+	# WARNING: Those quesses does not recomputed p
+	eval v_total\=\${#pwiz_guess_default_$pwiz_tag_q\[@\]}
+	for (( count=0 ; count < v_total ; count++ )) ; do
+	    eval v_default\=\"\${pwiz_guess_default_$pwiz_tag_q\[count\]}\"
+	    eval v_p\=\${pwiz_guess_p_$pwiz_tag_q\[count\]}
+	    eval v_string\=\"\${pwiz_guess_string_$pwiz_tag_q\[count\]}\"
+	    echo "********* found guess in variable $v_default ($v_p%)"
+	    is_new=true
+	    for (( guesses_count=0 ; guesses_count < ${#pwiz_guesses[*]} ; guesses_count++ )) ; do
+		if test "${pwiz_guesses[guesses_count]}" = "$v_default" ; then
+		    if test $v_p -gt ${pwiz_trusts[guesses_count]} ; then
+			pwiz_trusts[guesses_count]=$v_p
+		    fi
+		    is_new=false
+		    break
+		fi
+	    done
+	    if $is_new ; then
+		pwiz_trusts[${#pwiz_guesses[*]}]=$v_p
+		if ! test -z "$v_string" ; then
+		    pwiz_strings[${#pwiz_guesses[*]}]="$v_string"
+		fi
+		pwiz_guesses[${#pwiz_guesses[*]}]="$v_default"
+	    fi
+	    echo "********* result=$pwiz_result"
+	    echo "********* pwiz_trust=$pwiz_trust"
+	done
+
+    # parse cached guesses
 	echo "****** using $pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$product/$pversion/$build"
 	pwiz_cache_list "$pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$product/$pversion/$build"
 	for key_found in $pwiz_result ; do
@@ -600,7 +636,6 @@ function pwiz_guess {
 	    pwiz_cache_read $key_found
 	    eval pwiz_guess_trust "$tags"
 	    is_new=true
-	    guesses_count=0
 	    for (( guesses_count=0 ; guesses_count < ${#pwiz_guesses[*]} ; guesses_count++ )) ; do
 		if test "${pwiz_guesses[guesses_count]}" = "$pwiz_result" ; then
 		    if test $pwiz_trust -gt ${pwiz_trusts[guesses_count]} ; then
@@ -617,6 +652,7 @@ function pwiz_guess {
 	    echo "********* result=$pwiz_result"
 	    echo "********* pwiz_trust=$pwiz_trust"
 	done
+
     fi
 
     pwiz_guess_best_value=@@PWIZ_UNDEFINED@@
@@ -641,6 +677,19 @@ pwiz_tag_trust=50
 pwiz_auto_guess=50
 # Default is undefined (definition prevents collision with empty strung default).
 pwiz_tag_default=@@PWIZ_UNDEFINED@@
+
+#@ pwiz_guess_add q value p [ string ]
+#@ Add predefined guess to environment variables pwiz_guess_default_{q} pwiz_guess_p_{q} and pwiz_guess_string_{q}
+# WARNING: Those quesses does not recomputed p
+function pwiz_guess_add {
+    eval local count\=\${#pwiz_guess_default_$1\[@\]}
+    eval pwiz_guess_default_$1\[count\]\=\"\$2\"
+    eval pwiz_guess_p_$1\[count\]\=\"\$3\"
+    if ! test -z "$4" ; then
+	eval pwiz_guess_string_$1\[count\]\=\"\$4\"
+    fi
+set >/tmp/set
+}
 
 #@ pwiz_guess_trust [tags] (internal function)
 # Computes trust value for key found
@@ -896,16 +945,49 @@ function pwiz_phase_new_callme {
 #@ create all needed for "three phase method"
 #@ see more for documantation for its purpose
 #@ adds three phases:
-#@   phase_prepare with default contents callme
+#@   {phase}_prepare with default contents callme
 #@   phase default empty
-#@   phase_set with default contents callme
-#@ and function phase_provider adding callme to phase
+#@   {phase}_set with default contents callme
+#@ function {phase}_provider adding callme to phase
+#@   {phase}_provider (no args)
 function pwiz_phase_new_3 {
     pwiz_phase_new_callme $1_prepare $2 $3
     pwiz_phase_new $1 after $1_prepare
     pwiz_phase_new_callme $1_set after $1
     eval "function $1_provider {
     pwiz_phase_add_callme $1
+}"
+}
+
+#@ pwiz_phase_new_3_guess phase [ after | before ] phase_id
+#@ pwiz_phase_new_3 + create guess function
+#@ create all needed for "three phase method" with simple guess addition
+#@ see more for documantation for its purpose
+#@ adds three phases:
+#@   {phase}_prepare with default contents callme
+#@   phase default empty
+#@   {phase}_set with default contents callme
+#@ function {phase}_provider adding callme to phase
+#@   {phase}_provider (no args)
+#@ function {phase}_guess for adding callme to phase
+#@   {phase}_guess guess p [ string ]
+#@ variables
+#@   $package_basename_guesses variable with defaults for pwiz_ask_*
+#@ $package_basename_guesses_count - if you want to provide own
+#@    defaults, you need to set to #defaults in {phase}_prepare. Otherwise
+#@    not needed.
+function pwiz_phase_new_3_guess {
+#    pwiz_phase_new $1_prepare $2 $3
+    pwiz_phase_new_callme $1_prepare $2 $3
+#    pwiz_phase_add $1_prepare "$1_guesses_count=0 $1_guesses="
+#    pwiz_phase_add_callme $1_prepare
+    pwiz_phase_new $1 after $1_prepare
+    pwiz_phase_new_callme $1_set after $1
+    eval "function $1_provider {
+    pwiz_phase_add_callme $1
+}"
+    eval "function $1_guess {
+    pwiz_guess_add $1 \"\$1\" \"\$2\" \"\$3\"
 }"
 }
 
