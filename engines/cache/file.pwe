@@ -13,7 +13,7 @@ esac
 
 # pwiz_cache_init
 function pwiz_engine_cache_file_init {
-    mkdir -p ~/pwiz/cache
+    mkdir -p ~/"pwiz/cache"
 }
 
 # pwiz_cache_quit
@@ -34,22 +34,22 @@ function pwiz_engine_cache_file_read_tags {
 # pwiz_cache_write key value [tags]
 function pwiz_engine_cache_file_write {
     local key=$1 tag tags=""
-    mkdir -p ~/pwiz/cache/$key
-    echo "$2" >~/pwiz/cache/$key/CONTENTS
+    mkdir -p ~/"pwiz/cache/$key"
+    echo "$2" >~/"pwiz/cache/$key/CONTENTS"
     shift 2
     for tag in "$@" ; do
-	tag=${tag/\'/\'\\\'\'}\'
+	tag=${tag//\'/\'\\\'\'}\'
         tag=${tag/=/=\'}
 	tags="$tags $tag"
     done
-    echo "${tags# }" >~/pwiz/cache/$key/TAGS
+    echo "${tags# }" >~/"pwiz/cache/$key/TAGS"
 }
 
 # pwiz_cache_delete key
 function pwiz_engine_cache_file_delete {
-    rm -f ~/pwiz/cache/$1/CONTENTS
-    rm -f ~/pwiz/cache/$1/TAGS
-    rmdir -p ~/pwiz/cache/$1
+    rm -f ~/"pwiz/cache/$1/CONTENTS"
+    rm -f ~/"pwiz/cache/$1/TAGS"
+    rmdir -p ~/"pwiz/cache/$1"
 }
 
 #@ pwiz_cache_list pattern
@@ -60,7 +60,7 @@ function pwiz_engine_cache_file_list {
 	cd ~/pwiz/cache
 	for i in $1 ; do
 	    if test -d "$i" ; then
-		echo $i
+		echo "$i"
 	    fi
 	done
     )"
