@@ -7,8 +7,8 @@ semi-automatic manner.
 
 STATE
 
-In current state, there are not yet any manual intervention checkponts,
-except question. Primarilly it is tested on GNOME related stuff.
+In current state, it basically works. Primarilly it is tested on GNOME
+related stuff.
 
 INSTALL
 
@@ -30,7 +30,6 @@ LIMITATIONS
 Current implementation has following limitations. I am working on its
 fixing:
 
-- No support for manual actions/patches available.
 - Only FTP parsing support. No support for build from local files.
 - No error processing.
 - No support for neededforbuild, Requires etc.

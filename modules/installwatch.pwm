@@ -28,35 +28,17 @@ function installwatch_SETUP {
 }
 
 function installwatch_filelist_raw {
-    filelist_raw_open
-    local installwatch_IFS_save="$IFS"
-    IFS=$'\t\n'
-    for installwatch_stage in $PWIZ_TMPDIR/installwatch/* ; do
-	exec 3<$installwatch_stage
-	while read -u3 installwatch_a1 installwatch_a2 installwatch_a3 installwatch_a4 installwatch_a5 ; do
-	    case "$installwatch_a2" in
-		open )
-		    echo "$installwatch_a3" file
-		    ;;
-# FIXME: special tags for links
-		symlink | link )
-		    echo "$installwatch_a4" file
-		    ;;
-		mkdir )
-		    echo "$installwatch_a3" dir
-		    ;;
-	    esac
-	done
-	exec 3<&-
-    done
-    IFS="$installwatch_IFS_save"
+    # FIXME: Path.
+    cat $PWIZ_TMPDIR/installwatch/* | PWIZ_TMPDIR="$PWIZ_TMPDIR" ~/pwiz/watch/clean
     # no callback needed, default echo does the right thing
 # installwatch works incorrectly for SUID and statically linked binaries (e. g. ldconfig).
 # we will combine it with simple find
+    pwiz_redirect_stdout_append $PWIZ_TMPDIR/installwatch_buildroot.lst
     shopt -s dotglob
     pwiz_find_d $PWIZ_INSTALLROOT
     shopt -u dotglob
-    filelist_raw_close
+    pwiz_redirect_stdout_close
+    cat $PWIZ_TMPDIR/installwatch_buildroot.lst >>$filelist_raw_file
 # FIXME: remove this line
     cp -a $filelist_raw_file $filelist_raw_file.iw
 }
@@ -66,7 +48,8 @@ function installwatch_run_wrapper {
 #    installwatch -o $PWIZ_TMPDIR/installwatch/$PWIZ_PHASE_CURRENT$PWIZ_STAGE_CURRENT "$@"
     LD_PRELOAD_save="$LD_PRELOAD"
     export INSTW_LOGFILE=$PWIZ_TMPDIR/installwatch/$PWIZ_PHASE_CURRENT$PWIZ_STAGE_CURRENT
-    export LD_PRELOAD="$LD_PRELOAD /usr/lib/installwatch.so"
+# FIXME: path
+    export LD_PRELOAD="$LD_PRELOAD $HOME/pwiz/watch/installwatch.so"
     pwiz_run_wrap "$@"
     export LD_PRELOAD="$LD_PRELOAD_save"
 }

@@ -32,7 +32,7 @@ function gnome_prefix {
 	gnome_default_prefix
 	if pwiz_ask_yesno "Package seems to be GNOME2 related. Use standard GNOME2 prefix for your package." \
 	    "It is generally good idea to put GNOME2 related stuff to GNOME2 prefix. Otherwise you can encounter problems. You should most probably answer yes." \
-	    q=gnome_prefix default=true p[0]=70 ; then
+	    q=gnome_prefix default=true c[0]=50 p[0]=70 ; then
 	    prefix="$gnome_prefix_global"
 	fi
     fi
@@ -98,8 +98,7 @@ function gnome_default_prefix {
     if test "$gnome_prefix_global" = NONE ; then
 	pwiz_ask_string "Select default GNOME2 prefix." \
 	    "In some products, all GNOME2 related packages can have different prefix, than rest of system. You should now enter this prefix. It is a directory, where most GNOME2 packages should go. Use /usr/local for manual installations, /usr for installations with packaging system, eventually $HOME for userland installation." \
-	    q=gnome_prefix_global valid=vendor default[0]=@global@ string[0]="PWIZ system default prefix ($prefix_global)" p[0]=50 default[1]=/opt/gnome p[1]=40
-	gnome_prefix_global=$pwiz_answer
+	    q=gnome_prefix_global valid=vendor default[0]=@global@ string[0]="PWIZ system default prefix ($prefix_global)" p[0]=80 default[1]=/opt/gnome p[1]=20
     fi
 }
 
@@ -107,8 +106,8 @@ function gnome_default_prefix {
 # Internal callback.
 function gnome_check_uri {
     if test "${1##*/}" = "$package_basename" ; then
-# Setting low p=20, because many foreign packages are outdated there.
-	package_search_uri_guess "$1" 10
+# Setting low credit, because many foreign packages are outdated there.
+	package_search_uri_guess "$1" 10 10
     fi
 }
 

@@ -33,59 +33,47 @@ case $1 in
 esac
 
 function package_project_prepare {
-    pwiz_project_project=
+    unset pwiz_project_project
 }
 
 function package_project_set {
 # FIXME: implement selection "try another version" and search this version' URL
 # FIXME: implement to all error questions: error_default_list
 # FIXME: pwiz_project_ -> package_ for names not present in key
-    if test -z "$pwiz_project_project" ; then
-	pwiz_ask_string "Project name (name of project for PWIZ)." \
-	    "Now you should enter canonical project name. The name can be global project name, or any selected, if there is a reason for different name." \
-	    q=package_project valid=setup
-	pwiz_project_project="$pwiz_answer"
-    fi
+    pwiz_ask_string "Project name (name of project for PWIZ)." \
+	"Now you should enter canonical project xname. The name can be global project name, or any selected, if there is a reason for different name." \
+	q=pwiz_project_project valid=setup
 }
 
 function package_basename_prepare {
-    package_basename=
+    unset package_basename
 }
 
 function package_basename_set {
 # FIXME: setting valid=product is not perfect, but in this moment we do not know version.
-    if test -z "$package_basename" ; then
-	pwiz_ask_string "Global project source base file name." \
-	    "Now you should enter project base file name (i. e. name without prefix, suffix and version). This can be a string or extended pattern (see extglob in bash(1))." \
-	    q=package_base default="$pwiz_project_project" valid=product p=50
-	package_basename="$pwiz_answer"
-    fi
+    pwiz_ask_string "Global project source base file name." \
+	"Now you should enter project base file name (i. e. name without prefix, suffix and version). This can be a string or extended pattern (see extglob in bash(1))." \
+	q=package_basename default="$pwiz_project_project" valid=product p=80 c=25
 }
 
 function package_home_page_prepare {
-    package_home_page=
+    unset package_home_page
 }
 
 function package_home_page_set {
-    if test -z "$package_search_uri" ; then
-	pwiz_ask_string "Enter package home page." \
-	    "Package home page is URI, where home WWW (or FTP) page resides." \
-	    q=package_home_page valid=project default="" p=0
-	package_home_page="$pwiz_answer"
-    fi
+    pwiz_ask_string "Enter package home page." \
+	"Package home page is URI, where home WWW (or FTP) page resides." \
+	q=package_home_page valid=project default=""
 }
 
 function package_search_uri_prepare {
-    package_search_uri=
+    unset package_search_uri
 }
 
 function package_search_uri_set {
-    if test -z "$package_search_uri" ; then
-	pwiz_ask_string "Enter package search URI." \
-	    "Package search URI is top-level URI, where sources are searched. Can be space separated list." \
-	    q=package_search_uri valid=project
-	package_search_uri="$pwiz_answer"
-    fi
+    pwiz_ask_string "Enter package search URI." \
+	"Package search URI is top-level URI, where sources are searched. Can be space separated list." \
+	q=package_search_uri valid=project
 }
 
 function package_policy {
@@ -117,19 +105,23 @@ function package_download {
 	pwiz_ask_string "Enter latest version." \
 	    "Now you can specify latest version. Default is most probably the latest." \
 	    q=package_latest_version valid=product default=$package_latest_version p=200
+# FIXME: Use default answer variable
 	pwiz_project_version=$pwiz_answer
 	pwiz_ask_string "Enter latest version URI." \
 	    "Now you can specify URI of latest version. Default is most probably the latest URI." \
 	    q=package_latest_uri valid=product default=$package_latest_uri p=200
+# FIXME: Use default answer variable
 	package_uri=$pwiz_answer
     else
 	pwiz_ask_string "Enter latest version." \
 	    "Now you can specify latest version. Default is most probably the latest." \
 	    q=package_latest_version valid=product
+# FIXME: Use default answer variable
 	pwiz_project_version=$pwiz_answer
 	pwiz_ask_string "Enter latest version URI." \
 	    "Now you can specify latest version. Default is most probably the latest." \
 	    q=package_latest_uri valid=product
+# FIXME: Use default answer variable
 	package_uri=$pwiz_answer
     fi
     package_parse_uri "$package_uri"

@@ -50,7 +50,9 @@ function filelist_clean {
     # dual uniq makes sorting faster in many cases
     # FIXME: remove temporaries
     # fixme: sort -i
+    exec 3>$PWIZ_TMPDIR/filelist_access.lst
     uniq <$filelist_raw_file | tee $filelist_raw_file.0 | filelist_raw_clean_1 | tee $filelist_raw_file.1 | LC_ALL=C sort -u | filelist_raw_clean_2 | tee $filelist_raw_file.2 >$filelist_file
+    exec 3>&-
 }
 
 #@ filelist_raw_add file type (internal)
@@ -59,73 +61,90 @@ function filelist_clean {
 # FIXME: implement no install root
 function filelist_raw_clean_1 {
     while filelist_read_item 0 ; do
-	case $filelist_tag_name in
+	if test $filelist_tag_type = read ; then
+	    case $filelist_tag_name in
+		/proc/cpuinfo )
+		    echo >&2 "ERROR: FIXME: access to machine file $filelist_tag_name!"
+		    ;;
+# FIXME: /usr/src/packages is system and RPM specific
+		/tmp/* | /dev/* | /var/tmp/* | /proc/* | /sys/* | /usr/src/packages )
+		    ;;
+		* )
+		    pwiz_canonize "$filelist_tag_name"
+		    echo >&3 "$pwiz_result"
+		    ;;
+	    esac
+	else
+	    case $filelist_tag_name in
 # FIXME: not fixed list
-	    $PWIZ_SRCDIR/* | $PWIZ_BUILDDIR/* | $PWIZ_SOURCESDIR/* | $PWIZ_TMPDIR/* )
-		;;
-	    $PWIZ_INSTALLROOT/* )
+		$PWIZ_SRCDIR/* | $PWIZ_BUILDDIR/* | $PWIZ_SOURCESDIR/* | $PWIZ_TMPDIR/* )
+		    ;;
+		$PWIZ_INSTALLROOT/* )
 # FIXME: Does -e work for absolute chrooted danglinks?
-		if test -e "$filelist_tag_name" ; then
-		    pwiz_canonize "${filelist_tag_name##$PWIZ_INSTALLROOT}"
-		    filelist_tag_name="$pwiz_result"
+		    if test -e "$filelist_tag_name" ; then
+			pwiz_canonize "${filelist_tag_name##$PWIZ_INSTALLROOT}"
+			filelist_tag_name="$pwiz_result"
 # FIXME: ignores tagext
-		    if test $filelist_tag_type = dir ; then
+			if test $filelist_tag_type = dir ; then
 # FIXME: remove redirection
 # FIXME: implement and ask more files at once
 # FIXME: dump file attributes
-			echo "$filelist_tag_name dir"
-		    else
-			echo "$filelist_tag_name file"
+			    echo "$filelist_tag_name dir"
+			else
+			    echo "$filelist_tag_name file"
+			fi
 		    fi
-		fi
-		;;
-	    /tmp/* | /dev/null | /dev/tty* | /var/tmp/* )
-		;;
-	    * )
-		echo >&2 "ERROR: FIXME: access violation $filelist_tag_name"
-		;;
-	esac
+		    ;;
+		/tmp/* | /dev/null | /dev/tty* | /var/tmp/* )
+		    ;;
+		* )
+		    echo >&2 "ERROR: FIXME: access violation $filelist_tag_name"
+		    ;;
+	    esac
+	fi
     done
 }
 
 function filelist_raw_clean_2 {
     local pkg sub owned
     while filelist_read_item 0 ; do
-	if test $filelist_tag_type = dir ; then
+	case $filelist_tag_type in
+	    dir )
 # FIXME: implement and ask more files at once
-	    pwiz_pkgdb_what_owns "$filelist_tag_name"
+		pwiz_pkgdb_what_owns "$filelist_tag_name"
 # FIXME: For non install root installation, we should generate ofile, too (but can be based on mtime).
 	    # If directory is owned by any installed package except this one and sub candidates, it is unowned.
-	    owned=true
-	    decho_unowned -n "$filelist_tag_name owned by"
-	    for pkg in "${pwiz_result[@]}" ; do
+		owned=true
+		decho_unowned -n "$filelist_tag_name owned by"
+		for pkg in "${pwiz_result[@]}" ; do
 # FIXME: This is questionable, whether dir owned by our package and other one is OK.
 # FIXME: By default, we consider, that it is a mistake of currently installed package.
-		decho_unowned -n " $pkg"
-		if test "$pkg" != "$pwiz_project_project" ; then
-		    owned=false
-		    for sub in "${filelist_split_candidates[@]}" ; do
-			if test "$pkg" = "$pwiz_project_project-$sub" ; then
-			    owned=true
+		    decho_unowned -n " $pkg"
+		    if test "$pkg" != "$pwiz_project_project" ; then
+			owned=false
+			for sub in "${filelist_split_candidates[@]}" ; do
+			    if test "$pkg" = "$pwiz_project_project-$sub" ; then
+				owned=true
+				break
+			    fi
+			done
+			if $owned ; then
 			    break
 			fi
-		    done
-		    if $owned ; then
-			break
 		    fi
-		fi
-	    done
+		done
 # FIXME: Ignores tagext.
-	    if $owned ; then
-		decho_unowned "... owned"
-		echo "$filelist_tag_name dir"
-	    else
-		decho_unowned "... unowned"
-		echo "$filelist_tag_name odir"
-	    fi
-	else
-	    echo "$filelist_tag_name file"
-	fi
+		if $owned ; then
+		    decho_unowned "... owned"
+		    echo "$filelist_tag_name dir"
+		else
+		    decho_unowned "... unowned"
+		    echo "$filelist_tag_name odir"
+		fi
+		;;
+	    file )
+		echo "$filelist_tag_name file"
+	esac
     done
 }
 

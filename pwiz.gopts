@@ -1,5 +1,9 @@
 #! /bin/bash
 
+#%# FIXME: Should be removed everywhere. local variables are inherited
+#%# to functions called from function, where variable is local. It
+#%# changes this code.
+
 unalias -a
 shopt -s expand_aliases
 # FIXME: Set it on for debugging purposes. Otherwise strange globbing problems can occur in real life.
@@ -55,12 +59,34 @@ Comma separated list of specific debugging messages.
 Try --debug=list for all available types.
 Use --debug=all for all available debuggings.
 
+@option CREDIT -c --credit=CREDIT 100
+Set credit threshold. If credible enough answer exists, don't ask.
+FIXME: Better default.
+
+@switch FAST -f --fast
+Run in fast mode. Equivalent of --credit=0.
+
+@switch ASK_ALL -a --ask-all
+Ask for all questions. Equivalent of --credit=101.
+
 @options_only
 
 @end
 
+# This quote make editor's quote checker happy.
+
 #@ Verbose messages.
 alias eecho='echo >&2'
+
+if $OPTARG_FAST ; then
+    OPTARG_CREDIT=true
+    OPTVAL_CREDIT=0
+fi
+
+if $OPTARG_ASK_ALL ; then
+    OPTARG_CREDIT=true
+    OPTVAL_CREDIT=101
+fi
 
 if test $OPTCNT_VERBOSE -ge 1 ; then
     alias vecho='echo >&2'
@@ -118,10 +144,6 @@ pwiz_project_subproject=-
 pwiz_project_patchlevel=0
 pwiz_project_vendor=SuSE-Linux-9.0
 pwiz_project_build=0
-
-# Knowledge defaults.
-pwiz_knowledge_general=80
-pwiz_knowledge_build=80
 
 #@@ general
 
@@ -426,7 +448,7 @@ function pwiz_run {
 # FIXME: for debugging only:
 # FIXME: Adopt other parts of run stuff to 1 arg
     if test "$2" != "" ; then
-	pwiz_warning "2 arguments: pwiz_run $*"
+	pwiz_fatal "2 arguments: pwiz_run $*"
     fi
     vvecho "running: $*"
     pwiz_run_prepare "$@"
@@ -598,10 +620,12 @@ pwiz_engine_interface pkgdb what_owns
 #@ pwiz_question_list desc longdesc [ tags ... ]
 #@ Returns: FIXME
 
+#@ Returns: $pwiz_fallback_answer defines whether user responded or if default was used.
+
 # FIXME: obsolete yesno
 # FIXME: pwiz_ask_radio is obsolete use ask_string with allow_new=false
 #pwiz_engine_interface question radio selection string list
-pwiz_engine_interface question yesno radio selection string list
+pwiz_engine_interface question yesno radio selection string list auto_answer
 
 # Question engine is in most cases used through ask interface. It
 # accomplishes question, caching answer and querying for reasonable
@@ -614,11 +638,48 @@ pwiz_engine_interface question yesno radio selection string list
 # The alias defines local variables pwiz_tag_tag='value' pwiz_tag_other_tag[1]='other value'
 # It uses special Bash tricks to prevent expansion or splitting of tags.
 # If you want to prevent expansion at all, use set -o noglob in function alias.
-alias pwiz_read_tags='local pwiz_tag ; for pwiz_tag in "$@" ; do eval local pwiz_tag_${pwiz_tag%%[=[]*} ; done ; for pwiz_tag in "$@" ; do pwiz_tag=${pwiz_tag/\'\''/\'\''\\\'\''\'\''}\'\'' ; pwiz_tag=${pwiz_tag/=/=\'\''} ; eval pwiz_tag_"$pwiz_tag" ; done'
-# For better readability (needs ' -> '\''
-# set -o noglob ; local pwiz_tag ; for pwiz_tag in "$@" ; do eval local pwiz_tag_${pwiz_tag%%=*} ; done ; for pwiz_tag in "$@" ; do pwiz_tag=${pwiz_tag/\'/\'\\\'\'}\' ; pwiz_tag=${pwiz_tag/=/=\'} ; eval pwiz_tag_"$pwiz_tag" ; done ; set +o noglob
-
+#
+# Note: Local variables in Bash are inherited to all functions called
+# from inside functions, where variable is local, unless you define
+# your own instance. There is no chance to reset it back to global
+# ones. If we want to recurse without inheritance, there is no chance
+# to use local variables.
+alias pwiz_read_tags='local pwiz_tag ; for pwiz_tag in "$@" ; do pwiz_tag=${pwiz_tag/\'\''/\'\''\\\'\''\'\''}\'\'' ; pwiz_tag=${pwiz_tag/=/=\'\''} ; eval pwiz_tag_"$pwiz_tag" ; done'
+# For better readability use '\'' -> '
 # Asking interface is used for querying users, saving and re-using results.
+
+#@ Register default tag value.
+function pwiz_register_tag_default {
+    pwiz_array_add pwiz_tagreset "$1"
+}
+unset pwiz_tagreset
+
+#@ Reset tags.
+# Prevent inheritance of tags to functions called from inside
+# functions, where tags are used.
+alias pwiz_reset_tags='unset ${!pwiz_tag_*} ; pwiz_default_tags'
+
+function pwiz_default_tags {
+    # Default version inheritance of answers.
+    pwiz_tag_inherit=80
+    # FIXME: Now probably obsolete.
+    # Credit level of unknown source.
+    pwiz_tag_credit=50
+    # Credit level of automatic guesses.
+    # FIXME: Should be dependent on knowledge tag.
+    pwiz_auto_guess=50
+
+    pwiz_tag_yesno=false
+    pwiz_tag_allow_new=true
+    pwiz_tag_item_type=string
+    pwiz_tag_valid=exact
+    pwiz_tag_knowledge=general
+
+    eval "${pwiz_tagreset[@]}"
+}
+# Default is undefined (definition prevents collision with empty strung default).
+unset pwiz_tag_default
+pwiz_default_tags
 
 #@ keys for question id
 pwiz_key_list="project subproject version patchlevel vendor build"
@@ -688,62 +749,80 @@ function pwiz_cache_validity_product {
 
 # Guess interface uses cached answer to guess answer for new question.
 
-#@ Guess trust levels
+#@ Guess credit levels
 
-# Guess trust levels are functions defining ability to trust answers,
-# based on comparison of particular key. Trust level function has
+# Guess credit levels are functions defining ability to trust answers,
+# based on comparison of particular key. Credit level function has
 # access to other values, which can be used for guess.
 
-pwiz_debug_feature guess "internals of guess creation" "This feature turns on displaying of single steps in making a guess."
+pwiz_debug_feature guess "internals of guessing" "This feature turns on displaying of single steps in making a guess."
 
-#@ pwiz_guess_trust_{key}
+#@ pwiz_guess_credit_{key}
 # Function compares keys and returns
-# Returns value 0-100 in $pwiz_trust.
-#@tags inherit: Trust inheritance level between versions.
-function pwiz_guess_trust_version {
-    pwiz_read_tags
+# Returns value 0-100 in $pwiz_credit.
+#@tags inherit: Credit inheritance level between versions.
+function pwiz_guess_credit_version {
+#%#    pwiz_read_tags
     if test "$pwiz_project_version" = "$pwiz_item_version" ; then
-	pwiz_trust=100
+	pwiz_credit=100
     else
-	pwiz_trust=$pwiz_tag_inherit
+	pwiz_credit=$pwiz_tag_inherit
     fi
 }
-# Default version inheritance of answers.
-pwiz_tag_inherit=80
+
+#@ pwiz_guess_credit [tags] (internal function)
+# Computes credit value for key found
+#@tags credit: Credit level of cache source.
+#%#alias pwiz_guess_cp="set -o noglob ; pwiz_guess_cp_f"
+function pwiz_guess_cp {
+#%#    set +o noglob
+#%#    pwiz_read_tags
+
+    local pwiz_key subcredit=$pwiz_tag_credit
+    for pwiz_key in $pwiz_key_list ; do
+	if test "$(type -t "pwiz_guess_credit_$pwiz_key")" = function ; then
+	    eval pwiz_guess_credit_$pwiz_key
+	    let subcredit=subcredit\*pwiz_credit/100
+	fi
+    done
+    pwiz_credit=$subcredit
+    # FIXME: Ignore cached probability?
+    #This is not sufficient: pwiz_p=$pwiz_tag_p
+}
 
 #@ pwiz_guess [ tags ]
-# Returns array of ${pwiz_guesses[]}, ${pwiz_strings[]} (optional), ${pwiz_hotkeys[]} (optional), ${pwiz_trusts[]} for possible answers and $pwiz_guess_best
+# Returns array of ${pwiz_guesses[]}, ${pwiz_strings[]} (optional), ${pwiz_hotkeys[]} (optional), ${pwiz_credits[]} for possible answers and $pwiz_guess_best
 # with index of best guess and $pwiz_guess_best_value.
-# FIXME: Implement knowledge!!!
-#@tags default, p, string, hotkey: Array tags of guess descriptions.
+#@tags default, p, c, string, hotkey: Array tags of guess descriptions.
 #@tags q: Question ID.
 #@tags valid: Validity range.
 #@tags id, after, before: Tags for ordered lists.
 function pwiz_guess {
-    local key_found is_new tags count v_total v_default v_p v_string v_hotkey callback
+    local key_found is_new tags count v_total v_default v_c v_p v_string v_hotkey callback
 
-    pwiz_read_tags
-    pwiz_keys_set
-    local pwiz_key
-    for pwiz_key in $pwiz_key_list ; do
-	if test "$(type -t "pwiz_guess_trust_$pwiz_key")" = function ; then
-	    eval $pwiz_key\=\'\*\'
-	fi
-    done
-    pwiz_cache_validity_apply
+#%#    pwiz_read_tags
+#%#    pwiz_keys_set
+#%#    local pwiz_key
+#%@### Moved to pwiz_ask_core
+#%#    # Add '*' to pattern for keys, where credit inheritance function exists.
+#%#    for pwiz_key in $pwiz_key_list ; do
+#%#	if test "$(type -t "pwiz_guess_credit_$pwiz_key")" = function ; then
+#%#	    eval $pwiz_key\=\'\*\'
+#%#	fi
+#%#    done
+#%#    pwiz_cache_validity_apply
 
-    unset pwiz_guesses pwiz_trusts pwiz_strings pwiz_hotkeys
+    # Imported local variables:
+    # pwiz_guesses pwiz_credits pwiz_p pwiz_pc pwiz_strings pwiz_hotkeys pwiz_p_other
+    local -a pwiz_pc pwiz_pc_other pwiz_pp_other
 
+    # Defaults.
+    pwiz_p_other=0
+    pwiz_pc_other=0
     # Defaults for Boolean.
     if $pwiz_tag_yesno ; then
-	pwiz_guesses[0]="false"
-	pwiz_trusts[0]=0
-	pwiz_strings[0]="no"
-	pwiz_hotkeys[0]="n"
-	pwiz_guesses[1]="true"
-	pwiz_trusts[1]=0
-	pwiz_strings[1]="yes"
-	pwiz_hotkeys[1]="y"
+	pwiz_guess_eval false 0 "" "no" n
+	pwiz_guess_eval true  0 "" "yes" y
     fi
 
     # callback of pwiz_guess_callback_{q}[*]
@@ -754,77 +833,111 @@ function pwiz_guess {
     fi
 
     # parse guesses in tags
+    pwiz_pp_other=100
     for (( count=0 ; count < ${#pwiz_tag_default[@]} ; count++ )) ; do
-	decho_guess "guess in tags: ${pwiz_tag_default[count]} (${pwiz_tag_p[count]}%)"
-	pwiz_guess_eval "${pwiz_tag_default[count]}" ${pwiz_tag_p[count]}\
+	decho_guess "guess in tags: ${pwiz_tag_default[count]} (${pwiz_tag_c[count]:-0}c, ${pwiz_tag_p[count]:-0}%)"
+	pwiz_guess_eval "${pwiz_tag_default[count]}" "${pwiz_tag_c[count]}" "${pwiz_tag_p[count]}"\
 	    "${pwiz_tag_string[count]}" "${pwiz_tag_hotkey[count]}"
     done
+    pwiz_other_eval
 
     if ! test -z "$pwiz_tag_q" ; then
 
 	# parse guesses in environment variables pwiz_guess_default_{q} pwiz_guess_p_{q}, pwiz_guess_string_{q} pwiz_guess_hotkey_{q}
 	# WARNING: Those quesses does not recomputed p
+	pwiz_pp_other=100
 	eval v_total\=\${#pwiz_guess_default_$pwiz_tag_q\[@\]}
 	for (( count=0 ; count < v_total ; count++ )) ; do
 	    eval v_default\=\"\${pwiz_guess_default_$pwiz_tag_q\[count\]}\"
 	    eval v_p\=\${pwiz_guess_p_$pwiz_tag_q\[count\]}
+	    eval v_c\=\${pwiz_guess_c_$pwiz_tag_q\[count\]}
 	    eval v_string\=\"\${pwiz_guess_string_$pwiz_tag_q\[count\]}\"
 	    eval v_hotkey\=\"\${pwiz_guess_hotkey_$pwiz_tag_q\[count\]}\"
-	    decho_guess "guess in variable: $v_default ($v_p%)"
-	    pwiz_guess_eval "$v_default" "$v_p" "$v_string" "$v_hotkey"
+	    decho_guess "guess in variable: $v_default (${v_c:-0}c, ${v_p:-?}%)"
+	    pwiz_guess_eval "$v_default" "$v_c" "$v_p" "$v_string" "$v_hotkey"
 	done
+	pwiz_other_eval
 
-    # parse cached guesses
+	# parse cached guesses
+	# FIXME: In future implement credits of cache sources.
 	decho_guess "cache query:  $pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$build"
 	pwiz_cache_list "$pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$build"
 	for key_found in $pwiz_result ; do
+	    # FIXME: Ignore cached probability?
+	    #pwiz_pp_other=100
 	    decho_guess "found: $key_found"
 	    pwiz_key_parse $key_found
 	    pwiz_cache_read_tags $key_found
 	    tags="$pwiz_result"
 	    pwiz_cache_read $key_found
-	    eval pwiz_guess_trust "$tags"
+	    # FIXME: Probably ignore cached probability.
+	    eval pwiz_guess_cp #%#"$tags"
 # FIXME: Maybe parse tags to find string and hotkey.
-	    pwiz_guess_eval "$pwiz_result" "$pwiz_trust" "" ""
-	    decho_guess "result: $pwiz_result"
-	    decho_guess "trust: $pwiz_trust"
+	    # FIXME: Ignore cached probability or use something better than pwiz_p?
+	    pwiz_guess_eval "$pwiz_result" "$pwiz_credit" "" "" ""
+	    decho_guess "result: $pwiz_result (${pwiz_credit:-0}c, ?%)"
+	    # FIXME: Ignore cached probability?
+#	    pwiz_other_eval
 	done
 
     fi
 
     pwiz_guess_best_value=@@PWIZ_UNDEFINED@@
-    local best_guess_trust=0
+    pwiz_guess_best_credit=0
     pwiz_guess_best=-1
+    if test $pwiz_pc_other -gt 0 ; then
+	let pwiz_p_other/=pwiz_pc_other
+    else
+	pwiz_p_other="?"
+    fi
+
     for (( count=0 ; count < ${#pwiz_guesses[*]} ; count++ )) ; do
-	decho_guess "guess[$count]: \"${pwiz_guesses[count]}\" trust=${pwiz_trusts[count]}"
-	if test "${pwiz_trusts[count]}" -ge $best_guess_trust ; then
-	    best_guess_trust=${pwiz_trusts[count]}
+	# Compute average probablility and probability for other values.
+	if test ${pwiz_pc[count]} -gt 0 ; then
+	    pwiz_p[count]=$(( pwiz_p[count] / pwiz_pc[count] ))
+	    # Adapt credits a bit from average probability, if available.
+	    # Maximum probability credit: 100% = 10c. FIXME: Maybe parametrizable.
+	    pwiz_credits[count]=$(( pwiz_credits[count] + pwiz_p[count] / 10 ))
+	else
+	    if $pwiz_tag_allow_new ; then
+		pwiz_p[count]="?"
+	    else
+		# FIXME: Maybe bad value
+		pwiz_p[count]=$pwiz_p_other
+		#pwiz_p_other=0
+	    fi
+	fi
+	decho_guess "guess[$count]: \"${pwiz_guesses[count]}\" (${pwiz_credits[count]}c, ${pwiz_p[count]}%)"
+	# Evaluate best guess.
+	if test ${pwiz_credits[count]} -ge $pwiz_guess_best_credit ; then
+	    pwiz_guess_best_credit=${pwiz_credits[count]}
 	    pwiz_guess_best=$count
 	    pwiz_guess_best_value="${pwiz_guesses[count]}"
 	fi
     done
     decho_guess "available guesses: ${#pwiz_guesses[*]}"
     decho_guess "best guess $pwiz_guess_best: $pwiz_guess_best_value"
+    decho_guess "best guess credit: $pwiz_guess_best_credit"
 }
-declare -a pwiz_guesses pwiz_trusts
-# Trust level of unknown source.
-pwiz_tag_trust=50
-# Trust level of automatic guesses.
-# FIXME: Should be dependent on knowledge tag.
-pwiz_auto_guess=50
-# Default is undefined (definition prevents collision with empty strung default).
-unset pwiz_tag_default
 
-#@ pwiz_guess_eval guess trust string hotkey
+#@ pwiz_guess_eval guess credit string hotkey
 #@ Evaluate guess for guess array in pwiz_guess (internal) or in callback.
+#@ pwiz_guess_eval q c p string hotkey
 function pwiz_guess_eval {
     local count
-    local size=${#pwiz_guesses[*]}
+    local size=${#pwiz_guesses[@]}
     local is_new=true
     for (( count=0 ; count < size ; count++ )) ; do
 	if test "${pwiz_guesses[count]}" = "$1" ; then
-	    if test $2 -gt ${pwiz_trusts[count]} ; then
-		pwiz_trusts[count]=$2
+	    # If current credit is higher than previous, use current one.
+	    # If guess does not provide credit, assume 0.
+	    if test ${2:-0} -gt ${pwiz_credits[count]} ; then
+		pwiz_credits[count]=${2:-0}
+	    fi
+	    # If guess provides probability, create a sum.
+	    if test "$3" != "" ; then
+		pwiz_p[count]=$(( pwiz_p[count] + $3 ))
+		pwiz_pc[count]=$(( pwiz_pc[count] + 1 ))
 	    fi
 	    is_new=false
 	    break
@@ -832,54 +945,54 @@ function pwiz_guess_eval {
     done
 # FIXME: Maybe test -z is not required.
     if $is_new ; then
-	pwiz_trusts[size]=$2
-	if ! test -z "$3" ; then
-	    pwiz_strings[size]="$3"
+	pwiz_credits[size]=${2:-0}
+	if test "$3" != "" ; then
+	    pwiz_p[size]=$3
+	    pwiz_pc[size]=1
+	else
+	    pwiz_pc[size]=0
 	fi
 	if ! test -z "$4" ; then
-	    pwiz_hotkeys[size]="$4"
+	    pwiz_strings[size]="$4"
+	fi
+	if ! test -z "$5" ; then
+	    pwiz_hotkeys[size]="$5"
 	fi
 	pwiz_array_add pwiz_guesses "$1"
     else
-	if test -z "${pwiz_strings[count]}" -a ! -z "$3" ; then
-	    pwiz_strings[count]="$3"
+	if test -z "${pwiz_strings[count]}" -a ! -z "$4" ; then
+	    pwiz_strings[count]="$4"
 	fi
-	if test -z "${pwiz_hotkeys[count]}" -a ! -z "$4" ; then
-	    pwiz_hotkeys[count]="$4"
+	if test -z "${pwiz_hotkeys[count]}" -a ! -z "$5" ; then
+	    pwiz_hotkeys[count]="$5"
 	fi
     fi
+    let pwiz_pp_other-=${3:-0}
 }
 
 
-#@ pwiz_guess_add q value p [ string hotkey ]
+function pwiz_other_eval {
+    if test $pwiz_pp_other -lt 100 ; then
+	decho_guess "rest for other values: $pwiz_pp_other%"
+	let pwiz_p_other+=pwiz_pp_other
+	let pwiz_pc_other++
+    fi
+}
+
+#@ pwiz_guess_add q value c p [ string hotkey ]
 #@ Add predefined guess to environment variables pwiz_guess_default_{q} pwiz_guess_p_{q} and pwiz_guess_string_{q}
 # WARNING: Those quesses does not recomputed p
 function pwiz_guess_add {
     eval local count\=\${#pwiz_guess_default_$1\[@\]}
     eval pwiz_guess_default_$1\[count\]\=\"\$2\"
-    eval pwiz_guess_p_$1\[count\]\=\"\$3\"
-    if ! test -z "$4" ; then
-	eval pwiz_guess_string_$1\[count\]\=\"\$4\"
-    fi
+    eval pwiz_guess_c_$1\[count\]\=\"\$3\"
+    eval pwiz_guess_p_$1\[count\]\=\"\$4\"
     if ! test -z "$5" ; then
-	eval pwiz_guess_hotkey_$1\[count\]\=\"\$5\"
+	eval pwiz_guess_string_$1\[count\]\=\"\$5\"
     fi
-}
-
-#@ pwiz_guess_trust [tags] (internal function)
-# Computes trust value for key found
-#@tags trust: Trust level of cache source.
-function pwiz_guess_trust {
-    pwiz_read_tags
-
-    local pwiz_key subtrust=$pwiz_tag_trust
-    for pwiz_key in $pwiz_key_list ; do
-	if test "$(type -t "pwiz_guess_trust_$pwiz_key")" = function ; then
-	    eval pwiz_guess_trust_$pwiz_key
-	    let subtrust=subtrust\*pwiz_trust/100
-	fi
-    done
-    pwiz_trust=$subtrust
+    if ! test -z "$6" ; then
+	eval pwiz_guess_hotkey_$1\[count\]\=\"\$6\"
+    fi
 }
 
 #@ pwiz_key_parse key
@@ -892,67 +1005,6 @@ function pwiz_key_parse {
 	keys=${keys#*/}
     done
 }
-
-#@ pwiz_ask_core question_function desc longdesc [ tags ... ]
-# Generic asking interface function.
-# Returns in variable $pwiz_answer and $pwiz_answer_{question}
-#@tags knowledge: Knowledge type required for answer.
-#@tags q: Question ID.
-# FIXME: implement callbacks for defaut for all questions pwiz_ask_callback_{question}
-function pwiz_ask_core {
-    local question_function desc longdesc rc knowledge count hotkey
-    question_function=$1
-    desc="$2"
-    longdesc="$3"
-    shift 3
-    pwiz_read_tags
-    pwiz_keys_set
-    pwiz_cache_validity_apply
-
-    decho_guess "query tags: $*"
-    if ! test -z "$pwiz_tag_q" ; then
-	eval pwiz_answer\=\"\${pwiz_answer_$pwiz_tag_q-@@PWIZ_UNDEFINED@@}\"
-	if test "$pwiz_answer" != @@PWIZ_UNDEFINED@@ ; then
-	    decho_guess "already answered: $pwiz_answer"
-	    return
-	fi
-    fi
-    pwiz_guess "$@"
-
-    unset pwiz_hotarray
-    # Search for unique hotkeys.
-# FIXME: elsewhere???
-    pwiz_hotarray[64#h]=h
-    # hotkey for manual is currently reserved (maybe others want to be reserved)
-    if $pwiz_tag_allow_new ; then
-	pwiz_hotarray[64#m]=m
-    fi
-    for (( count=0 ; count < size ; count++ )) ; do
-	hotkey="${pwiz_hotkeys[$count]}"
-	if ! test -z "$hotkey" ; then
-	    if test -z "${pwiz_hotarray[64#$hotkey]}" ; then
-		pwiz_hotarray[64#$hotkey]=$count
-	    else
-		unset pwiz_hotkeys[$count]
-	    fi
-	fi
-    done
-
-    $question_function "$desc" "$longdesc" "$@"
-    rc=$?
-
-    # FIXME: check for undefined value.
-    # FIXME: implement delayed write (write to cache if module confirms or command is successfull).
-    eval knowledge\=\$pwiz_knowledge_$pwiz_tag_knowledge
-    if ! test -z "$pwiz_tag_q" ; then
-	pwiz_cache_write $pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$build "$pwiz_answer" "$@" trust=$knowledge
-	eval pwiz_answer_$pwiz_tag_q\=\"\$pwiz_answer\"
-    fi
-
-    return $rc
-}
-pwiz_tag_valid=exact
-pwiz_tag_knowledge=general
 
 #@ pwiz_ask_{function}
 # Functions for programmers.
@@ -976,7 +1028,6 @@ function pwiz_ask_yesno_f {
     local desc="$1"
     local longdesc="$2"
     shift 2
-    pwiz_read_tags
     pwiz_ask_core pwiz_question_string "$desc" "$longdesc" yesno=true allow_new=false "$@"
     if $pwiz_answer ; then
 	return
@@ -984,7 +1035,6 @@ function pwiz_ask_yesno_f {
 	return 1
     fi
 }
-pwiz_tag_yesno=false
 
 #@tags callback: Callback function for "enter manually" (returns $pwiz_answer).
 #@tags allow_new: if set to false, "enter manually" is disabled (default: true).
@@ -993,7 +1043,6 @@ function pwiz_ask_string_f {
     set +o noglob
     pwiz_ask_core pwiz_question_string "$@"
 }
-pwiz_tag_allow_new=true
 
 alias pwiz_ask_radio="set -o noglob ; pwiz_ask_radio_f"
 function pwiz_ask_radio_f {
@@ -1031,9 +1080,8 @@ function pwiz_ask_list_f {
     shift 2
     pwiz_read_tags
     pwiz_keys_set
-    local pwiz_key
     for pwiz_key in $pwiz_key_list ; do
-	if test "$(type -t "pwiz_guess_trust_$pwiz_key")" = function ; then
+	if test "$(type -t "pwiz_guess_credit_$pwiz_key")" = function ; then
 	    eval $pwiz_key\=\'\*\'
 	fi
     done
@@ -1044,7 +1092,7 @@ function pwiz_ask_list_f {
 	pwiz_fatal "pwiz_ask_list must contain tag q"
     fi
 
-    unset pwiz_list_all pwiz_list_p pwiz_list_strings pwiz_list_hotkeys
+    local -a pwiz_list_all pwiz_list_p pwiz_list_strings pwiz_list_hotkeys
 
 #    if ! test -z "$pwiz_tag_q" ; then
 
@@ -1085,18 +1133,17 @@ function pwiz_ask_list_f {
 	pwiz_list_eval "$key" 0
     done
 
-    pwiz_ask_core pwiz_question_list "$desc" "$longdesc" "$@"
+    pwiz_ask_core pwiz_question_list "$desc" "$longdesc" #%#"$@"
 
 # FIXME: Return usable result in array.
 }
-pwiz_tag_item_type=string
 
-#@ pwiz_list_eval value trust string hotkey
+#@ pwiz_list_eval value credit string hotkey
 #@ Evaluate guess for guess array in pwiz_guess (internal) or in callback.
 # FIXME: pwiz_list_p has not yet any meaning.
 function pwiz_list_eval {
     local count
-    local size=${#pwiz_list_all[*]}
+    local size=${#pwiz_list_all[@]}
     local is_new=true
     for (( count=0 ; count < size ; count++ )) ; do
 	if test "${pwiz_list_all[count]}" = "$1" ; then
@@ -1140,6 +1187,160 @@ function pwiz_list_add {
     if ! test -z "$5" ; then
 	eval pwiz_list_hotkey_$1\[count\]\=\"\$5\"
     fi
+}
+
+#@ pwiz_ask_core question_function desc longdesc [ tags ... ]
+# Generic asking interface function.
+# Returns in variable $pwiz_answer and ${q tag}
+#@tags knowledge: Knowledge type required for answer.
+#@tags q: Question ID.
+# FIXME: implement callbacks for defaut for all questions pwiz_ask_callback_{question}
+function pwiz_ask_core {
+    local question_function desc longdesc rc count hotkey answer_credit guesslevel knowledge pwiz_answer_save
+
+    # Local variables for use in guess and question engines:
+    local -a pwiz_guesses pwiz_credits pwiz_p pwiz_strings pwiz_hotkeys
+    local pwiz_p_other
+
+    question_function=$1
+    desc="$2"
+    longdesc="$3"
+    shift 3
+# FIXME: Maybe make one uplevel function common with ask list.
+    pwiz_reset_tags
+    pwiz_read_tags
+    pwiz_keys_set
+    # Add '*' to pattern for keys, where credit inheritance function exists.
+    # This is really needed in pwiz_guess, but it's simpler to set it here.
+    for pwiz_key in $pwiz_key_list ; do
+	if test "$(type -t "pwiz_guess_credit_$pwiz_key")" = function ; then
+	    eval $pwiz_key\=\'\*\'
+	fi
+    done
+    pwiz_cache_validity_apply
+
+    decho_guess "query tags: $*"
+    if ! test -z "$pwiz_tag_q" ; then
+	eval pwiz_answer\=\"\${$pwiz_tag_q-@@PWIZ_UNDEFINED@@}\"
+	if test "$pwiz_answer" != @@PWIZ_UNDEFINED@@ ; then
+	    decho_guess "already answered: $pwiz_answer"
+	    return
+	fi
+    fi
+    pwiz_answer_save="$pwiz_answer"
+    knowledge=$pwiz_tag_knowledge
+    pwiz_get_knowledge $knowledge
+    knowledge=$pwiz_answer
+    pwiz_reset_tags
+    pwiz_read_tags
+    pwiz_answer="$pwiz_answer_save"
+    pwiz_guess #%#"$@"
+
+    if test $pwiz_guess_best_credit -ge $OPTVAL_CREDIT ; then
+	decho_guess "PWIZ auto answer: $pwiz_answer"
+	pwiz_question_auto_answer "$desc" "$longdesc" "$pwiz_guess_best"
+	pwiz_answer="$pwiz_guess_best_value"
+	eval $pwiz_tag_q\=\"\$pwiz_answer\"
+	return
+    fi
+
+    local pwiz_hotarray
+    # Search for unique hotkeys.
+# FIXME: elsewhere???
+    pwiz_hotarray[64#h]=h
+    # hotkey for manual is currently reserved (maybe others want to be reserved)
+    if $pwiz_tag_allow_new ; then
+	pwiz_hotarray[64#m]=m
+    fi
+    for (( count=0 ; count < size ; count++ )) ; do
+	hotkey="${pwiz_hotkeys[$count]}"
+	if ! test -z "$hotkey" ; then
+	    if test -z "${pwiz_hotarray[64#$hotkey]}" ; then
+		pwiz_hotarray[64#$hotkey]=$count
+	    else
+		# FIXME: unsetting local array variables is bad idea and Bask segfaults in some situations.
+		# But this maybe can work.
+#		unset pwiz_hotkeys[$count]
+		pwiz_hotkeys[$count]=
+	    fi
+	fi
+    done
+
+    pwiz_fallback_answer=false
+    $question_function "$desc" "$longdesc" #%#"$@"
+    rc=$?
+
+    # FIXME: implement delayed write (write to cache if module confirms or command is successfull).
+    # delay=phase will cause writing to cache after getting to phase "phase".
+    if ! test -z "$pwiz_tag_q" ; then
+	if test -z "$pwiz_tag_guesslevel" ; then
+	    pwiz_answer_save="$pwiz_answer"
+	    pwiz_get_guesslevel
+	    pwiz_reset_tags
+	    pwiz_read_tags
+	    guesslevel=$pwiz_answer
+	    pwiz_answer="$pwiz_answer_save"
+	else
+	    guesslevel=$pwiz_tag_guesslevel
+	fi
+	let answer_credit="knowledge*guesslevel/100"
+	decho_guess "caching answer \"$pwiz_answer\" to $pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$build with credit $answer_credit%
+(user credit ${pwiz_knowledge}c, guess level $guesslevel%)"
+#%# ### !!!!!!!!!! FIXME: Write selected tags or all tags
+	pwiz_cache_write $pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$build "$pwiz_answer" "$@" credit=$answer_credit
+	eval $pwiz_tag_q\=\"\$pwiz_answer\"
+    fi
+
+    return $rc
+}
+
+#@ pwiz_knowledge_feature name desc longdesc
+#@ Knowledge features description. The same feature can be defined more times.
+function pwiz_knowledge_feature {
+    eval "pwiz_knowledge_feature_desc_$1="'"$2"'
+    eval "pwiz_knowledge_feature_longdesc_$1="'"$3"'
+}
+pwiz_knowledge_feature general "general packaging" "General knowledge of packaging process without exact specification (this is a default knowledge type)."
+
+#@ pwiz_get_knowledge knowledge_tag
+# Get knowledge for specific knowledge tag. If required, asks user for response.
+#@returns: $pwiz_answer
+function pwiz_get_knowledge {
+    # FIXME: check for undefined knowledge.
+    eval 'local desc="$pwiz_knowledge_feature_desc_'$1'"'
+    eval 'local longdesc="$pwiz_knowledge_feature_longdesc_'$1'"'
+    pwiz_ask_string "Please qualify your knowledge skills for area \"$desc\"."\
+	"$longdesc Defining knowledge skills helps PWIZ to decide, whether to ask you with particular packaging question."\
+	q=pwiz_knowledge_$1 valid=setup knowledge=total\
+	default[0]=0 string[0]="No knowledges (0c)." p[0]=30\
+	default[1]=25 string[1]="Small knowledges (25c)." p[1]=25\
+	default[2]=50 string[2]="Average knowledges (50c)." p[2]=20\
+	default[3]=75 string[3]="Good knowledges (75c)." p[3]=15\
+	default[4]=100 string[4]="Perfect knowledges (100c)." p[4]=10
+}
+# Special knowledge for questions with total knowledge credit.
+# Used internally and for questions with total credibility.
+pwiz_knowledge_total=100
+
+#@ pwiz_get_guesslevel
+# Get guesslevel for just answered question.
+#@returns: $pwiz_answer
+function pwiz_get_guesslevel {
+    local p0 p25 p50 p75 p100
+    if $pwiz_fallback_answer ; then
+	p0=30 p25=25 p50=20 p75=15 p100=10
+    else
+	p0=10 p25=30 p50=25 p75=20 p100=15
+    fi
+    pwiz_ask_string "Specify, how sure you are."\
+	"You should say, how sure you are with last answer. If you are sure, you will not be asked next time. If you are unsure, next time you will be asked again. If you don't want to see this dialog after each question, specify guess level in your answer (if it is supported by question engine). On the other side, this additional question allows you to press Enter without thinking and giving extra credit to your answer."\
+	knowledge=total\
+	default[0]=0 string[0]="Random guess. (0%)." p[0]=$p0\
+	default[1]=25 string[1]="I'm trying. (25%)." p[1]=$p25\
+	default[2]=50 string[2]="Very probably. (50%)." p[2]=$p50\
+	default[3]=75 string[3]="Nearly sure. (75%)." p[3]=$p75\
+	default[4]=100 string[4]="Absolutely sure. (100%)." p[4]=$p100\
+	guesslevel=100
 }
 
 #@ callback [ tags ]
@@ -1267,7 +1468,7 @@ function pwiz_phase_new_3 {
 #@ function {phase}_provider adding callme to phase
 #@   {phase}_provider (no args)
 #@ function {phase}_guess for adding callme to phase
-#@   {phase}_guess guess p [ string ]
+#@   {phase}_guess guess c p [ string ]
 #@ variables
 #@   $package_basename_guesses variable with defaults for pwiz_ask_*
 #@ $package_basename_guesses_count - if you want to provide own
@@ -1284,7 +1485,7 @@ function pwiz_phase_new_3_guess {
     pwiz_phase_add_callme $1
 }"
     eval "function $1_guess {
-    pwiz_guess_add $1 \"\$1\" \"\$2\" \"\$3\"
+    pwiz_guess_add $1 \"\$1\" \"\$2\" \"\$3\" \"\$4\"
 }"
 }
 
@@ -1338,7 +1539,7 @@ function pwiz_phase_check {
 
 #@ pwiz_phase_clean phase
 function pwiz_phase_clean {
-    eval unset -a PWIZ_STAGE_$1
+    eval unset PWIZ_STAGE_$1
     eval declare -a PWIZ_STAGE_$1
 }
 

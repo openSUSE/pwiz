@@ -38,7 +38,7 @@ function license_PREPARE_CHECK {
 	    md5sum=${md5sum%% *}
 	    case $md5sum in
 # GNU General Public License Version 2, June 1991
-		94d55d512a9ba36caa9b7df079bae19f )
+		94d55d512a9ba36caa9b7df079bae19f | 0636e73ff0215e8d672dc4c32c317bb3 | f08a446809913fc9b3c718f0eaea0426 )
 		    license_found="${license_found:+$license_found }GPL"
 		    ;;
 # GNU Library General Public License Version 2, June 1991
@@ -52,5 +52,5 @@ function license_PREPARE_CHECK {
 	    esac
 	fi
     done
-    pwiz_guess_add rpm_license "$license_found" 50
+    pwiz_guess_add rpm_license "$license_found" 50 ""
 }

@@ -13,7 +13,45 @@ esac
 
 # pwiz_question_init
 function pwiz_engine_question_dumb_init {
-    :
+# WARNING: This violates naming conventions.
+    black="$(tput setf 0)"
+    blue="$(tput setf 1)"
+    green="$(tput setf 2)"
+    cyan="$(tput setf 3)"
+    red="$(tput setf 4)"
+    magenta="$(tput setf 5)"
+    yellow="$(tput setf 6)"
+    white="$(tput setf 7)"
+
+    blackbg="$(tput setb 0)"
+    bluebg="$(tput setb 1)"
+    greenbg="$(tput setb 2)"
+    cyanbg="$(tput setb 3)"
+    redbg="$(tput setb 4)"
+    magentabg="$(tput setb 5)"
+    yellowbg="$(tput setb 6)"
+    whitebg="$(tput setb 7)"
+
+    defcolors="$(tput init)"
+
+    # Colors configuration.
+    pwiz_engine_question_dumb_default_begin="$blue"
+    pwiz_engine_question_dumb_default_end="$black"
+    pwiz_engine_question_dumb_default_begin="$blue"
+    pwiz_engine_question_dumb_desc_begin="$whitebg
+
+$red"
+    pwiz_engine_question_dumb_desc_end="$black"
+    pwiz_engine_question_dumb_question_end="$defcolors
+"
+    pwiz_engine_question_dumb_auto_begin="$whitebg
+
+"
+    pwiz_engine_question_dumb_auto_end="
+$defcolors"
+    pwiz_engine_question_dumb_autodesc_begin="$green"
+    pwiz_engine_question_dumb_autodesc_end="$black"
+
 }
 
 # pwiz_question_quit
@@ -21,23 +59,26 @@ function pwiz_engine_question_dumb_quit {
     :
 }
 
-# pwiz_question_yesno desc longdesc [ tags ... ]
+# pwiz_question_yesno desc longdesc #%#[ tags ... ]
 # FIXME: Probably obsolete - replaced by special case of ask_string
-# pwiz_question_string desc longdesc [ tags ... ]
+# pwiz_question_string desc longdesc #%#[ tags ... ]
 function pwiz_engine_question_dumb_string {
-    local desc longdesc guesses_count selection default REPLY
+    local desc longdesc guesses_count selection bdefault edefault default REPLY
 
     desc="$1"
     longdesc="$2"
     shift 2
-    pwiz_read_tags
+#%#    pwiz_read_tags
     while : ; do
-	echo
-	echo "$desc"
+	echo "$pwiz_engine_question_dumb_desc_begin$desc$pwiz_engine_question_dumb_desc_end"
 	for (( guesses_count=0 ; guesses_count < ${#pwiz_guesses[*]} ; guesses_count++ )) ; do
 	    if test $guesses_count = "$pwiz_guess_best" ; then
+		bdefault="$pwiz_engine_question_dumb_default_begin"
+		edefault="$pwiz_engine_question_dumb_default_end"
 		default=", default"
 	    else
+		bdefault=
+		edefault=
 		default=
 	    fi
 	    if test -z "${pwiz_hotkeys[guesses_count]}" ; then
@@ -46,16 +87,17 @@ function pwiz_engine_question_dumb_string {
 		selection="$guesses_count, ${pwiz_hotkeys[guesses_count]}"
 	    fi
 	    if test -z "${pwiz_strings[guesses_count]}" ; then
-		echo "$selection) \"${pwiz_guesses[guesses_count]}\" (${pwiz_trusts[guesses_count]}%$default)"
+		echo "$selection) \"$bdefault${pwiz_guesses[guesses_count]}$edefault\" (${pwiz_credits[guesses_count]}c, ${pwiz_p[guesses_count]}%$default)"
 	    else
-		echo "$selection) ${pwiz_strings[guesses_count]} (${pwiz_trusts[guesses_count]}%$default)"
+		echo "$selection) $bdefault${pwiz_strings[guesses_count]}$edefault (${pwiz_credits[guesses_count]}c, ${pwiz_p[guesses_count]}%$default)"
 	    fi
 	done
 	if $pwiz_tag_allow_new ; then
-	    echo "m) enter manually"
+	    echo "m) enter manually ($pwiz_p_other%)"
 	    echo "e[number]) edit manually (start with answer number)"
 	fi
-	echo "h) help"
+	echo -n "$pwiz_engine_question_dumb_question_end"
+	echo "$longdesc" | fmt -w $(tput cols)
 	read
 	case "$REPLY" in
 	    "" )
@@ -64,6 +106,7 @@ function pwiz_engine_question_dumb_string {
 		    continue
 		fi
 		pwiz_answer="$pwiz_guess_best_value";
+		pwiz_fallback_answer=true
 		break
 		;;
 # FIXME: sometimes m and h can have other meaning
@@ -109,9 +152,6 @@ function pwiz_engine_question_dumb_string {
 		    echo "Invalid choice!"
 		fi
 		;;
-	    h )
-		echo "$longdesc"
-		;;
 	    # FIXME: Limit is 1000 guesses.
 	    [0-9] | [0-9][0-9] | [0-9][0-9][0-9] )
 		if test $REPLY -ge ${#pwiz_guesses[*]} ; then
@@ -137,28 +177,32 @@ function pwiz_engine_question_dumb_string {
     done
 }
 
-# pwiz_question_radio desc longdesc [ tags ... ]
+# pwiz_question_radio desc longdesc #%#[ tags ... ]
 function pwiz_engine_question_dumb_radio {
-    local desc longdesc guesses_count default REPLY
+    local desc longdesc guesses_count bdefault edefault default REPLY
     desc="$1"
     longdesc="$2"
     shift 2
     while : ; do
-	echo
-	echo "$desc"
+	echo "$pwiz_engine_question_dumb_desc_begin$desc$pwiz_engine_question_dumb_desc_end"
 	for (( guesses_count=0 ; guesses_count < ${#pwiz_guesses[*]} ; guesses_count++ )) ; do
 	    if test $guesses_count = "$pwiz_guess_best" ; then
+		bdefault="$pwiz_engine_question_dumb_default_begin"
+		edefault="$pwiz_engine_question_dumb_default_end"
 		default=", default"
 	    else
+		bdefault=
+		edefault=
 		default=
 	    fi
 	    if test -z "${pwiz_strings[guesses_count]}" ; then
-		echo "$guesses_count) \"${pwiz_guesses[guesses_count]}\" (${pwiz_trusts[guesses_count]}%$default)"
+		echo "$guesses_count) \"$bdefault${pwiz_guesses[guesses_count]}$edefault\" (${pwiz_credits[guesses_count]}c, ${pwiz_p[guesses_count]}%$default)"
 	    else
-		echo "$guesses_count) ${pwiz_strings[guesses_count]} (${pwiz_trusts[guesses_count]}%$default)"
+		echo "$guesses_count) $bdefault${pwiz_strings[guesses_count]}$edefault (${pwiz_credits[guesses_count]}c, ${pwiz_p[guesses_count]}%$default)"
 	    fi
 	done
-	echo "h) help"
+	echo -n "$pwiz_engine_question_dumb_question_end"
+	echo "$longdesc" | fmt -w $(tput cols)
 	read
 	case "$REPLY" in
 	    "" )
@@ -168,9 +212,6 @@ function pwiz_engine_question_dumb_radio {
 		fi
 		pwiz_answer="$pwiz_guess_best_value";
 		break
-		;;
-	    h )
-		echo "$longdesc"
 		;;
 	    # FIXME: Limit is 1000 guesses.
 	    [0-9] | [0-9][0-9] | [0-9][0-9][0-9] )
@@ -191,13 +232,13 @@ function pwiz_engine_question_dumb_radio {
 # FIXME: implement pwiz_engine_question_dumb_selection
 
 function pwiz_engine_question_dumb_list {
-    local desc longdesc list_off list_item items_count count_off menu_mode="" default REPLY pwiz_answer_save string
+    local desc longdesc list_off list_item items_count count_off menu_mode="" bdefault edefault default REPLY pwiz_answer_save string
     local -a items
 
     desc="$1"
     longdesc="$2"
     shift 2
-    pwiz_read_tags
+#%#    pwiz_read_tags
     if test "$pwiz_guess_best_value" = @@PWIZ_UNDEFINED@@ ; then
 	pwiz_answer=" "
     else
@@ -209,8 +250,7 @@ function pwiz_engine_question_dumb_list {
 	fi
     done
     while : ; do
-	echo
-	echo "$desc"
+	echo "$pwiz_engine_question_dumb_desc_begin$desc$pwiz_engine_question_dumb_desc_end"
 	echo "Active items (in order):"
 	items_count=0
 	list_off=" ${pwiz_list_all[*]} "
@@ -239,13 +279,15 @@ function pwiz_engine_question_dumb_list {
 	    items[items_count]="$list_item"
 	    let items_count++
 	done
+	echo -n "$pwiz_engine_question_dumb_question_end"
 	if test "$menu_mode" = "" ; then
 	    echo "[number]) action in this position (item operations, new)"
 	    if $pwiz_tag_allow_new ; then
 		echo "n) new item at the end"
 	    fi
 	    echo "x) exit list editor (default)"
-	    echo "h) help"
+	    echo -n "$pwiz_engine_question_dumb_question_end"
+echo "$longdesc" | fmt -w $(tput cols)
 	    read
 	    case "$REPLY" in
 		n )
@@ -256,7 +298,7 @@ function pwiz_engine_question_dumb_list {
 			echo -n  "Enter ID for this new item: "
 			read
 			pwiz_answer_save="$pwiz_answer$REPLY "
-			eval pwiz_ask_$pwiz_tag_item_type '"$desc Enter value for new item." "$longdesc
+			eval pwiz_ask_$pwiz_tag_item_type '"$pwiz_engine_question_dumb_desc_begin$desc$pwiz_engine_question_dumb_desc_end Enter value for new item." "$longdesc
 Formal type for this is a list. Now you have a chance to add new item to this list." "$@" q=${pwiz_tag_q}_$REPLY'
 			pwiz_answer="$pwiz_answer_save"
 			menu_mode=""
@@ -267,8 +309,6 @@ Formal type for this is a list. Now you have a chance to add new item to this li
 		    ;;
 		x | "" )
 		    break
-		    ;;
-		h ) echo "$longdesc"
 		    ;;
 	    # FIXME: Limit is 1000 guesses.
 		[0-9] | [0-9][0-9] | [0-9][0-9][0-9] )
@@ -289,7 +329,6 @@ Formal type for this is a list. Now you have a chance to add new item to this li
 		echo "i) inactivate item"
 		echo "n) new item in this position"
 		echo "x) exit item editor (default)"
-		echo "h) help"
 		read
 		case "$REPLY" in
 	    # FIXME: Limit is 1000 guesses.
@@ -326,15 +365,13 @@ Formal type for this is a list. Now you have a chance to add new item to this li
 			read
 			pwiz_answer_save="$pwiz_answer"
 # FIXME: This probably should disappear and only callback should exist.
-			eval pwiz_ask_$pwiz_tag_item_type '"$desc Enter value for new item." "$longdesc
+			eval pwiz_ask_$pwiz_tag_item_type '"$$pwiz_engine_question_dumb_desc_begin$desc$pwiz_engine_question_dumb_desc_end Enter value for new item." "$longdesc
 Formal type for this is a list. Now you have a chance to add new item to this list." "$@" q=${pwiz_tag_q}_$REPLY'
 			pwiz_answer="$pwiz_answer_save"
 			menu_mode=""
 			;;
 		    x | "" )
 			menu_mode=""
-			;;
-		    h ) echo "$longdesc"
 			;;
 		    * )
 			echo "Invalid choice!"
@@ -343,7 +380,6 @@ Formal type for this is a list. Now you have a chance to add new item to this li
 	    else
 		echo "a) activate item"
 		echo "x) exit item editor (default)"
-		echo "h) help"
 		read
 		case "$REPLY" in
 		    a )
@@ -352,8 +388,6 @@ Formal type for this is a list. Now you have a chance to add new item to this li
 			;;
 		    x | "" )
 			menu_mode=""
-			;;
-		    h ) echo "$longdesc"
 			;;
 		    * )
 			echo "Invalid choice!"
@@ -365,4 +399,15 @@ Formal type for this is a list. Now you have a chance to add new item to this li
     pwiz_answer="${pwiz_answer# }"
     pwiz_answer="${pwiz_answer% }"
 }
-pwiz_tag_multiline=false
+pwiz_register_tag_default pwiz_tag_multiline=false
+
+function pwiz_engine_question_dumb_auto_answer {
+    local string
+    if test -z "${pwiz_strings[$3]}" ; then
+	string="${pwiz_guesses[guesses_count]}"
+    else
+	string="${pwiz_strings[guesses_count]}"
+    fi
+    echo "$pwiz_engine_question_dumb_auto_begin*** Question was: $pwiz_engine_question_dumb_autodesc_begin$1$pwiz_engine_question_dumb_autodesc_end"
+    echo "*** PWIZ answered: $pwiz_engine_question_dumb_autodesc_begin$string$pwiz_engine_question_dumb_autodesc_end (${pwiz_credits[$3]}c)$pwiz_engine_question_dumb_auto_end"
+}

@@ -74,12 +74,12 @@ function version_compare {
 #@ version_policy_register name string
 # name is function name without leading version_policy_
 # Register version policy to version policy registry.
-# FIXME: use pwiz_guess_add
 # version_policy_register function value [ string hotkey ]
+# FIXME: set default
 function version_policy_register {
     local id=$1
     shift
-    pwiz_guess_add version_policy $id 0 "$@"
+    pwiz_guess_add version_policy $id "" "" "$@"
 }
 version_policy_register_string=""
 version_policy_register_counter=0
@@ -115,6 +115,7 @@ function version_ask_policy {
 	if test "$(type -t "version_policy_$pwiz_answer")" != function ; then
 	    pwiz_fatal "invalid version policy $version_project_policy (probably removed some modules from PWIZ)"
 	fi
+# FIXME: Use default answer variable
 	version_project_policy=$pwiz_answer
 }
 
@@ -123,9 +124,10 @@ function version_ask_product_policy {
 	pwiz_ask_string "Select project version policy for your product." \
 	    "Project version policy of your product, means, which version will qualify to your product." \
 	    q=version_product_policy_threshold \
-	    string[0]="all versions will qualify" default[0]=1 p[0]=0 \
-	    string[1]="only stable versions will qualify" default[1]=0 p[1]=30 \
+	    string[0]="all versions will qualify" default[0]=1 p[0]=30 \
+	    string[1]="only stable versions will qualify" default[1]=0 p[1]=70 \
 	    valid=product allow_new=false
+# FIXME: Use default answer variable
 	version_policy_product_threshold=$pwiz_answer
 }
 

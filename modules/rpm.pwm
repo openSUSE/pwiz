@@ -269,6 +269,9 @@ function rpm_files_create {
 	file )
 	    pwiz_phase_add_rem rpm_files_list "$item_prefix$filelist_tag_name"
 	    ;;
+	open )
+	    echo "$filelist_tag_name" >>$PWIZ_TMPDIR/rpm_accessed_files
+	    ;;
 	dir )
 	    pwiz_phase_add_rem rpm_files_list "$item_prefix%dir $filelist_tag_name"
 	    ;;
@@ -329,37 +332,33 @@ function rpm_set_attributes {
     rpm_add_preamble basic  Version      $pwiz_project_version
     pwiz_ask_string "Enter RPM group for main package." \
 	"RPM requires assigning group attribute for any package created. You should select one of the list." \
-	q=rpm_group__ default=Other p=0
-    rpm_group__="$pwiz_answer"
+	q=rpm_group__ default=Other
     if ! test -z "$package_home_page" ; then
 	rpm_add_preamble basic  URL          "$package_home_page"
     fi
     rpm_add_preamble basic  Group        "$rpm_group__"
     pwiz_ask_string "Enter RPM license for main package." \
 	"RPM requires assigning license attribute for any package created. You should select one of the list." \
-	q=rpm_license default=Unknown p=0
-    rpm_license="$pwiz_answer"
+	q=rpm_license default=Unknown
     rpm_add_preamble basic  License      "$rpm_license"
     rpm_add_preamble basic  Release      0
     pwiz_ask_string "Enter RPM summary for main package." \
 	"RPM requires assigning one-line summary attribute for any package created. You should now write any." \
 	q=rpm_summary__
-    rpm_summary__="$pwiz_answer"
     rpm_add_preamble basic  Summary      "$rpm_summary__"
     pwiz_ask_string "Enter RPM prerequires for main package." \
-	"RPM prerequires are packages required for installing this package." q=rpm_prereq__ default="" p=20
+	"RPM prerequires are packages required for installing this package." q=rpm_prereq__ default="" p=70
     if ! test -z "$pwiz_answer" ; then
 	rpm_add_preamble ext    PreReq       "$pwiz_answer"
     fi
     pwiz_ask_string "Enter RPM requires for main package." \
-	"RPM requires are packages required for using this package." q=rpm_requires__ default="" p=20
+	"RPM requires are packages required for using this package." q=rpm_requires__ default="" p=70
     if ! test -z "$pwiz_answer" ; then
 	rpm_add_preamble ext    Requires     "$pwiz_answer"
     fi
     pwiz_ask_string "Enter RPM description for main package." \
 	"RPM requires assigning multiple line description attribute for any package created. You should now write any." \
-	multiline=true q=rpm_description__ default= p=0
-    rpm_description__="$pwiz_answer"
+	multiline=true q=rpm_description__ default=
     rpm_add_description           "$rpm_description__"
 
     for subpackage in "${rpm_subpackage_list[@]}" ; do
@@ -368,29 +367,29 @@ function rpm_set_attributes {
 # FIXME:
 	pwiz_ask_string "Enter RPM group for subpackage $subpackage." \
 	    "PWIZ decided to split binary RPM. It requires assigning group attribute for subpackage $subpackage. You should select one of the list." \
-	    q=rpm_group__$subpackage default="$rpm_group__" p=20
+	    q=rpm_group__$subpackage default="$rpm_group__" c=50 p=80
 	rpm_add_preamble basic  Group        "$pwiz_answer" $subpackage
 	pwiz_ask_string "Enter RPM summary for subpackage $subpackage." \
 	    "PWIZ decided to split binary RPM. It requires assigning one-line summary for subpackage $subpackage. You should now write any." \
-	    q=rpm_summary__$subpackage default="$rpm_summary__" p=20
+	    q=rpm_summary__$subpackage default="$rpm_summary__" c=50 p=80
 	rpm_add_preamble basic  Summary      "$pwiz_answer" $subpackage
 	eval 'string="${filelist_split_candidate_prerequires__'$subpackage'[*]}"'
 # FIXME: should be ask_list or ask per package and ask user for extras
 	pwiz_ask_string "Enter RPM prerequires for subpackage $subpackage." \
-	    "RPM prerequires are packages required for installing this subpackage." q=rpm_prereq__$subpackage default="$string" p=20
+	    "RPM prerequires are packages required for installing this subpackage." q=rpm_prereq__$subpackage default="$string" c=30 p=80
 	if ! test -z "$pwiz_answer" ; then
 	    rpm_add_preamble ext    PreReq       "$pwiz_answer" $subpackage
 	fi
 	eval 'string="${filelist_split_candidate_requires__'$subpackage'[*]}"'
 # FIXME: should be ask_list or ask per package and ask user for extras
 	pwiz_ask_string "Enter RPM requires for subpackage $subpackage." \
-	    "RPM requires are packages required for using this subpackage." q=rpm_requires__$subpackage default="$string" p=20
+	    "RPM requires are packages required for using this subpackage." q=rpm_requires__$subpackage default="$string" c=30 p=80
 	if ! test -z "$pwiz_answer" ; then
 	    rpm_add_preamble ext    Requires     "$pwiz_answer" $subpackage
 	fi
 	pwiz_ask_string "Enter RPM description for subpackage $subpackage." \
 	    "PWIZ decided to split binary RPM. It requires assigning multiple line description attribute for any package created. You should now write any." \
-	    multiline=true q=rpm_description__ default="$rpm_description__" p=0
+	    multiline=true q=rpm_description__ default="$rpm_description__"
 	rpm_add_description           "$pwiz_answer" $subpackage
     done
 }

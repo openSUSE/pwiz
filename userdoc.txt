@@ -1,0 +1,63 @@
+PWIZ - The Packaging Wizard User Manual
+
+PWIZ is an application, which should help to create genuine quality
+packages by users or package maintainers with minimal manual
+intervention.
+
+
+Understanding the PWIZ 
+
+PWIZ split its work to phases. Each phase correspond so some major
+type of work (searching for package, downloading it, inspecting
+sources, compiling, installing, merging to system etc.). Phases are
+splitted to particular stages of work. One stage is one or more
+commands executed in order at once.
+
+PWIZ has modular conception. PWIZ core engine core consist of phase
+processor and guess evaluator. Both do nothing interesting for user
+without modules.
+
+One type of modular engines are intended for communication with user.
+Second type of modular engines are for back-end communication with
+packaging system.
+
+The most interesting are packaging wizard modules. Those modules have
+chance to hook its own action to any phase, call other engines and
+functions from other modules. Each module handles one or more aspects
+of packaging process.
+
+All modules alltogether give complete packaging process. PWIZ goes
+through stages and phases, and tries to guess best, what to do.
+Sometimes, it requires an user intervention. It is done by standard
+asking iterface.
+
+
+Cache
+
+All your answers are stored in cache. Next time you will ask the same,
+PWIZ will use previous answer to correct its guess.
+
+
+How to understand questions value
+
+PWIZ tries to guess best answer. It's a rule of some fuzzy logic, and
+any guess has two aspects:
+
+Probability (p): Probability tries to identify, how probable is this
+question. But probability of some question says nothing about reality,
+it is only weak indication. Range is 0% to 100%.
+
+High probability means: This value is probable, but there is no
+indication, that it is true.
+
+Credibility (c, TODO): If PWIZ has some indications, that this answer
+is the right one, credibility (quality) of this answer increases. Such
+indication can be based from a result of a testcase or from previous
+answer of a person. Range is 0 credits to 100 credits.
+
+Such simple heuristic does not help much in real packaging. That's why
+PWIZ tries to deduce an inheritance of answers to subsequent version
+of the same package and for the same package for other products
+(distributions).
+
+High quality means: There is good indication, that it is true.

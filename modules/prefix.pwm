@@ -26,8 +26,10 @@ function prefix_START {
 # FIXME better defaults. Check for packaging system presence.
     pwiz_ask_string "Select default prefix for PWIZ." \
 	"You should enter global prefix. It is a directory, where most packages should go. Use /usr/local for manual installations, /usr for installations with packaging system, eventually $HOME for userland installation." \
-	q=prefix_global valid=setup default[0]=/usr p[0]=50 default[1]=/usr/local p[1]=40 default[2]=$HOME p[2]=30
-    prefix_global=$pwiz_answer
+	q=prefix_global valid=setup \
+	default[0]=/usr p[0]=40 \
+	default[1]=/usr/local p[1]=25 \
+	default[2]=$HOME p[2]=15
 }
 
 function prefix_prepare {
@@ -38,8 +40,7 @@ function prefix_set {
     if test "$prefix" = @none@ ; then
 	pwiz_ask_string "Select prefix for your package." \
 	    "You should enter prefix for your package. It is a main directory, where most packages should go. Most packages should use global prefix, but some needs extra prefix." \
-	    q=prefix default[0]=@global@ p[0]=50 string[0]="PWIZ system default prefix ($prefix_global)"
-	prefix="$pwiz_answer"
+	    q=prefix_package default[0]=@global@ p[0]=80 c=25 string[0]="PWIZ system default prefix ($prefix_global)"
     fi
     prefix_set_dirs "$prefix"
 }
