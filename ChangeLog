@@ -1,9 +1,16 @@
+2004-12-02  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* pwiz.gopts.in: Unset pwiz_askmenu_build_ids in
+	pwiz_askmenu_reset. Fixed pwiz_get_guesslevel if -G or -g command line option is used.
+
+	* configure.in: Version 0.03.1.
+
 2004-11-26  Stanislav Brabec  <sbrabec@suse.cz>
 
 	* modules/gnu_configure.pwm, modules/manual.pwm,
 	modules/package.pwm, modules/rpm.pwm, modules/split_devel.pwm,
 	pwiz.gopts.in: Implemented delayed caching, phase engine backstep,
-	revert arrays.
+	revert arrays. Version 0.03.
 
 2004-11-19  Stanislav Brabec  <sbrabec@suse.cz>
 
@@ -17,7 +24,7 @@
 	modules/filelist_simplify.pwm.in, modules/ftp.pwm,
 	modules/rpm.pwm, configure.in, pwiz.gopts.in: Fixed pwiz work
 	on bi-arch. Work-arounds for ${var/\*/} bash expansion bug.
-	Changes to work with latest wget.
+	Changes to work with latest wget. Version 0.02.
 
 	* acinclude.m4: Implemented test for
 	AC_BASH_PARAMETER_STAR_EXPANSION_BUG.
@@ -37,6 +44,7 @@
 	* README, TODO: Documentation fixes.
 
 	* Makefile.am, configure.in: Documentation and packaging fixes.
+	Version 0.01.
 
 	* pwiz.gopts.in, modules/filelist.pwm, modules/gnu_configure.pwm,
 	modules/rpm.pwm, modules/rpm_doc.pwm: Documentation packaging,

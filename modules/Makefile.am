@@ -11,6 +11,7 @@ pwizmodules_DATA=\
 	gnu_configure.pwm\
 	gnu_make.pwm\
 	gtkdoc_split_doc.pwm\
+	html.pwm\
 	installwatch.pwm\
 	ldconfig.pwm\
 	license.pwm\
@@ -23,11 +24,17 @@ pwizmodules_DATA=\
 	unpack.pwm\
 	version.pwm
 
+html.pwm: html.pwm.in Makefile.am
+	sed "s%@PW_WRAPPERDIR@%@libdir@/pwiz%g;s%@PW_HELPERDIR@%@libexecdir@/pwiz%g" <$(srcdir)/html.pwm.in >html.pwm
+
 installwatch.pwm: installwatch.pwm.in Makefile.am
 	sed "s%@PW_WRAPPERDIR@%@libdir@/pwiz%g;s%@PW_HELPERDIR@%@libexecdir@/pwiz%g" <$(srcdir)/installwatch.pwm.in >installwatch.pwm
 
 distclean-local:
-	rm -f installwatch.pwm
+	rm -f installwatch.pwm html.pwm
+
+pwizhelperdir=$(libexecdir)/pwiz
+pwizhelper_SCRIPTS=html_printurls
 
 installwatch_cleandir=$(libexecdir)/pwiz
 installwatch_clean_PROGRAMS=installwatch_clean
@@ -44,6 +51,8 @@ EXTRA_DIST=\
 	gnu_configure.pwm\
 	gnu_make.pwm\
 	gtkdoc_split_doc.pwm\
+	html.pwm.in\
+	html_printurls\
 	installwatch.pwm.in\
 	ldconfig.pwm\
 	license.pwm\

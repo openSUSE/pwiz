@@ -131,7 +131,7 @@ function version_ask_policy {
     fi
 }
 
-#@ version_ask_product_policy
+#@ version_ask_product_policy
 #
 # Ask for product version policy. (internal)
 
@@ -146,7 +146,7 @@ function version_ask_product_policy {
 }
 
 #@ version_policy_check
-# returns: 0: version complies product version policy, 1: version does
+# returns: 0: version complies product version policy, 1: version does
 #not comply product version policy
 #
 # Check version using actual version policy.

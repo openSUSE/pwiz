@@ -23,7 +23,7 @@ case $1 in
 	;;
 esac
 
-#@ installwatch_SETUP
+#@ installwatch_SETUP
 #
 # Prepares a directory for collecting lists of accessed files. (internal)
 function installwatch_SETUP {
@@ -49,7 +49,7 @@ function installwatch_filelist_raw {
     cp -a $filelist_raw_file $filelist_raw_file.iw
 }
 
-#@ installwatch_run_wrapper
+#@ installwatch_run_wrapper
 #
 # Wrapper for protecting run environment and install file access tracing wrapper. (internal)
 function installwatch_run_wrapper {

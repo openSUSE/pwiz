@@ -1,0 +1,63 @@
+#! /bin/bash
+
+case $1 in
+    desc )
+	echo "HMML file listing"
+	return
+	;;
+    longdesc )
+	echo "This module provides HTML file parsing to search for package download."
+	return
+	;;
+    init )
+	;;
+    version )
+	echo "0.1"
+	return
+	;;
+    * )
+	return
+	;;
+esac
+
+#@ html_list URI callback
+# URI: URI to be listed
+# callback: callback for found items
+#
+# Call callback for all found FTP objects.
+# Callback argument: URI
+# NOTE: If @$2 == "", then $pwiz_callback is used (probably echo).
+function html_list {
+    local real_location=$1
+    mkdir -p $PWIZ_TMPDIR/html_list/uri
+    wget -P $PWIZ_TMPDIR/html_list/uri -S -o printurls.log "$1"
+    pwiz_redirect_stdin $PWIZ_TMPDIR/html_list/html_printurls.log
+    while read a1 a2 ; do
+	if test "$a1" = "Location:" ; then
+	    real_location=$a2
+	fi
+    done
+    pwiz_redirect_stdin_close
+
+    local real_name="${real_location##*/}"
+    : "${real_name:=index.html}"
+
+    @PW_HELPERDIR@/installwatch_clean "$real_name" >$PWIZ_TMPDIR/html_list/html_urls
+
+    pwiz_redirect_stdin $PWIZ_TMPDIR/html_list/html_urls
+    local tmp
+    while read REPLY ; do
+	if test "${REPLY/:\/\/}" = "$REPLY" ; then
+	    if test "${REPLY:0:1}" = / ; then
+		tmp=${real_location#*://}
+		"${2:-$pwiz_callback}" "${real_location%%://*}://${tmp%%/*}$REPLY"
+	    else
+		"${2:-$pwiz_callback}" "${real_location%/*}/$REPLY"
+	    fi
+	else
+	    "${2:-$pwiz_callback}" "$REPLY"
+	fi
+    done
+    pwiz_redirect_stdin_close
+
+}

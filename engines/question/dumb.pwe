@@ -11,9 +11,9 @@ case $1 in
 	;;
 esac
 
-# pwiz_question_init
+# pwiz_question_init
 function pwiz_engine_question_dumb_init {
-# WARNING: This violates naming conventions.
+# WARNING: This violates naming conventions.
     black="$(tput setf 0)"
     blue="$(tput setf 1)"
     green="$(tput setf 2)"
@@ -54,12 +54,12 @@ $defcolors"
 
 }
 
-# pwiz_question_quit
+# pwiz_question_quit
 function pwiz_engine_question_dumb_quit {
     :
 }
 
-# pwiz_question_string desc longdesc
+# pwiz_question_string desc longdesc
 function pwiz_engine_question_dumb_enter_string {
     echo -n "$pwiz_tag_callback_prompt"
 # FIXME: Implement single line entry with initial value
@@ -79,7 +79,7 @@ function pwiz_engine_question_dumb_enter_string {
     fi
 }
 
-# pwiz_question_string desc longdesc
+# pwiz_question_string desc longdesc
 function pwiz_engine_question_dumb_string {
     local desc longdesc guesses_count selection bdefault edefault default REPLY contstring
 
@@ -87,7 +87,7 @@ function pwiz_engine_question_dumb_string {
     longdesc="$2"
     shift 2
     echo "$pwiz_engine_question_dumb_desc_begin$desc$pwiz_engine_question_dumb_desc_end"
-    for (( guesses_count=0 ; guesses_count < ${#pwiz_askmenu_callbacks[guesses_count]} ; guesses_count++ )) ; do
+    for (( guesses_count=0 ; guesses_count < ${#pwiz_askmenu_callbacks[@]} ; guesses_count++ )) ; do
 	if test $guesses_count = "$pwiz_guess_best" ; then
 	    bdefault="$pwiz_engine_question_dumb_default_begin"
 	    edefault="$pwiz_engine_question_dumb_default_end"

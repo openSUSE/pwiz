@@ -73,7 +73,7 @@ function filelist_raw_clean_1 {
 		/proc/cpuinfo )
 		    echo >&2 "ERROR: FIXME: access to machine file $filelist_tag_name!"
 		    ;;
-# FIXME: /usr/src/packages is system and RPM specific
+# FIXME: /usr/src/packages is system and RPM specific
 		/tmp/* | /dev/* | /var/tmp/* | /proc/* | /sys/* | /usr/src/packages )
 		    ;;
 		* )

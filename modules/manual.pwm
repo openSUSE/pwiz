@@ -98,7 +98,7 @@ function manual_command {
     rm $PWIZ_TMPDIR/manual_answer_tmp
 }
 
-#@@ Predefined manual action points
+#@@ Predefined manual action points
 # All those phase are defined after phase with name without "_manual".
 # manual_PREPARE_PREUNPACK: before unpacking main archive
 # manual_PREPARE_POSTUNPACK: after unpacking of main archive before

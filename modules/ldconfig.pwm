@@ -25,7 +25,7 @@ case $1 in
 	;;
 esac
 
-#@ ldconfig_filelist_install
+#@ ldconfig_filelist_install
 #
 # Inspects preliminary file list and optionally add ldconfg to ldconfig phase. (internal)
 function ldconfig_filelist_install {

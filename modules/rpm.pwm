@@ -672,7 +672,7 @@ pwiz_phase_new rpm_source_dest_cp after rpm_source_dest_mkdir
 # id: id of source
 # name: source file name
 #
-# Add a source to RPM Source.
+# Add a source to RPM Source.
 function rpm_source_add {
     eval "rpm_sourceno__$1=${#rpm_sources[@]}"
     rpm_subst_names "$2"
@@ -725,7 +725,7 @@ function rpm_patch {
 # id: id of patch
 # name: patch file name
 #
-# Add a patch to RPM Patch.
+# Add a patch to RPM Patch.
 function rpm_patch_add {
     eval "rpm_patchno__$1=${#rpm_patches[@]}"
     rpm_subst_names "$2"

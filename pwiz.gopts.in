@@ -17,7 +17,7 @@ shopt -s nullglob
 
 @year 2004
 
-@author Stanislav Brabec
+@author Stanislav Brabec, SuSE CR
 
 @bugsto Stanislav Brabec <sbrabec@suse.cz>
 
@@ -1079,7 +1079,7 @@ function pwiz_cache_load {
 
 #@ pwiz_cache_delay phase [ pwiz_cache_write_args ... ]
 # phase: phase to delay credibilization to
-# pwiz_cache_write_args arguments for later execution
+# pwiz_cache_write_args: arguments for later execution
 #of @pwiz_cache_write command
 #
 # Function for delayed write. First argument is phase name, when
@@ -1758,6 +1758,7 @@ function pwiz_askmenu_add_hook {
 #by @pwiz_askmenu_complete.
 function pwiz_askmenu_reset {
     unset pwiz_askmenu_build_callbacks
+    unset pwiz_askmenu_build_ids
     unset pwiz_askmenu_build_strings
     unset pwiz_askmenu_build_hotkeys
     unset pwiz_askmenu_build_flags
@@ -2376,14 +2377,14 @@ function pwiz_get_guesslevel {
     local p0 p25 p50 p75 p100
     if $pwiz_fallback_answer ; then
 	if $OPTARG_DEFGUESSLEVEL ; then
-	    guesslevel=$OPTVAL_DEFGUESSLEVEL
+	    pwiz_answer=$OPTVAL_DEFGUESSLEVEL
 	    return
 	else
 	    c0=4 c25=3 c50=2 c75=1 c100=0
 	fi
     else
 	if $OPTARG_GUESSLEVEL ; then
-	    guesslevel=$OPTVAL_GUESSLEVEL
+	    pwiz_answer=$OPTVAL_GUESSLEVEL
 	    return
 	else
 	    c0=0 c25=4 c50=3 c75=2 c100=1
@@ -2391,7 +2392,8 @@ function pwiz_get_guesslevel {
     fi
 # FIXME: implement and add " or specify guess level in your answer (if it is supported by question engine)"
     pwiz_ask_string "Specify, how sure you are."\
-	"You should say, how sure you are with last answer. If you are sure, you will not be asked next time. If you are unsure, next time you will be asked again. If you don't want to see this dialog after each question, use proper command line argument. On the other side, this additional question allows you to press Enter without thinking and giving extra credit to your answer."\
+	"You should say, how sure you are with last answer. If you are sure, you will not be asked next time. If you are unsure, next time you will be asked again. If you don't want to see this dialog after each question, use proper command line argument. On the other side, this additional question allows you to press Enter without thinking and giving extra credit to your answer.
+You can get rid this dialog by -g and/or -G command line options."\
 	knowledge=total\
 	default[0]=0 string[0]="Random guess. (0%)." c[0]=$c0\
 	default[1]=25 string[1]="I'm trying. (25%)." c[1]=$c25\
@@ -2872,6 +2874,7 @@ function pwiz_phase_new_3_guess {
 #in a special way preventing double expansion.
 function pwiz_phase_add_run {
 # FIXME: for debugging only:
+# BUG FIXME: Undo
     if test "$3" != "" ; then
 	pwiz_fatal "3 arguments: pwiz_phase_add_run $*"
     fi

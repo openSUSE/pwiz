@@ -17,7 +17,7 @@ case $1 in
 	    1 )
 		ftp_WGET="wget -nv"
 		;;
-	    2 )
+	    * )
 		ftp_WGET="wget -v"
 		;;
 	esac
