@@ -409,22 +409,24 @@ function rpm_write_spec_preamble {
 		echo \"\$string\"
 	    done"
 	done
-	for (( i=0 ; i < ${#rpm_sources[@]} ; i++ )) ; do
-	    if test $i = 0 ; then
-		string=Source
-	    else
-		string=Source$i
-	    fi
-	    echo "$string: ${pad:${#string}+3}${rpm_sources[i]}"
-	done
-	for (( i=0 ; i < ${#rpm_patches[@]} ; i++ )) ; do
-	    if test $i = 0 ; then
-		string=Patch
-	    else
-		string=Patch$i
-	    fi
-	    echo "$string: ${pad:${#string}+3}${rpm_patches[i]}"
-	done
+	if test -z "$subpackage" ; then
+	    for (( i=0 ; i < ${#rpm_sources[@]} ; i++ )) ; do
+		if test $i = 0 ; then
+		    string=Source
+		else
+		    string=Source$i
+		fi
+		echo "$string: ${pad:${#string}+3}${rpm_sources[i]}"
+	    done
+	    for (( i=0 ; i < ${#rpm_patches[@]} ; i++ )) ; do
+		if test $i = 0 ; then
+		    string=Patch
+		else
+		    string=Patch$i
+		fi
+		echo "$string: ${pad:${#string}+3}${rpm_patches[i]}"
+	    done
+	fi
 	for subsection in ext temp ; do
 	    eval "for string in \"\${rpm_preamble__${subsection}_$subpackage[@]}\" ; do
 		echo \"\$string\"
