@@ -32,6 +32,9 @@ function rpm_doc_check {
 	    continue
 	fi
 	case "$file" in
+# These files doesn't contain any interesting information.
+	    ABOUT-NLS | MANIFEST )
+		;;
 	    INSTALL )
 		md5sum="$(md5sum "$file")"
 		md5sum=${md5sum%% *}
