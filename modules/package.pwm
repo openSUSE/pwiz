@@ -123,7 +123,7 @@ Supported URI types: ${uri_providers[*]}" \
 
 # FIXME: finish splitting
 function package_download {
-    uri_list_recursive $package_search_uri package_collect_uri
+    uri_list $package_search_uri package_collect_uri
     pwiz_guess_add package_version latest 5 "latest conforming policy"
     pwiz_ask_string "Enter required version." \
 	"Now you can specify required version. Default is most probably the latest conforming policy. In this case you will be asked for policy to identify latest version. If you are entering version manually, use version string for forced version and \"latest\" for current latest version." \
@@ -175,38 +175,66 @@ Supported URI types: ${uri_providers[*]}" \
     fi
 }
 
-#@ package_collect_uri URI
-# URI: URI information to be collected
-# returns: 0: known archive, 1: unknown file
-# returns $pwiz_result: stripped package version
+#@ package_collect_uri uri uri_type
+# uri: URI of found hyperlink
+# uri_type: "list": URI contains sub-URIs (directory, web page),
+#"file": URI is file (downloadable file without links), "link": URI is
+#hyper-reference or alias of different URI, "unknown": unknown type of
+#URI (can be any of previous type)
+# returns: 0: no action needed, 1: follow this URI
 #
 # Parses URI and collects guesses of versions and package URIs. (internal)
+# Accepts file with known extension as download candidate.
+# Requests following of URIs, which seems to be known type of
+#sub-directory...
+shopt -s extglob
 function package_collect_uri {
-    local unpack_credit
-    decho_uri -n "found $1..."
-    if unpack_check_extension "$1" ; then
-	pwiz_result="${pwiz_result##*/}"
-	# package_basename can be an extglob pattern
-	shopt -s extglob
-	if test "$pwiz_result" = "${pwiz_result#$package_basename}" ; then
-	    decho_uri " not archive of required package"
-	    shopt -u extglob
-	    return 1
-	else
-	    pwiz_result="${pwiz_result#$package_basename}"
-	    shopt -u extglob
-# package-version separators
-	    decho_uri -n " is archive of ${pwiz_result##*/}"
-	    pwiz_result="${pwiz_result#[-_]}"
-	    let unpack_credit=90+unpack_priority
-	    pwiz_guess_add package_uri_${pwiz_result//[.-]/_} "$1" $unpack_credit
-	    pwiz_guess_add package_version "$pwiz_result" 0 "force $pwiz_result"
+    local unpack_credit name
+    decho_uri "found $1, type: $2..."
+    # FIXME: ignores links
+    if test "$2" = file || test "$2" = unknown ; then
+	if unpack_check_extension "$1" ; then
+	    name="${pwiz_result##*/}"
+	    # package_basename can be an extglob pattern
+	    shopt -s extglob
+	    if test "$name" = "${name#$package_basename}" ; then
+		decho_uri " not archive of required package"
+		shopt -u extglob
+	    else
+		name="${name#$package_basename}"
+		shopt -u extglob
+		# package-version separators
+		decho_uri " is archive of ${name##*/}"
+		name="${name#[-_]}"
+		let unpack_credit=90+unpack_priority
+		pwiz_guess_add package_uri_${name//[.-]/_} "$1" $unpack_credit
+		pwiz_guess_add package_version "$name" 0 "force $name"
+		return 0
+	    fi
 	fi
-    else
-	decho_uri " not archive"
-	return 1
     fi
+    if test "$2" = list || test "$2" = unknown ; then
+	shopt -s extglob
+	name=${1%/}
+	name=${name##*/}
+	case "$name" in
+	    # Exclude unprobable directory names, which are not archives.
+	    *.md5 | *.sig | *.asc | LATEST_IS_* )
+		decho_uri " probably is not a subdirectory"
+		;;
+# FIXME list should not be hardwired
+# FIXME: maybe add check for uri_is_subdir
+	    $package_basename* | [Vv]er* | *([0-9.]) | download | files )
+		decho_uri " can be archive subdirectory"
+		return 1
+		;;
+	esac
+	shopt -u extglob
+    fi
+    decho_uri " not archive or known subdirectory"
+    return 0
 }
+shopt -u extglob
 
 #@ package_find_latest_version
 # returns: 0: known archive, 1: unknown file
