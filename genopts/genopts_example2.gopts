@@ -1,0 +1,63 @@
+@genopts
+
+@program genopts_example
+
+@version 0.0
+
+@year 2001
+
+@author Stanislav Brabec
+
+@bugsto Stanislav Brabec <utx@penguin.cz>
+
+@free_copy
+
+@usage [OPTION]... [FILE]...
+
+@short
+Shows an exampldfds sg g sfg dfg gfd ssdg dfg dgf dgf dfg fgdgr reg egre esrg eg esg reg ger e se of all genopts features.
+
+@defaults MYOPTIONS
+There can be defaults stored in variable.
+
+@switch SWI -s --switch
+Shows usage of simple switch sfa sdf sf fref er egrg erg ereg eg erg ergsreg drsg gs erg esg ergs ersg ersg ersg se.
+
+@cntswitch VER -v --verbose
+Shows usage of countable switch.
+
+@option VAL -d --value=VALUE
+Shows usage of option with value.
+
+@option VALD -x --dvalue=VALUE NONE
+Shows usage of option with value and default.
+
+@switch LONGO --longonly
+Switches and options can be long only and short only.
+Switch description can also be multi-line.
+
+@option SHO -S=VALUE
+Use this trick for defining short option with value.
+
+@options_only
+
+@end
+
+# And there start our code:
+
+echo "There is result of parsing:"
+$OPTARG_SWI && echo "Simple switch was present."
+$OPTARG_VER && echo "Countable verbose switch was present $OPTCNT_VER times."
+$OPTARG_VAL && echo "Value option was present with value $OPTVAL_VAL."
+if $OPTARG_VALD
+then
+    echo "Dvalue option with default was present and value is $OPTVAL_VALD."
+else
+    echo "Dvalue option with default was not present and value is $OPTVAL_VALD."
+fi
+$OPTARG_LONGO && echo "Long only switch was present."
+$OPTARG_SHO && echo "Short value option was present with value $OPTVAL_SHO."
+
+echo "(Non-option arguments are prohibited.)"
+
+exit 0

@@ -1327,6 +1327,7 @@ function pwiz_module_uses {
 
 # -----------------------
 
+# FIXME: phases for subpackage testing.
 
 #@@ phase skeleton
 #@ NOTE: Recommendation for custom phases: Use lowecase. Take these ones as "constants".
@@ -1368,7 +1369,7 @@ function pwiz_module_uses {
 #@  > tests for instaled package, access to live system
 #@ PREUNINSTALL
 #@  > special actions before package uninstallation
-#@ UNINSTALL
+#@ UNMERGE
 #@  > perform uninstallation, access to live system
 #@ POSTUNINSTALL
 #@  > special actions after package uninstallation, access to live system
@@ -1387,13 +1388,58 @@ function init_phase_skeleton {
     done
 }
 
+@genopts
+
+@program pwiz
+
+@version 0.0
+
+@year 2004
+
+@author Stanislav Brabec
+
+@bugsto Stanislav Brabec <sbrabec@suse.cz>
+
+@free_copy
+
+@usage [OPTION]... [FILE]...
+
+@short
+Packaging Wizard provides a framework for simplification of packaging process.
+
+@defaults PWIZ_OPTIONS
+You can change default behavior by changing many environment variables
+(see documentation for PWIZ and modules for more).
+
+@switch FAST -f --fast
+Run in fast mode. Runs without break until there is a
+question without default guess.
+
+@switch BATCH -b --batch
+Run in batch mode. Fails if there is a question without
+default guess.
+
+@switch PROMPT -p --prompt
+Debug shell prompt before and after each stage.
+
+@cntswitch VERBOSE -v --verbose
+Increase of verbosity.
+
+@option DEBUG -d --debug=TYPE
+Comma separated list of specific debugging messages.
+Try --debug=list for all available types.
+
+@options_only
+
+@end
 
 pwiz_engine_load cache file
 pwiz_engine_load question dumb
 pwiz_engine_load pkgdb rpm
 init_phase_skeleton
 pwiz_modules_load
-pwiz_projectdirs_init
+# FIXME: probably remove this:
+#pwiz_projectdirs_init
 
 while pwiz_step run ; do
     :

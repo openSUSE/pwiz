@@ -1,0 +1,69 @@
+#! /bin/bash
+
+# Your genopts section can start anywhere in code.
+
+@genopts
+
+@code_style line_up function_keyword tabs casetab
+
+@program genopts_example
+
+@version 0.0
+
+@year 2001
+
+@author Stanislav Brabec
+
+@bugsto Stanislav Brabec <utx@penguin.cz>
+
+@free_copy
+
+@usage [OPTION]... [FILE]...
+
+@short
+Shows an example of all genopts features.
+
+@defaults MYOPTIONS
+There can be defaults stored in variable.
+
+@switch SWI -s --switch
+Shows usage of simple switch.
+
+@cntswitch VER -v --verbose
+Shows usage of countable switch.
+
+@option VAL -d --value=VALUE
+Shows usage of option with value.
+
+@option VALD -x --dvalue=VALUE NONE
+Shows usage of option with value and default.
+
+@switch LONGO --longonly
+Switches and options can be long only and short only.
+Switch description can also be multi-line.
+
+@option SHO -S=VALUE
+Use this trick for defining short option with value.
+
+@end
+
+# And there start our code:
+
+echo "There is result of parsing:"
+$OPTARG_SWI && echo "Simple switch was present."
+$OPTARG_VER && echo "Countable verbose switch was present $OPTCNT_VER times."
+$OPTARG_VAL && echo "Value option was present with value $OPTVAL_VAL."
+if $OPTARG_VALD
+then
+    echo "Dvalue option with default was present and value is $OPTVAL_VALD."
+else
+    echo "Dvalue option with default was not present and value is $OPTVAL_VALD."
+fi
+$OPTARG_LONGO && echo "Long only switch was present."
+$OPTARG_SHO && echo "Short value option was present with value $OPTVAL_SHO."
+
+
+echo "And non-option arguments were: \"${ARGV[*]}\"" # We can use ${ARGV[@]},
+						     # see bash(1) for differences.
+
+exit 0
