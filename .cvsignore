@@ -1,0 +1,6 @@
+*~
+*.txt
+test*
+cache
+tmp
+tmpcache
