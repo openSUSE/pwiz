@@ -39,6 +39,7 @@ fixing:
   subpackages.
 - Not back steps nad random access support.
 - Lots of FIXME in code. For user are visible deprecated calls.
+- No RPM suid support.
 
 WARNING
 
