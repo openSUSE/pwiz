@@ -12,10 +12,10 @@ case $1 in
     init )
     	pwiz_module_needs check_unpacked
 	pwiz_phase_new patch after check_unpacked
-	pwiz_phase_add_callme check_unpacked_init
+	check_unpacked_init_provider
 	pwiz_phase_add_callme patch
 	;;
-check_unpacked_init )
+    check_unpacked_init )
 # FIXME: implement callback function.
 	pwiz_ask_list "Initial source patches, you want to have." \
 	    "Before PWIZ starts automatic tests, you have a chance to apply initial patches. These patches can add features, perform behavior improvement etc. Not recommended for auto-detectable bug fixes - you will be asked for them later after all automatic tests." q=patch_unp #callback="pwiz_module_exec patch new_patch"

@@ -288,10 +288,8 @@ function pwiz_run_prepare {
 #@ $pwiz_run_rc is restored before next pwiz_run.
 #@ WARNING: Do not alter pwiz_run_rc!
 function pwiz_run {
-    set -x
     echo "****** Running: $@"
     pwiz_run_prepare "$@"
-    set +x
 }
 
 #@ pwiz_run_eval args
@@ -884,7 +882,7 @@ function pwiz_phase_add_callme {
     pwiz_phase_add_exec "$phase" $pwiz_module_current "$phase" "$@"
 }
 
-#@ pwiz_phase_add_callme phase [ after | before ] contents phase_id
+#@ pwiz_phase_new_callme phase [ after | before ] phase_id contents
 # phase===argument
 #@ similar to pwiz_phase_new phase ; pwiz_phase_add_exec phase contents
 function pwiz_phase_new_callme {
@@ -894,7 +892,14 @@ function pwiz_phase_new_callme {
     pwiz_phase_add_exec "$phase" $pwiz_module_current "$phase" "$@"
 }
 
-#@ "three phase method" create
+#@ pwiz_phase_new_3 phase [ after | before ] phase_id
+#@ create all needed for "three phase method"
+#@ see more for documantation for its purpose
+#@ adds three phases:
+#@   phase_prepare with default contents callme
+#@   phase default empty
+#@   phase_set with default contents callme
+#@ and function phase_provider adding callme to phase
 function pwiz_phase_new_3 {
     pwiz_phase_new_callme $1_prepare $2 $3
     pwiz_phase_new $1 after $1_prepare
@@ -1120,7 +1125,13 @@ function pwiz_step {
 	    run )
 # FIXME pwiz_rem and pwiz_rem_eval
 		echo -e "*** Running:\n$pwiz_step_stage_code"
-		eval "$pwiz_step_stage_code"
+# FIXME: pwiz_rune does not need this expansion, but direct run yes
+# Do it better, this is a hack.
+		if test "${pwiz_step_stage_code%% *}" = pwiz_run -o "${pwiz_step_stage_code%% *}" = pwiz_exec ; then
+		    $pwiz_step_stage_code
+		else
+		    eval "$pwiz_step_stage_code"
+		fi
 		pwiz_rc=$?
 		;;
 	esac
@@ -1260,6 +1271,8 @@ function pwiz_module_uses {
 #@    WARNING: use premerge for standard pre-installation processes
 #@ INSTALL
 #@  > install project, access to $PWIZ_INSTALLROOT
+#@ CHECKINSTALL
+#@  > Check all installed things. Read access.
 #@ PREMERGE
 #@  > actions before install, access to live system only special actions
 #@ MERGE
@@ -1284,7 +1297,7 @@ function pwiz_module_uses {
 function init_phase_skeleton {
     local phase prev_phase
     prev_phase=BEGIN
-    for phase in START PROJECT SOURCE PREPARE BUILD PREINSTALL INSTALL PREMERGE MERGE CLEAN POSTINSTALL RUNTEST PREUNINSTALL UNINSTALL POSTUNINSTALL RESULTS FINISH ; do
+    for phase in START PROJECT SOURCE PREPARE BUILD PREINSTALL INSTALL CHECKINSTALL PREMERGE MERGE CLEAN POSTINSTALL RUNTEST PREUNINSTALL UNINSTALL POSTUNINSTALL RESULTS FINISH ; do
 	pwiz_phase_new $phase after $prev_phase
 	pwiz_phase_new ${phase}_LAST after $phase
 	prev_phase=${phase}_LAST

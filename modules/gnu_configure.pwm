@@ -15,9 +15,10 @@ case $1 in
 	pwiz_phase_new configure after prefix_set
 # configure_fallback_check is reserved for last-in-resort failure check.
 	pwiz_phase_new configure_fallback_check after configure
-	check_unpacked_init
-	check_unpacked
+	check_unpacked_init_provider
+	check_unpacked_provider
 	;;
+# FIXME: is this needed. Is not module init enough
     check_unpacked_init )
 	gnu_configure_args=
 	return
@@ -34,7 +35,9 @@ case $1 in
 		pwiz_phase_add configure 'gnu_configure_rc=$pwiz_run_rc'
 		pwiz_phase_add_callme configure_fallback_check
 # FIXME!!!!! installroot can or cannot be available. Use RPM %expansion
-		pwiz_phase_add_run_eval install_action 'make DESTDIR=$PWIZ_INSTALLROOT install'
+#		pwiz_phase_add_run_eval install_action 'make DESTDIR=$PWIZ_INSTALLROOT install'
+# FIXME: pwiz_rune does not need this expansion, but direct run yes
+		pwiz_phase_add_run install_action 'make DESTDIR=$RPM_BUILD_ROOT install'
 	    fi
 	fi
 	return

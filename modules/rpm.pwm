@@ -31,6 +31,10 @@ case $1 in
 # FIXME: non build-rooted packages
 	pwiz_phase_add_rem CLEAN    "%clean"
 	pwiz_phase_add_run CLEAN    'rm -rf $RPM_BUILD_ROOT'
+	pwiz_phase_add_rem POSTINSTALL ""
+	pwiz_phase_add_rem POSTINSTALL "%post"
+# FIXME
+	pwiz_phase_add     POSTINSTALL 'rpm_section=post ; rm -f $PWIZ_TMPDIR/rpm_{vars,pwd} ; cd /'
 	pwiz_phase_new rpm_files_finish after FINISH
 	pwiz_phase_add_callme rpm_files_finish
 	pwiz_phase_new rpm_files_list after rpm_files_finish
@@ -134,7 +138,8 @@ function pwiz_run_core {
 	    rpm_create_spec "-bc --short-circuit" build true "$@"
 	    ;;
 # NOTE: rpmbuild has no support for calling clean
-	install | clean )
+# FIXME: This is not OK for %post. It has different environment.
+	install | clean | post )
 	    rpm_create_spec "-bi --short-circuit" install true "$@"
 	    ;;
 	* )

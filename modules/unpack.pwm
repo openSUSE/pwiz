@@ -27,10 +27,8 @@ case $1 in
 	;;
     unpack )
 # FIXME: URI / name .tar.gz can be .tar.bz2. More archives to unpack.
-set -x
 	cp -a "$PWIZ_CACHEDIR/${package_uri##*/}" $PWIZ_SOURCESDIR
 	cd $PWIZ_SRCDIR
-set +x
 	return
 	;;
 # FIXME: Make a function

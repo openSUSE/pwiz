@@ -11,8 +11,7 @@ case $1 in
 	;;
     init )
 	pwiz_phase_add_callme START
-	pwiz_phase_new prefix_set after BUILD
-	pwiz_phase_add_callme prefix_set
+	pwiz_phase_new_3 prefix after BUILD
 	;;
     START )
 # FIXME better defaults. Check for packaging system presence.
@@ -22,11 +21,18 @@ case $1 in
 	prefix_global=$pwiz_answer
 	return
 	;;
+    prefix_prepare )
+	prefix=@global@
+	return
+	;;
     prefix_set )
-	pwiz_ask_string "Select prefix for your package." \
-	    "You should enter prefix for your package. It is a main directory, where most packages should go. Most packages should use global prefix, but some needs extra prefix." \
-	    q=prefix default[0]=@global@ p[0]=50 string[0]="PWIZ system default prefix ($prefix_global)"
-	prefix_set_dirs "$pwiz_answer"
+	if test "$prefix" = @global@ ; then
+	    pwiz_ask_string "Select prefix for your package." \
+		"You should enter prefix for your package. It is a main directory, where most packages should go. Most packages should use global prefix, but some needs extra prefix." \
+		q=prefix default[0]=@global@ p[0]=50 string[0]="PWIZ system default prefix ($prefix_global)"
+	    prefix="$pwiz_answer"
+	fi
+	prefix_set_dirs "$prefix"
 	return
 	;;
     version )

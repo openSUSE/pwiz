@@ -16,8 +16,10 @@ case $1 in
 	pwiz_phase_new make_fallback_check after make
 # FIXME: install_default. If none, use "make install"
 	pwiz_phase_new install_action after INSTALL
+	pwiz_phase_new install_before_action before install_action
+	pwiz_phase_new install_after_action  after  install_action
 	pwiz_phase_add_callme make
-	check_unpacked_init
+	check_unpacked_init_provider
 	;;
     check_unpacked_init )
 	gnu_make_args=

@@ -12,7 +12,7 @@ case $1 in
     init )
 # Phase providing preliminary file list during installation.
 	pwiz_phase_new_callme filelist_install before INSTALL_LAST
-	pwiz_phase_new_callme filelist_raw after RESULTS
+	pwiz_phase_new_callme filelist_raw after CHECKINSTALL
 	pwiz_phase_new_callme filelist_clean after filelist_raw
 	pwiz_phase_new filelist_inspect after filelist_clean
 	pwiz_phase_new_callme filelist_finish after filelist_inspect
@@ -36,9 +36,8 @@ case $1 in
 	#@ Temporary file name for inspect processes.
 	filelist_file_tmp=$PWIZ_TMPDIR/filelist.lst~
 	# dual uniq makes sorting faster in many cases
-set -x
+	# FIXME: remove temporaries
 	uniq <$filelist_raw_file | tee $filelist_raw_file.0 | filelist_raw_clean_1 | tee $filelist_raw_file.1 | LC_ALL=C sort | filelist_raw_clean_2 | uniq | tee $filelist_raw_file.2 >$filelist_file
-set +x
 	return
 	;;
     version )
@@ -84,6 +83,7 @@ function filelist_raw_clean_1 {
 	esac
     done
 }
+
 function filelist_raw_clean_2 {
     local line
     while read line ; do
@@ -92,7 +92,7 @@ function filelist_raw_clean_2 {
 	if test $attr = dir ; then
 # FIXME: remove redirection
 # FIXME: implement and ask more files at once
-	    pwiz_pkgdb_what_owns "${1##$PWIZ_INSTALLROOT}" >&6
+	    pwiz_pkgdb_what_owns "${name##$PWIZ_INSTALLROOT}" >&2
 # FIXME check for both package and package-devel
 	    if test ${#pwiz_result[@]} -gt 1 -o "${pwiz_result[0]:-$pwiz_project_project}" != "$pwiz_project_project" ; then
 		echo "$name odir"
@@ -129,6 +129,11 @@ function filelist_inspect_provider {
     pwiz_phase_add_callme filelist_inspect
 }
 
+#@ filelist_install_provider
+#@ function for filelist inspections during INSTALL phase
+function filelist_install_provider {
+    pwiz_phase_add_callme filelist_install
+}
 #@ filelist_generate
 #@ generate file list in any moment.
 #@ Clean list is generated, but no inspectors are called.

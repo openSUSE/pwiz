@@ -7,9 +7,9 @@ case $1 in
 	;;
     longdesc )
 	echo "This is a framework for creating custom checks on	unpacked source."
-	echo "If you specify check_unpacked to \"module init\", \"module check_unpacked\""
+	echo "If you specify check_unpacked_provider to \"module init\", \"module check_unpacked\""
 	echo "will be started after unpacking sources."
-	echo "If you specify check_unpacked_init to \"module init\", \"module check_unpacked_init\""
+	echo "If you specify check_unpacked_init_provider to \"module init\", \"module check_unpacked_init\""
 	echo "will be started after unpacking sources and before all check_unpacked calls."
 	return
 	;;
@@ -28,10 +28,10 @@ case $1 in
 	;;
 esac
 
-function check_unpacked {
+function check_unpacked_provider {
     pwiz_module_needs unpack
     pwiz_phase_add_callme check_unpacked
 }
-function check_unpacked_init {
+function check_unpacked_init_provider {
     pwiz_phase_add_callme check_unpacked_init
 }

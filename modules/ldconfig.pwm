@@ -1,0 +1,49 @@
+#! /bin/bash
+
+case $1 in
+    desc )
+	echo "GNOME PWIZ framework"
+	return
+	;;
+    longdesc )
+	echo "This module adds intelligent guesses for GNOME related packages. It means, for example: searching for source in GNOME FTP, working with gnome paths, proper installing of GNOME packages."
+	return
+	;;
+    init )
+	pwiz_module_needs rpm filelist
+	pwiz_phase_new ldconfig after POSTINSTALL
+# FIXME: real_uninstall
+	filelist_install_provider
+	;;
+    filelist_install )
+	ldconfig_run=false
+	exec 3<$filelist_file
+	IFS="${IFS}:"
+	while read -u3 ldconfig_file ; do
+	    ldconfig_file=${ldconfig_file% *}
+	    case "$ldconfig_file" in
+		*.so | *.so.* )
+# FIXME: generate dirlist
+		    for ldconfig_dir in $LD_LIBRARY_PATH $(</etc/ld.so.conf) ; do
+			if test "${ldconfig_file%/*}" = "$ldconfig_dir" ; then
+			    ldconfig_run=true
+			    break 2
+			fi
+		    done
+	    esac
+	done
+	exec 3<&-
+	IFS=${IFS%?}
+	if $ldconfig_run ; then
+	    pwiz_phase_add_run ldconfig "%run_ldconfig"
+	fi
+	return
+	;;
+    version )
+	echo "0.1"
+	return
+	;;
+    * )
+	return
+	;;
+esac

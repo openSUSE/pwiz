@@ -23,7 +23,8 @@ case $1 in
 	exec 3<$filelist_file
 	pwiz_redirect_stdout $filelist_file_tmp
 	while read -u3 biarch_file ; do
-	    biarch_file_new=${biarch_file#$prefix/lib#$prefix/%\{_lib\}}
+# FIXME: libdir?
+	    biarch_file_new=${biarch_file/#$prefix\/lib/$prefix/%\{_lib\}}
 	    echo "$biarch_file_new"
 	done
 	exec 3<&-
