@@ -29,7 +29,7 @@ function rpm_doc_check {
     shopt -s extglob
     for file in * ; do
 	if ! test -f "$file" ; then
-	    confinue
+	    continue
 	fi
 	case "$file" in
 	    INSTALL )
