@@ -485,15 +485,16 @@ ${TAB[1]}echo $NLS\"Usage: \$0 $USAGE$SHORT
 eval "$HELP"
 echo "$DEFAULTS_TXT$BUGSTO\"
 ${TAB[1]}exit 0
-${TAB[0]}}
-"
+${TAB[0]}}"
 
 if ! $OPTIONS_ONLY
 then
-    echo "${TAB[0]}declare -a ARGV$DEFVARS"
+    echo -n "
+${TAB[0]}declare -a ARGV"
 fi
 
-echo "
+echo "$DEFVARS
+
 ${TAB[0]}${FUNCKEY1}optarg_parse$FUNCKEY2${LINEUP_BRACE:-
 ${TAB[0]}}{
 ${TAB[1]}until [ \$# -eq 0 ]${LINEUP_SEMIC:-
@@ -548,7 +549,7 @@ ${TAB[3+CASETAB]};;"
 fi
 
 echo "${TAB[2]}esac
-${TAB[1]}shift
+${TAB[2]}shift
 ${TAB[1]}done
 }
 
