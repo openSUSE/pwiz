@@ -69,6 +69,7 @@ function filelist_raw_clean_1 {
 		    if test $attr = dir ; then
 # FIXME: remove redirection
 # FIXME: implement and ask more files at once
+# FIXME: dump file attributes
 			echo "$name dir"
 		    else
 			echo "$name file"
@@ -148,32 +149,26 @@ function filelist_generate {
 #@ filelist_read_item line
 #@ Input: filelist line
 #@ Returns:
-#@ $filelist_name
-#@ $filelist_filetype
-#@ $filelist_subtype
-#@ $filelist_attr
-#@ $filelist_sub
+#@ filelist_tag_type
+#@ filelist_tagline line containing all characters defining tags and type (for special purposes only)
+#@ $filelist_tag_{key}
+#@ Currently known keys: cat (filelist category - doc...), attr (attributes), sub (subpackage)
 function filelist_read_item {
-    filelist_name="${1% *}"
-    local tagline="${1##* }"
-    filelist_type="${tagline%%@*}"
-    filelist_category=
-    filelist_attr=
-    filelist_sub=
+    local var
+    for var in ${!filelist_tag_*} ; do
+	unset $var
+    done
+    filelist_tagline="${1##* }"
+    filelist_tag_name="${1% *}"
+    filelist_tag_type="${filelist_tagline%%@*}"
+    filelist_tag_attr=
+    filelist_tag_sub=
     local IFS="${IFS}@"
     local tag val
-    for tag in ${tagline#*@} ; do
+    for tag in ${filelist_tagline#*@} ; do
 	val="${tag#*=}"
-	case "${tag%%=*}" in
-	    cat )
-		filelist_category="$val"
-		;;
-	    attr )
-		filelist_attr="$val"
-		;;
-	    sub )
-		filelist_sub="$val"
-		;;
-	esac		
+	eval 'filelist_tag_'${tag%%=*}'="$val"'
     done
 }
+
+# FIXME implement function filelist_write_item

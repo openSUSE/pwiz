@@ -1227,6 +1227,13 @@ PWIZ_PHASE_CURRENT=BEGIN
 PWIZ_STAGE_CURRENT=0
 
 
+#@@ checkpoints
+
+# Checkpoints are special phases intended for manual selection of
+# special actions. User is not disturbed by lots of questions with
+# expected negative answer for most of them, but is queried only by one
+# question with chance to select list.
+
 #@@ modules
 
 # Module description:
@@ -1418,6 +1425,7 @@ for rpm_subpackage in "" $rpm_subpackage_list ; do
     for (( i=0 ; i < $rpm_preamble_length ; i++ )) ; do
 	eval echo \"\${rpm_preamble__$rpm_subpackage\[i\]}\"
     done
+    echo ""
     echo "%description $rpm_subpackage"
     eval echo \"\$rpm_description__$rpm_subpackage\"
 done

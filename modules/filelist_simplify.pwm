@@ -14,25 +14,28 @@ case $1 in
 	pwiz_phase_new_callme filelist_simplify before filelist_finish
 	;;
     filelist_simplify )
+set -x
 	unset filelist_simplify_files
-	unset filelist_simplify_attr
+	unset filelist_simplify_taglines
 	unset filelist_simplify_ofiles
-	unset filelist_simplify_oattr
+	unset filelist_simplify_otaglines
 	unset filelist_simplify_globs
+	unset filelist_simplify_globtaglines
 
 	# Read file list to memory
 	filelist_simplify_count=0
 	filelist_simplify_ocount=0
 	exec 3<$filelist_file
-	while read -u3 find_lang_file ; do
-	    case "${find_lang_file##* }" in
+	while read -u3 filelist_simplify_line ; do
+	    filelist_read_item "$filelist_simplify_line"
+	    case "$filelist_tag_type" in
 		file* | dir* )
-		    filelist_simplify_files[filelist_simplify_count]="${find_lang_file% *}"
-		    filelist_simplify_attr[filelist_simplify_count++]="${find_lang_file##* }"
+		    filelist_simplify_files[filelist_simplify_count]="$filelist_tag_name"
+		    filelist_simplify_taglines[filelist_simplify_count++]="$filelist_tagline"
 		    ;;
 		ofile* | odir* )
-		    filelist_simplify_ofiles[filelist_simplify_ocount]="${find_lang_file% *}"
-		    filelist_simplify_oattr[filelist_simplify_ocount++]="${find_lang_file##* }"
+		    filelist_simplify_ofiles[filelist_simplify_ocount]="$filelist_tag_name"
+		    filelist_simplify_otaglines[filelist_simplify_ocount++]="$filelist_tagline"
 		    ;;
 	    esac
 	done
@@ -44,11 +47,12 @@ case $1 in
 	# Make a simplification
 	for (( filelist_simplify_count=0 ; filelist_simplify_count < ${#filelist_simplify_files[@]} ; filelist_simplify_count++ )) ; do
 	    filelist_simplify_file="${filelist_simplify_files[filelist_simplify_count]}"
+	    filelist_simplify_tagline="${filelist_simplify_taglines[filelist_simplify_count]}"
 	    if test -z "$filelist_simplify_file" ; then
 		continue
 	    fi
 	    filelist_simplify_init_path="$filelist_simplify_file"
-	    filelist_simplify_valid_path=
+	    filelist_simplify_valid_pattern=
 	    filelist_simplify_path="$filelist_simplify_init_path"
 
 # FIXME: If path is not absolute, dead loop occurs
@@ -58,56 +62,75 @@ echo "*** simplify path: $filelist_simplify_path"
 		for filelist_simplify_ofile in "${filelist_simplify_ofiles[@]}" ; do
 echo "*** compares with simplify path: $filelist_simplify_ofile"
 		    case "$filelist_simplify_ofile" in
+# FIXME: dir /pa/th + file /pa/th/file -> glob /pa/th
 			$filelist_simplify_path/* )
-echo "*** $filelist_simplify_ofile breaks this simplification"
+echo "*** $filelist_simplify_ofile breaks this simplification"
 			    break 2
 			    ;;
 		    esac
 		done
-		filelist_simplify_valid_path="$filelist_simplify_path/*"
-echo "*** simplification $filelist_simplify_valid_path"
+
+		filelist_simplify_valid_pattern="$filelist_simplify_path/*"
+echo "*** simplification $filelist_simplify_valid_pattern"
 	    done
 
-	    if test -z "$filelist_simplify_valid_path" ; then
+	    if test -z "$filelist_simplify_valid_pattern" ; then
 echo "*** no valid simplification"
 		continue
 	    fi
 
-	    filelist_simplify_globs[${#filelist_simplify_globs[@]}]="$filelist_simplify_valid_path"
+	    filelist_simplify_tagext="${filelist_simplify_tagline#*@}"
+	    if test "$filelist_simplify_tagext" = "$filelist_simplify_tagline" ; then
+		filelist_simplify_tagext=
+		filelist_simplify_tagline=glob
+	    else
+		filelist_simplify_tagline="glob@$filelist_simplify_tagext"
+	    fi
+	    filelist_simplify_globtaglines[${#filelist_simplify_globs[@]}]="$filelist_simplify_tagline"
+	    filelist_simplify_globs[${#filelist_simplify_globs[@]}]="$filelist_simplify_valid_pattern"
 	    for (( filelist_simplify_count2=0 ; filelist_simplify_count2 < ${#filelist_simplify_files[@]} ; filelist_simplify_count2++ )) ; do
 		case "${filelist_simplify_files[filelist_simplify_count2]}" in
-		    $filelist_simplify_valid_path )
+		    $filelist_simplify_valid_pattern )
+
+			filelist_simplify_tagline2="${filelist_simplify_taglines[filelist_simplify_count2]}"
+			filelist_simplify_tagext2="${filelist_simplify_tagline2#*@}"
+			if test "$filelist_simplify_tagext2" = "$filelist_simplify_tagline2" ; then
+			    filelist_simplify_tagext2=
+			fi
+			if test "$filelist_simplify_tagext" = "$filelist_simplify_tagext2" ; then
 echo "*** removing globbed ${filelist_simplify_files[filelist_simplify_count2]}"
-			filelist_simplify_files[filelist_simplify_count2]=
-			break
+			    filelist_simplify_files[filelist_simplify_count2]=
+			    break
+			fi
 			;;
 		esac
 	    done
 
 	done
 
-# FIXME:
+# FIXME:
 set >$filelist_file_tmp.set
 	pwiz_redirect_stdout $filelist_file_tmp
 	# Output result
 	for (( filelist_simplify_count=0 ; filelist_simplify_count < ${#filelist_simplify_files[@]} ; filelist_simplify_count++ )) ; do
 	    if ! test -z "${filelist_simplify_files[filelist_simplify_count]}" ; then
-		echo "${filelist_simplify_files[filelist_simplify_count]} ${filelist_simplify_attr[filelist_simplify_count]}"
+		echo "${filelist_simplify_files[filelist_simplify_count]} ${filelist_simplify_taglines[filelist_simplify_count]}"
 	    fi
 	done
 	for (( filelist_simplify_count=0 ; filelist_simplify_count < ${#filelist_simplify_ofiles[@]} ; filelist_simplify_count++ )) ; do
-	    echo "${filelist_simplify_ofiles[filelist_simplify_count]} ${filelist_simplify_oattr[filelist_simplify_count]}"
+	    echo "${filelist_simplify_ofiles[filelist_simplify_count]} ${filelist_simplify_otaglines[filelist_simplify_count]}"
 	done
 	for (( filelist_simplify_count=0 ; filelist_simplify_count < ${#filelist_simplify_globs[@]} ; filelist_simplify_count++ )) ; do
-# FIXME: attributes after glob: glob@sub=package-devel@doc
-	    echo "${filelist_simplify_globs[filelist_simplify_count]} glob"
+	    echo "${filelist_simplify_globs[filelist_simplify_count]} ${filelist_simplify_globtaglines[filelist_simplify_count]}"
 	done
 	unset filelist_simplify_files
-	unset filelist_simplify_attr
+	unset filelist_simplify_taglines
 	unset filelist_simplify_ofiles
-	unset filelist_simplify_oattr
+	unset filelist_simplify_otaglines
 	unset filelist_simplify_globs
+	unset filelist_simplify_globtaglines
 	pwiz_redirect_stdout_close
+set +x
 # FIXME:
 cp -a $filelist_file $filelist_file_tmp.sim1
 cp -a $filelist_file_tmp $filelist_file_tmp.sim2

@@ -67,10 +67,10 @@ case $1 in
 	exec 4>$PWIZ_TMPDIR/rpm_sub_tmp
 	while read -u3 rpm_item ; do
 	    filelist_read_item "$rpm_item"
-	    if test "$filelist_sub" = "" ; then
+	    if test "$filelist_tag_sub" = "" ; then
 		rpm_files_create
 	    else
-		echo "$filelist_sub" >&4
+		echo "$filelist_tag_sub" >&4
 	    fi
 	done
 	exec 3<&-
@@ -84,7 +84,7 @@ case $1 in
 	    exec 3<$filelist_file
 	    while read -u3 rpm_item ; do
 		filelist_read_item "$rpm_item"
-		if test "$filelist_sub" = "$rpm_supbackage" ; then
+		if test "$filelist_tag_sub" = "$rpm_supbackage" ; then
 		    rpm_files_create
 		fi
 	    done
@@ -172,10 +172,10 @@ Release:      0
 Source:       $package_uri
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build
 Summary:      DUMMY
-# FIXME: define __check_files
+%define __check_files false
 
 %description
-FIXME
+DUMMY
 
 %prep"
     if $3 ; then
@@ -223,25 +223,25 @@ function rpm_subst_names {
 
 #@ rpm_files_create (no args) (internal)
 function rpm_files_create {
-    if test "$filelist_category" = doc ; then
+    if test "$filelist_tag_cat" = doc ; then
 	rpm_item_prefix="%doc "
     else
 	rpm_item_prefix=""
     fi
-    case $filelist_type in
+    case $filelist_tag_type in
 	file )
-	    pwiz_phase_add_rem rpm_files_list "$rpm_item_prefix$filelist_name"
+	    pwiz_phase_add_rem rpm_files_list "$rpm_item_prefix$filelist_tag_name"
 	    ;;
 	dir )
-	    pwiz_phase_add_rem rpm_files_list "$rpm_item_prefix%dir $filelist_name"
+	    pwiz_phase_add_rem rpm_files_list "$rpm_item_prefix%dir $filelist_tag_name"
 	    ;;
 	odir | ofile )
 	    ;;
 	glob )
-	    pwiz_phase_add_rem rpm_files_list "$rpm_item_prefix$filelist_name"
+	    pwiz_phase_add_rem rpm_files_list "$rpm_item_prefix$filelist_tag_name"
 	    ;;
 	* )
-	    pwiz_fatal "unknown item attribute $filelist_type"
+	    pwiz_fatal "unknown item attribute $filelist_tag_type"
 	    ;;
     esac
 }
@@ -249,8 +249,7 @@ function rpm_files_create {
 # rpm_add_subpackage subpackage
 function rpm_subpackage_add {
     rpm_subpackage_list="$rpm_subpackage_list $1"
-    declare -a rpm_preamble__$1
-    eval rpm_description__$1\=
+    eval rpm_description__$1\=FIXME
 # FIXME:
     rpm_add_preamble Group        FIXME $1
     rpm_add_preamble Summary      FIXME $1

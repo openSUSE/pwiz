@@ -44,7 +44,6 @@ case $1 in
 	# no callback needed, default echo does the right thing
 # installwatch works incorrectly for SUID and statically linked binaries (e. g. ldconfig).
 # we will combine it with simple find
-echo $pwiz_callback >/tmp/pwc
 	pwiz_find_d $PWIZ_INSTALLROOT
 	filelist_raw_close
 # FIXME: remove this line

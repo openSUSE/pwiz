@@ -22,7 +22,7 @@ case $1 in
 # FIXME: lib64 - biarch must be run before
 # FIXME: allow file list modification
 # FIXME: allow manual additions
-		$libdir/*.so | $libdir/*.la | $includedir/* | $libdir/pkgconfig/*.pc )
+		$libdir/lib*.so | $libdir/lib*.*a | $includedir/* | $libdir/pkgconfig/*.pc )
 		    echo "$find_lang_file@sub=devel"
 		    split_devel_active=true
 		    ;;
@@ -33,6 +33,9 @@ case $1 in
 	done
 	exec 3<&-
 	pwiz_redirect_stdout_close
+# FIXME
+	cp -a $filelist_file $filelist_file_tmp.spl1
+	cp -a $filelist_file_tmp $filelist_file_tmp.spl2
 	mv $filelist_file_tmp $filelist_file
 	if $split_devel_active ; then
 	    rpm_subpackage_add devel
