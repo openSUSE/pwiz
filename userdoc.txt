@@ -1,91 +1,123 @@
-PWIZ - The Packaging Wizard User Manual
+Introduction to Packaging Wizard
+================================
 
-Packaging is a work, which combines very sophisticated and mechanical
+This document describes basic usage and principles of Packaging
+Wizard.
+
+----------------------------------------------------------------------
+
+
+Packaging Wizard (PWIZ) is a project of a software wizard, which
+guides through whole packaging process. It is intended for both
+experienced and inexperienced users.
+
+
+Main goals of Packaging Wizard (PWIZ)
+
+ * Decrease amount of mechanical work in packaging process by
+   processing mechanical steps in semi-automatic way.
+                                                                                                                                
+ * Make possible package creating by inexperienced users.
+                                                                                                                                
+ * Increase package quality.
+
+ Packaging is a work, which combines very sophisticated and mechanical
 tasks. Most of those mechanical tasks can be fully automated. To make
 a package, you need to perform both types of actions.
 
-This is a purpose of PWIZ. Like other wizards, it helps user to
-undertake through this process. If PWIZ finds mechanical actions, then
-it performs it, if it finds need for qualified action, it asks human.
+ This is a purpose of PWIZ. Like other wizards, it helps user to
+undertake through this process. If PWIZ finds a mechanical actions,
+then it performs it, if it finds need for qualified action, it asks
+human.
 
-PWIZ is an application, which should help to create genuine quality
+ PWIZ is an application, which should help to create genuine quality
 packages by users or package maintainers with minimal manual
 intervention.
 
 
-Understanding the PWIZ 
+Understanding the PWIZ
 
-PWIZ split its work to phases. Each phase correspond so some major
-type of work (searching for package, downloading it, inspecting
+ PWIZ splits its work to *phases*. Each phase corresponds to some
+steps of work (searching for package, downloading it, inspecting
 sources, compiling, installing, merging to system etc.). Phases are
-splitted to particular stages of work. One stage is one or more
-commands executed in order at once.
+splitted to particular *stages* of work. One stage is one or more
+commands executed at once (for PWIZ it is atomic operation, which can
+either fail or succeed).
 
-PWIZ has modular conception. PWIZ core engine core consist of phase
-processor and guess evaluator. Both do nothing interesting for user
-without modules.
+ PWIZ has a *modular conception*. PWIZ core engine core consist of
+phase processor and guess evaluator. Both do nothing interesting for
+user without modules.
 
-One type of modular engines are intended for communication with user.
-Second type of modular engines are for back-end communication with
-packaging system.
+ One type of modular *engines* are intended for communication with
+user. Other modular engines can communicate as back-end with packaging
+system or package database.
 
-The most interesting are packaging wizard modules. Those modules have
-chance to hook its own action to any phase, call other engines and
-functions from other modules. Each module handles one or more aspects
-of packaging process.
+ The most interesting are packaging wizard *modules*. Those modules
+have chance to add its own *actions* to any phase, call other engines
+and functions from other modules. These actions are executed in its
+natural order. Each module handles one or more particular aspects of
+packaging process.
 
-All modules alltogether give complete packaging process. PWIZ goes
-through stages and phases, and tries to guess best, what to do.
-Sometimes, it requires an user intervention. It is done by standard
-asking iterface.
+ All modules alltogether with user feedback can give complete
+packaging process. PWIZ goes through stages and phases, and tries to
+guess best, what to perform. Sometimes, it requires an user
+intervention. It is done by standard asking iterface.
 
 
 Cache
 
-All your answers are stored in cache. Next time you will ask the same,
-PWIZ will use previous answer to correct its guess.
+ All your answers are stored in cache. Next time PWIZ needs answer for
+the same question, PWIZ will take this answer in account while
+searching for best guess.
 
 
 How to understand questions values
 
-PWIZ tries to guess best answer. It's a rule of some fuzzy logic, and
+ PWIZ tries to guess best answer. It's a rule of some fuzzy logic, and
 any guess has two aspects:
 
-Probability (p): Probability tries to identify, how probable is this
-question. But probability of some question says nothing about reality,
-it is only weak indication. Range is 0% to 100%.
+ **Credit** (c): If PWIZ has some indications, that this answer is the
+right one, credit (credibility, guess quality) of this answer
+increases. Such indication can be based from a result of a credible
+test case or from previous answer of a human being. Each possible
+answer gets credit in range is 0c credits to 100c (with some special
+out-of-range cases). Guess, which gets best credit, is considered as
+default.
 
-High probability means: This value is probable, but there is no
-indication, that it is true.
+ **Importance** (i): For successful completion of packaging process,
+correct answers for some questions are more important (e. g. where to
+download the package), some of answers are less important (e. g. RPM
+description). Importance says, whether ask user or not, if PWIZ is not
+sure with its guess. Importance helps to decide, which question should
+be answered by less experienced users. Range is 1 to 100.
 
-Credibility (c, TODO): If PWIZ has some indications, that this answer
-is the right one, credibility (quality) of this answer increases. Such
-indication can be based from a result of a testcase or from previous
-answer of a person. Range is 0 credits to 100 credits.
-
-Such simple heuristic does not help much in real packaging. That's why
-PWIZ tries to deduce an inheritance of answers to subsequent version
-of the same package and for the same package for other products
-(distributions).
-
-High quality means: There is good indication, that it is true.
+ Such simple heuristic does not help much in real packaging. That's
+why PWIZ tries to deduce an *inheritance* of answers to subsequent
+version of the same package and for the same package for other
+products (distributions). By default, only the same package in the
+same product can inherit answer, and inheritance for different
+versions is 80%.
 
 
 How to understand aswer values
 
-To not disturb user with trivial and already answered questions, PWIZ
+ To not disturb user with trivial and already answered questions, PWIZ
 evaluates credit of each answer. If the credit of an answer is above
 credit threshold, you will not be asked again.
 
-To get qualified credibility guess, PWIZ uses two techniques - user
-skills and answer quality. Final credit is about product of both
+ To get qualified credibility guess, PWIZ uses two techniques - *user
+skills* and *answer quality*. Final credit is about product of both
 values.
 
-First is personal skills. You can define your knowledge skills. Your
-answer will never obtain higher credit than quality of your skills.
+ First is user skills. You can define your knowledge skills. Your
+answer will never obtain higher credit than quality of your skills. On
+the other side, you will not be bothered with answers, which has lower
+credit.
 
-After each question, user has to decide, how sure is the answer. If
-you are guessing, you can simly click Enter to get (probably) working
-package without giving your credit to answers. On other hand, if you
-precisely answer each question, you can give whole your credits to
-answers. In this case, next time PWIZ will not ask you again.
+ User has to decide, how sure is the answer. It can be done from
+command line of from user interfaace. If you are guessing, you can
+simly press Enter to get (probably) working package using only best
+guesses and you will not give any credit to these answers. On other
+hand, if you precisely answer each question, you can "certify" your
+answers by your knownledge skill credit. In this case, next time PWIZ
+will not ask you again, because it already has answer credible enough.

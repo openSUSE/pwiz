@@ -1,311 +1,447 @@
-PWIZ - The Packaging Wizard User Manual
+PWIZ for Developers
+===================
 
-Basics
+This is a basic developer documentation of PWIZ internal structure.
+For detailed documentation, see function description, which comes with
+package.
 
-PWIZ core is written in Bash and all external modules and engines are
-called as inline. It simplifies sharing variables both between stages
-(and with some limitations in different phases) and between modules.
-Most symbols are delibrately not exported - if you need to provide
-variables for external helper, you must use VAR="$VAR" construction or
-use helper arguments.
+----------------------------------------------------------------------
 
 
-General rules
+Introduction
 
-All exported symbols (variables, functions, cache keys) should be
-prepended by "{modulename}_" string if there is no special reason not
-to do it. This simplifies searching for sources and prevents name
-clashes. Core functions are prefixed by "pwiz_".
+ PWIZ is written in Bash and all external modules and engines are
+called as inline Bash code. It simplifies sharing variables between
+stages (and with some limitations in different phases) and between
+modules. Many variables are delibrately not exported - if you need to
+provide variables for external helper, you have to use VAR="$VAR"
+construction or use helper arguments.
 
-Many functions, needs to return strings or more than one values.
-Because bash do not support pointers and output redirection has
-performance problems, the obvious way is:
 
-Returned values are in special variable $pwiz_result. It can be array
-or single variable, depending on context. Similarly, sometimes is used
-$pwiz_callback for calling helpers and $pwiz_answer for result of
-question engine.
+PWIZ internals
+
+ Before start of programming, please look at PWIZ function
+documentation, which is installed with pwiz.
+
+ PWIZ has contains a core control system. By default, PWIZ core has no
+knowledge about packages. It gets it from its *modules*. Similarly,
+PWIZ does not communicate with outside world directly, it uses its
+*engines*.
+
+ PWIZ works in steps called *phases* and *stages*. *Phase* is an array
+of *stages* and phases are organized in ordered list.
+
+ Each phase can contain *stages* and *stage* contains *action*. It can
+arbitrary bash command - check, call of PWIZ module function,
+packaging step. Stages can be protected by defined *environment
+protection system* (currently only *install watching* and *RPM
+wrapper* are implemented, but it can be fake rooting, sandboxing,
+access watching, too).
+
+ *Modules* are pieces of shell code with standard interface. Modules
+can create phases, add actions to stages - and its functions can be
+called to execute particular stages - packaging steps, checks and
+tests of source code, compiled code, installed repository or build
+logs.
+
+ *Engines* are interfaces between PWIZ and outer world. There are more
+*engine types*, and any of these types can more *implementations*.
+
+
+Modular concept
+
+ PWIZ consist of two basic type of modules - interface engines, which
+provide front-end and back-end of PWIZ and packaging wizard modules.
 
 
 Phase engine
 
-One of major features of PWIZ is phase engine. Phase engine is a list
-of array of actions, which should be executed. Single actions in this
+ One of major features of PWIZ is phase engine. Phase engine is a list
+of arrays of actions, which should be executed. Single actions in this
 array are stages. In normal circumstances, commands are executed in
-order, but any module can request phase change. Empty phases are
-skipped.
+its natural order and empty phases are skipped.
 
-Core phases are named in uppercase and should exist in all
+ Module can request phase change. Changing phase is simple only in
+*query mode*. In *real mode*, pwiz can only go back and it has to
+perform undo actions for all stages between current phase and required
+phase. If no undo action is available for any stage between current
+phase and required phase, packaging is restarted from beginning.
+
+ To simplify undo, there are available three *undo modes*: fast,
+standard and safe.
+
+ Core phases are named in uppercase and should exist in all
 installations, module-specific actions can be added before or after
 any other existing phase and should be named in lowercase.
 
-New stages can be added only to the end of any phase.
+ New stages can be added only to the end of any phase array.
 
-Each stage can consist from three actions:
+* Each stage can consist from following actions:
 
-Nominal action (required) - action, which should be executed.
+* Nominal action (required) - action, which should be executed.
 
-Real action (optional, TODO) - in some situations, you want to execute
+* Real action (optional) - in some situations, you want to execute
 different action, than you want to see in package.
 
-Examples:
+* Fast, standard and safe undo (optional, but recommended) - if
+something fails, undo simplifies retry. If undo action exists, pwiz
+can resume packaging without restart from beginning. Full revert (must
+revert everything to original state, including time stamps), safe
+revert (must revert all files used by build process to original
+state), standard revert (should revert basic things to original state)
+and fast revert (should revert only needed minimum). Depending on user
+request, one of those reverts will be selected. Default revert is pwiz
+restart.
 
-You are patching files and you want to have back-up, but during
-package build back-up is not required.
+ Examples of undo:
 
-You are unpacking archive. You want to unpack it to temporary
+* You are patching files and you want to create back-up for undo
+purposes, but during package build back-up is not required.
+
+* You are unpacking archive. You want to unpack it to temporary
 directory to verify top directory presence and name, but during
 package build, simple unpacking is enough.
 
-Revert action (optional, TODO) - revert action defines a way, how to
-revert things done. You can define multiple actions - full revert
-(must revert everything to original state, including time stamps),
-safe revert (must revert all files used by build process to original
-state), standard revert (should revert basic things to original state)
-and fast revert (should revert only needed minimum). Depending on user
-request, one of those reverts will be selected.
-
-Fallback revert is return to BEGIN.
-
-Example: For action "make", full revert does not exist (it means
+* Example: For action "make", full revert does not exist (it means
 return to BEGIN), you can think about "make clean" as standard revert
 (and in limited cases maybe as safe revert), and fast revert is
 "simply let it be".
 
 
-Modular concept
-
-PWIZ consist of two basic type of modules - interface engines, which
-provide front-end and back-end of PWIZ and packaging wizard modules.
-
-
-Initializing
-
-First action of initialization is setting up phase engine. It defines
-phase engine skeleton and sets state to phase BEGIN.
-
-During PWIZ initialization, all available modules are loaded. Then
-requested engines are in initialized.
-
-Next step is initializazion of packaging wizard modules (with optional
-setting of debug features).
-
-Then PWIZ starts phase engine run and executes phases and stages in
-default (or requested) order.
-
-Please note that PWIZ Bash default is expand_aliases mode and your
-code should be tested in nullglob mode.
-
-
-Interface engines
-
-Each such interface is defined in PWIZ core by function
-pwiz_engine_interface. This function lists all functions, which should
-be provided by engine module.
-
-Besides those functions, all engines init and quit functions for
-description, long description, initializing and quitting the engine.
-Engine does not need to be initialized on load.
-
-Interface engine can be launched by following ways:
-
-{engine_name}.pwe desc - Should write description and return.
-
-{engine_name}.pwe longdesc - Should write long description and return.
-
-{engine_name}.pwe - Without arguments, engine should be loaded.
-
-Interface engine should not access to phase angine.
-
-Name of defined function should be
-pwiz_engine_{engine_type}_{engine_name}_{function_name}. After
-loading, this function is automatically aliased to
-pwiz_{engine_type}_{function_name}. This convention allows to preload
-more than one engine and switch between them on fly.
-
-See code documentation for required arguments of those functions.
-
-
 Packaging wizard modules
 
-The whole "intelligence" of PWIZ is stored in packaging wizard
+ The whole "intelligence" of PWIZ is stored in packaging wizard
 modules. Its interface is nearly arbitrary. Exported functions should
 be documented.
 
-Besides those functions, all engines init and quit functions for
-description, long description, initializing and quitting the engine.
-Engine does not need to be initialized on load.
+ All modules must recognize arguments for initialization, echoing
+version, giving description and long description. Module is
+initialized during its loading.
 
-Module can be launched by following ways:
+ Module can be launched by following ways:
 
-{module_name}.pwe desc - Should write description and exit.
+* {module_name}.pwe desc - Should write description and return.
 
-{module_name}.pwe longdesc - Should write long description and exit.
+* {module_name}.pwe longdesc - Should write long description and
+  return.
 
-{module_name}.pwe version - Should display version and exit.
+* {module_name}.pwe version - Should display version and return.
 
-{module_name}.pwe init - Module should be loaded and initialized.
+* {module_name}.pwe init - Module should be loaded and initialized.
 
 
 Module initialization
 
-During module initialization, all functions should be set up and
-callbacks hooked to required phases.
+ During module initialization, all functions should be set up and
+callbacks added to required phases.
 
-Functions, which you should use to do it:
+ Functions, which you should use to do it:
 
-pwiz_module_needs: You should specify list of modules, which must be
+* pwiz_module_needs: You should specify list of modules, which must be
 loaded before module initialization will continue.
 
-pwiz_module_uses: You should specify list of modules, which must be
+* pwiz_module_uses: You should specify list of modules, which must be
 active for using this module (i. e. modules needed for work, but not
 for initialization).
 
-pwiz_phase_...: There are many version of pwiz_phase_new and
+* pwiz_phase_{function}: There are many version of pwiz_phase_new and
 pwiz_phase_add, which allow to simplify typing in particular
 situations.
 
-pwiz_debug_feature: If you provide any debug feature, you should
+* pwiz_debug_feature: If you provide any debug feature, you should
 register it.
 
-{module}_{feature}_provider or {module}_{feature}_register: Some
+* {module}_{feature}_provider or {module}_{feature}_register: Some
 modules provide a simplified way to register to its callbacks.
 
 During initialization you should also define functions and global
 variables your module needs.
 
-
 Simple module example demonstrates how to optionally call ldconfig in
-POSTINSTALL phase.
+POSTINSTALL phase::
 
 FIXME: This example will be fixed - all POSTINSTALL actions must have
-defined operated files, to properly perform package splitting.
+defined operated files, to properly perform package splitting (lines
+can be split for graphical purposes)::
 
-#! /bin/bash
+ #! /bin/bash
 
-case $1 in
-    desc )
-	# Display a short description and return.
-	echo "GNOME PWIZ framework"
-	return
-	;;
-    longdesc )
-	# Display a long description and return.
-	echo "This module adds intelligent guesses for GNOME related packages. It means, for example: searching for source in GNOME FTP, working with gnome paths, proper installing of GNOME packages."
-	return
-	;;
-    init )
-	# Module filelist is needed for initialization to have filelist_install_provider defined.
-	pwiz_module_needs filelist
-	# Module rpm is needed, because we use %run_ldconfig. Not needed for initialization.
-	pwiz_module_needs rpm filelist
-	# We will define new empty phase after skeleton phase POSTINSTALL
-	pwiz_phase_new ldconfig after POSTINSTALL
-	# Register to install filelist inspector. This will cause calling function {package_name}_filelist_install.
-# FIXME: real_uninstall.
-	filelist_install_provider
-	# Note that return is not present. Program continues after case.
-	;;
-    version )
-	# Display the version and return.
-	echo "0.1"
-	return
-	;;
-    * )
-	return
-	;;
-esac
+ case $1 in
+     desc )
+ 	# Display a short description and return.
+ 	echo "GNOME PWIZ framework"
+ 	return
+ 	;;
+     longdesc )
+ 	# Display a long description and return.
+ 	echo "This module adds intelligent guesses for GNOME related packages.\
+  It means, for example: searching for source in GNOME FTP, working with gnome\
+  paths, proper installing of GNOME packages."
+ 	return
+ 	;;
+     init )
+ 	# Module filelist is needed for initialization to have
+ 	# filelist_install_provider defined.
+ 	pwiz_module_needs filelist
+ 	# Module rpm is needed, because we use %run_ldconfig.
+ 	# Not needed for initialization.
+ 	pwiz_module_needs rpm filelist
+ 	# We will define new empty phase after skeleton phase POSTINSTALL
+ 	pwiz_phase_new ldconfig after POSTINSTALL
+ 	# Register to install filelist inspector. This will cause calling function
+ 	# {package_name}_filelist_install.
+ # FIXME: real_uninstall.
+ 	filelist_install_provider
+ 	# Note that return is not present. Program continues after case.
+ 	;;
+     version )
+ 	# Display the version and return.
+ 	echo "0.1"
+ 	return
+ 	;;
+     * )
+ 	return
+ 	;;
+ esac
 
-# This function was registered by filelist_install_provider for
-# calling in filelist inspection phase after install process.
-function ldconfig_filelist_install {
-    # Define temporary variables as local.
-    local dir
-    local run_ldconfig=false
-    # Open file with list for read (using documented module function).
-    filelist_read_open
-    # IFS for parsing LD_LIBRARY_PATH
-    IFS="${IFS}:"
-    # Loop for all installed files (using documented module function).
-    while filelist_read_item ; do
-	case "$filelist_tag_name" in
-	    *.so | *.so.* )
-		# Look, whether directory, where file will be
-		# installed is in /etc/ld.so.conf.
-# FIXME: generate dirlist
-		for dir in $LD_LIBRARY_PATH $(</etc/ld.so.conf) ; do
-		    if test "${filelist_tag_name%/*}" = "$dir" ; then
-			run_ldconfig=true
-			# ldconfig is needed, leave loop
-			break 2
-		    fi
-		done
-	esac
-    done
-    # Close file with list (using documented module function).
-    filelist_read_close
-    IFS=${IFS%?}
-    # ldconfig is needed, add a required command to phase ldconfig
-    # (it will now contain one command)
-    if $run_ldconfig ; then
-	pwiz_phase_add_run ldconfig "%run_ldconfig"
-    fi
-}
+ # This function was registered by filelist_install_provider for
+ # calling in filelist inspection phase after install process.
+ function ldconfig_filelist_install {
+     # Define temporary variables as local.
+     local dir
+     local run_ldconfig=false
+     # Open file with list for read (using documented module function).
+     filelist_read_open
+     # IFS for parsing LD_LIBRARY_PATH
+     IFS="${IFS}:"
+     # Loop for all installed files (using documented module function).
+     while filelist_read_item ; do
+ 	case "$filelist_tag_name" in
+ 	    *.so | *.so.* )
+ 		# Look, whether directory, where file will be
+ 		# installed is in /etc/ld.so.conf.
+ # FIXME: generate dirlist
+ 		for dir in $LD_LIBRARY_PATH $(</etc/ld.so.conf) ; do
+ 		    if test "${filelist_tag_name%/*}" = "$dir" ; then
+ 			run_ldconfig=true
+ 			# ldconfig is needed, leave loop
+ 			break 2
+ 		    fi
+ 		done
+ 	esac
+     done
+     # Close file with list (using documented module function).
+     filelist_read_close
+     IFS=${IFS%?}
+     # ldconfig is needed, add a required command to phase ldconfig
+     # (it will now contain one command)
+     if $run_ldconfig ; then
+ 	pwiz_phase_add_run ldconfig "%run_ldconfig"
+     fi
+ }
 
+
+Engines
+
+ Each interface is defined in PWIZ core by function
+pwiz_engine_interface. This function lists all functions, which should
+be provided by engine module.
+
+ Besides those functions, all engines has functions for initializing
+and quitting the engine, and must recognize arguments for giving
+description and long description. Engine is not initialized while it
+is loaded.
+
+ Interface engine can be launched by following ways:
+
+* {engine_name}.pwe desc - Should write description and return.
+
+* {engine_name}.pwe longdesc - Should write long description and
+  return.
+
+* {engine_name}.pwe - Without arguments, engine should be loaded.
+
+ Interface engine should not access to phase engine.
+
+ Name of defined function should be
+pwiz_engine_{engine_type}_{engine_name}_{function_name}. After
+loading, this function is automatically aliased to
+pwiz_{engine_type}_{function_name}. This convention allows to preload
+more than one engine and switch between them on fly.
+
+ See code documentation for required arguments of those functions.
+
+ There are currently following engines:
+
+ Cache engine
+
+  Used for maintaining of *answer cache*. Stores *answers* to
+ questions and its *tags*.
+
+ Question engine
+
+  It is an interface between PWIZ and user any questions or input
+ requests are done via this engine.
+
+ PkgDb engine
+
+  This engine provides interface with package database on destination
+ system.
+
+ Buildenv engine
+
+  This engine provides build environment preparation - installation
+ and uninstallation of packages. (To be implemented in future.)
+
+ Sourcerep engine
+
+  Source repository engine provides interface for storage of
+ downloaded sources and patches. (To be implemented in future.)
+
+
+Initializing
+
+ First action of initialization is setting up phase engine. It defines
+phase engine skeleton and sets state to phase BEGIN.
+
+ During PWIZ initialization, all available modules are loaded. Then
+requested engines are in initialized.
+
+ Next step is initializazion of packaging wizard modules (with
+optional setting of debug features). Module should specify, which
+modules must be loaded before it.
+
+ Then PWIZ starts phase engine run and executes phases and stages in
+its natural order.
+
+ Please note that PWIZ Bash default is expand_aliases mode and your
+code should be tested in nullglob mode.
+
+
+Questions, guesses and answers
+
+ Any module can connect *ask interface* to request answer for any
+question. Ask interface collects proposed solutions and results of
+previous answers in *answer cache*. Then it tries to evaluate its
+*credit*, *importance*, *user skills* and *answer distance* with
+*answer inheritance*. If credit is considered as sufficient, this
+answer is considered as correct and user is not asked, otherwise user
+is contacted for decission. Such answer can obtain higher credit.
+Finally, the result is stored into cache (optionally with *delayed
+credibilization*, which wipes out credit in case of subsequent
+failure). Storing to cache can use
 
 
 Command protection
 
-PWIZ commands can be started in two different ways: protected and
+ PWIZ commands can be started in two different ways: protected and
 unprotected.
 
-Protected commands are commands, which should be started
-in environment similar to stand-alone build (for example inside
+ Protected commands are commands, which should be started in
+environment similar to stand-alone build (for example inside
 rpmbuild). This mode uses command @pwiz_run. It simulates environment
 inside build engine and logs all actions for further analysis.
 Protected commands will appear in final product as part of build file
 (e. g. spec file), unless stated something else.
 
-Unprotected commands are started directly by PWIZ without any
+ Unprotected commands are started directly by PWIZ without any
 protection and logging. They are intended for internal activities and
 code inspection. These commands will not appear in final product.
 
-Third special commands of @pwiz_rem type are not started at all, but
+ Third special commands of @pwiz_rem type are not started at all, but
 will appear in final product. This type is intended for comments and
 for special actions (e. g. inserting %build to spec file).
 
 
-Structures
+General rules
+
+ All exported symbols (variables, functions, cache keys) should be
+prepended by "{modulename}_" string if there is no special reason not
+to do it. This simplifies searching for sources and prevents name
+clashes. Core functions are prefixed by "pwiz_".
+
+ Many functions, needs to return strings or more than one values.
+Because bash do not support pointers and output redirection is slow
+and ugly to use, pwiz uses following standard way:
+
+ Returned values are in special variable $pwiz_result. It can be array
+or single variable, depending on context. Similarly, sometimes is used
+$pwiz_callback for calling helpers and $pwiz_answer for result of
+question engine. If you have no special reason, you can use this
+variable.
+
+
+Recommendations for module creation
+
+ Prefix everything with module name
+
+  All variables, function names and question ids are shared. To
+ prevent name clashes, prefix all your stuff with module name. It also
+ simplifies searching for specific definitions.
+
+ Give chance to modify results
+
+  Give chance to user to modify your results, if it is appropriate.
+
+  Give chance other modules to modify your results. The simplest way
+ is *three phase method*. In first phase you make a guess and set some
+ variables. In second phase other modules has a chance to modify your
+ result. In third phase, define fallback and preform prepared action.
+ There are predefined functions for it.
+
+ Use answer limitations
+
+  Add proper validity range for your question (e. g. package in
+ product, package-version, product etc.).
+
+ Follow phase conventions
+
+  Phase skeleton definition contains recommendations for use of
+ particular phases and access to work and temporary directories.
+ Following these strict rules makes build cleaner and more flexible.
+
+ Sharing variables in protected environment
+
+  Sharing variables in protected environment between phase can lead to
+ undefined results, because packaging system can wipe out defined
+ variables after finishing of phase set.
+
+  Depending on active packaging system, the result of::
+
+   pwiz_phase_add phase1 'pwiz_run VARIABLE=VALUE'
+   pwiz_phase_add phase2 'pwiz_run echo $VARIABLE'
+
+ can be undefined.
 
 
 Debug features
 
-You can declare debug feature. User can then enable such logging with
+ You can declare debug feature. User can then enable such logging with
 --enable-debug=feature.
 
-Defined in: pwiz core
+ Defined in: pwiz core
 
 
-Documentation in code:
+Documentation in code::
 
-#@@@ Title level 1
+ #@@@ Title level 1
 
-#@@ Title level 2
+ #@@ Title level 2
 
-##@ Information in free text. Continuatino lines are permitted and are
-#starting by # without space.
-##@ Next column will again start with ##@.
+ ##@ Information in free text. Continuation lines are permitted and are
+ #starting by # without space.
+ ##@ Next column will again start with ##@.
 
-#@ function arg1 arg2
-# arg1: Description of arg1.
-# arg2: Description of arg2.
-# returns: Description of returned values followed by an empty comment
-#line (not needed for variable descriptions). (Continuation lines
-#begin with # without space.)
-#
-# Description of function terminated by line started by non-comment.
-#Function @names are started by @. @"Multi words" are available.
-#@<
-# You can also define preformatted comments.
-#@>
-# You can use @@ and @$ to cance special meaning of at sign.
+ #@ function arg1 arg2
+ # arg1: Description of arg1.
+ # arg2: Description of arg2.
+ # returns: Description of returned values followed by an empty comment
+ #line (not needed for variable descriptions). (Continuation lines
+ #begin with # without space.)
+ #
+ # Description of function terminated by line started by non-comment.
+ #Function @names are started by @. @"Multi words" are available.
+ #@<
+ # You can also define preformatted comments.
+ #@>
+ # You can use @@ and @$ to cance special meaning of at sign.
