@@ -496,7 +496,7 @@ function rpm_manual_source {
     local id
 # FIXME: After chaning ask_list callback interface, fix it to allow to ask in time of adding ID.
     pwiz_ask_list "Extra RPM sources needed in this point." "Now you can manage extra sources needed in this point of work." q=rpm_manual_source_$1 item_type=none
-    for id in "${pwiz_answer[@]}" ; do
+    for id in $pwiz_answer ; do
 	rpm_source "$1" "$id"
     done
 }
