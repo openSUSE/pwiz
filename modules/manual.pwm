@@ -1,0 +1,71 @@
+#! /bin/bash
+
+case $1 in
+    desc )
+	echo "a set of standard manual action points"
+	return
+	;;
+    longdesc )
+	echo "This module is adds manual control points for manual build process tuning."
+	return
+	;;
+    init )
+	;;
+    version )
+	echo "0.1"
+	return
+	;;
+    * )
+	return
+	;;
+esac
+
+#@@ manual actions
+
+# Manual actions are special phases intended for manual selection of
+# special actions. User is not disturbed by lots of questions with
+# expected negative answer for most of them, but is queried only by one
+# question with chance to select list.
+
+# FIXME: each action can be included only once. Is it correct?
+
+#@ manual_action_new id [ after | before ] phase "Short desc" "Long desc"
+function manual_action_new {
+    pwiz_phase_new "$1" "$2" "$3"
+    pwiz_phase_add "$1" "manual_action_ask $1"
+    eval manual_action_desc_$1\=\"\$4\"
+    eval manual_action_longdesc_$1\=\"\$5\"
+}
+
+#@ manual_action_new id "Short desc" "Long desc"
+#@ It's only abbreviation.
+#@ FIXME: Maybe it should be named better.
+function manual_action_new_me {
+    manual_action_new "manual_$1" after "$1" "$2" "$3"
+}
+
+#@ manual_action_ask id (internal)
+function manual_action_ask {
+    local item
+    eval "pwiz_ask_list \"Manual action point: \$manual_action_desc_$1\" \"\$manual_action_longdesc_$1\" q=$1 allow_new=false"
+    for item in $pwiz_answer ; do
+	pwiz_phase_add "$1" "$item"
+    done
+}
+
+# FIXME: what description is correct
+#@ manual_action_add phase_id "Short desc" "Long desc" q=question_id [tags]
+#@ manual_action_add phase_id function [ string hotkey ]
+function manual_action_add {
+    pwiz_guess_add "manual_$1" "$2" 0 "$3" "$4"
+}
+
+manual_action_new_me PREPARE_PREUNPACK  "before unpacking main archive" "Now you should define actions you want to do before unpacking main archive."
+manual_action_new_me PREPARE_POSTUNPACK "after unpacking of main archive before automatic patches" "Now you can add additional files and features. Do not add patches for bugs yet, maybe it can be auto-fixed in next phase. You will have a chance to fix it later."
+manual_action_new_me PREPARE_RECHECK    "after unpacking of main archive and automatic patches" "Now you can fix known bugs, which was not auto-fixed."
+manual_action_new_me BUILD_SETENV "initial first action of build phase" "Now you can define environment or create special files needed for building or configuration."
+manual_action_new_me BUILD_POSTCONFHACK "after configuring before compilation" "Now you can define special actions needed after configuration. Most of those actions are deprecated as \"ugly hacks\"."
+manual_action_new_me BUILD_POSTCOMPILE "after compilation" "Now you can define special actions to finalize compilation."
+manual_action_new_me INSTALL_PREACTION "before installation" "Now you can define special actions needed for installation."
+manual_action_new_me INSTALL_POSTACTION "after installation" "Now you can define special actions to finalize installation."
+manual_action_new_me POSTINSTALL "post-installation" "Now you can define special actions done after installation of data to system."

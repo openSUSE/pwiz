@@ -1003,7 +1003,7 @@ function pwiz_ask_radio_f {
     pwiz_ask_core pwiz_question_radio "$@"
 }
 
-# FIXME: implement pwiz_ask_selection
+# FIXME: implement pwiz_ask_selection === unordered list
 
 #@tags callback: Callback function for "new item" (returns $pwiz_answer).
 #@tags item_type: List item type (default: string).
@@ -1460,39 +1460,6 @@ function pwiz_phase_restore {
 }
 
 
-#@@ checkpoints
-
-# Checkpoints are special phases intended for manual selection of
-# special actions. User is not disturbed by lots of questions with
-# expected negative answer for most of them, but is queried only by one
-# question with chance to select list.
-
-# FIXME: each action can be included only once. Is it correct?
-
-#@ pwiz_checkpoint_new id [ after | before ] phase "Short desc" "Long desc"
-function pwiz_checkpoint_new {
-    pwiz_phase_new "$1" "$2" "$3"
-    pwiz_phase_add "$1" "pwiz_checkpoint_ask $1"
-    eval pwiz_checkpoint_desc_$1\=\"\$4\"
-    eval pwiz_checkpoint_longdesc_$1\=\"\$5\"
-}
-
-#@ pwiz_checkpoint_ask id (internal)
-function pwiz_checkpoint_ask {
-    local item
-    pwiz_ask_list "$4" \"$5\" q=checkpoint_$1 allow_new=false
-    for item in $pwiz_answer ; do
-	pwiz_phase_add "$1" "$item"
-    done
-}
-
-# FIXME: what description is correct
-#@ pwiz_checkpoint_add phase_id "Short desc" "Long desc" q=question_id [tags]
-#@ pwiz_checkpoint_add phase_id function [ string hotkey ]
-function pwiz_checkpoint_add {
-    pwiz_guess_add "$1" "$2" 0 "$3" "$4"
-}
-
 #@@ modules
 
 # FIXME: Check - module must not contain "-" and similar characters (only alphanum and @).
@@ -1658,7 +1625,7 @@ function init_phase_skeleton {
     local phase prev_phase
     prev_phase=BEGIN
     for phase in START PROJECT SETUP SOURCE\
-	PREPARE PREPARE_CLEAN PREPARE_PREUNPACK PREPARE_UNPACK PREPARE_POSTUNPACK PREPARE_CHECK PREPARE_PATCH\
+	PREPARE PREPARE_CLEAN PREPARE_PREUNPACK PREPARE_UNPACK PREPARE_POSTUNPACK PREPARE_CHECK PREPARE_PATCH PREPARE_RECHECK\
 	BUILD BUILD_SETENV BUILD_CONF BUILD_POSTCONFHACK BUILD_PRECOMPILE BUILD_COMPILE BUILD_POSTCOMPILE\
 	PREINSTALL\
 	INSTALL INSTALL_PREPARE INSTALL_PREACTION INSTALL_ACTION INSTALL_POSTACTION INSTALL_CHECK INSTALL_POSTCHECK\

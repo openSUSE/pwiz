@@ -246,22 +246,29 @@ function pwiz_engine_question_dumb_list {
 	done
 	if test "$menu_mode" = "" ; then
 	    echo "[number]) action in this position (item operations, new)"
-	    echo "n) new item at the end"
+	    if $pwiz_tag_allow_new ; then
+		echo "n) new item at the end"
+	    fi
 	    echo "x) exit list editor (default)"
 	    echo "h) help"
 	    read
 	    case "$REPLY" in
 		n )
+		    if $pwiz_tag_allow_new ; then
 		    # FIXME: Identical code is duplicated
 		    # FIXME: better desc and londesc
 		    # FIXME: one word and unique
-		    echo -n  "Enter ID for this new item: "
-		    read
-		    pwiz_answer_save="$pwiz_answer$REPLY "
-		    eval pwiz_ask_$pwiz_tag_item_type '"$desc Enter value for new item." "$longdesc
+			echo -n  "Enter ID for this new item: "
+			read
+			pwiz_answer_save="$pwiz_answer$REPLY "
+			eval pwiz_ask_$pwiz_tag_item_type '"$desc Enter value for new item." "$longdesc
 Formal type for this is a list. Now you have a chance to add new item to this list." "$@" q=${pwiz_tag_q}_$REPLY'
-		    pwiz_answer="$pwiz_answer_save"
-		    menu_mode=""
+			pwiz_answer="$pwiz_answer_save"
+			menu_mode=""
+		    else
+			echo "Invalid choice!"
+		    fi
+
 		    ;;
 		x | "" )
 		    break
