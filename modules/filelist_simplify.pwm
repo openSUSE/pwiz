@@ -21,6 +21,7 @@ case $1 in
 	unset filelist_simplify_oattr
 	unset filelist_simplify_globs
 
+set -x
 	# Read file list to memory
 	filelist_simplify_count=0
 	filelist_simplify_ocount=0
@@ -30,7 +31,6 @@ case $1 in
 		file | dir )
 		    filelist_simplify_files[filelist_simplify_count]="${find_lang_file% *}"
 		    filelist_simplify_attr[filelist_simplify_count++]="${find_lang_file##* }"
-		    let filelist_simplify_count++
 		    ;;
 		ofile | odir )
 		    filelist_simplify_ofiles[filelist_simplify_ocount]="${find_lang_file% *}"
@@ -40,6 +40,9 @@ case $1 in
 	done
 	exec 3<&-
 
+# FIXME: simplify dir dir/file too: %dir /opt/gnome/share/pixmaps/splash x /opt/gnome/share/pixmaps/splash/gnome-splash.png
+
+# FIXME:  Simplify on predefined pattern
 	# Make a simplification
 	for (( filelist_simplify_count=0 ; filelist_simplify_count < ${#filelist_simplify_files[@]} ; filelist_simplify_count++ )) ; do
 	    filelist_simplify_file="${filelist_simplify_files[filelist_simplify_count]}"
@@ -53,19 +56,22 @@ case $1 in
 # FIXME: If path is not absolute, dead loop occurs
 	    while test "$filelist_simplify_path" != "" ; do
 		filelist_simplify_path="${filelist_simplify_path%/*}"
-echo "simplify path: $filelist_simplify_path"
+echo "*** simplify path: $filelist_simplify_path"
 		for filelist_simplify_ofile in "${filelist_simplify_ofiles[@]}" ; do
-echo "compares with simplify path: $filelist_simplify_ofile"
+echo "*** compares with simplify path: $filelist_simplify_ofile"
 		    case "$filelist_simplify_ofile" in
 			$filelist_simplify_path/* )
+echo "*** $filelist_simplify_ofile breaks this simplification"
 			    break 2
 			    ;;
 		    esac
 		done
 		filelist_simplify_valid_path="$filelist_simplify_path/*"
+echo "*** simplification $filelist_simplify_valid_path"
 	    done
 
 	    if test -z "$filelist_simplify_valid_path" ; then
+echo "*** no valid simplification"
 		continue
 	    fi
 
@@ -73,6 +79,7 @@ echo "compares with simplify path: $filelist_simplify_ofile"
 	    for (( filelist_simplify_count2=0 ; filelist_simplify_count2 < ${#filelist_simplify_files[@]} ; filelist_simplify_count2++ )) ; do
 		case "${filelist_simplify_files[filelist_simplify_count2]}" in
 		    $filelist_simplify_valid_path )
+echo "*** removing globbed ${filelist_simplify_files[filelist_simplify_count2]}"
 			filelist_simplify_files[filelist_simplify_count2]=
 			break
 			;;
@@ -81,6 +88,7 @@ echo "compares with simplify path: $filelist_simplify_ofile"
 
 	done
 
+set >$filelist_file_tmp.set
 	pwiz_redirect_stdout $filelist_file_tmp
 	# Output result
 	for (( filelist_simplify_count=0 ; filelist_simplify_count < ${#filelist_simplify_files[@]} ; filelist_simplify_count++ )) ; do
@@ -100,7 +108,10 @@ echo "compares with simplify path: $filelist_simplify_ofile"
 	unset filelist_simplify_oattr
 	unset filelist_simplify_globs
 	pwiz_redirect_stdout_close
-#	LC_ALL=C sort <$filelist_file_tmp | uniq >$filelist_file
+cp -a $filelist_file $filelist_file_tmp.sim1
+cp -a $filelist_file_tmp $filelist_file_tmp.sim2
+	LC_ALL=C sort <$filelist_file_tmp | uniq >$filelist_file
+set +x
 	return
 	;;
     version )

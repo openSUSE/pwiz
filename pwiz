@@ -1116,7 +1116,7 @@ function pwiz_next {
 function pwiz_step {
     local pwiz_step_stage_code rc
     if pwiz_next ; then
-	echo "*** Entering stage $PWIZ_PHASE_CURRENT[PWIZ_STAGE_CURRENT]..."
+	echo "*** Entering stage $PWIZ_PHASE_CURRENT[$PWIZ_STAGE_CURRENT]..."
 	eval pwiz_step_stage_code=\"\${PWIZ_STAGE_$PWIZ_PHASE_CURRENT\[$PWIZ_STAGE_CURRENT\]}\"
 	case $1 in
 	    query )
