@@ -77,7 +77,7 @@ function gnome_filelist_install {
 	    case "$filelist_tag_name" in
 # FIXME - gnome-panel needs more
 		*.schemas )
-		    gnome_gconf_schemas_list="$gnome_gconf_schemas_list ${filelist_tag_name##*/}"
+		    gnome_gconf_schemas_list="$gnome_gconf_schemas_list $filelist_tag_name"
 		    ;;
 	    esac
 	done

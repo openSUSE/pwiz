@@ -21,25 +21,25 @@ case $1 in
 	pwiz_phase_add     PREPARE  rpm_source
 	pwiz_phase_add_rem PREPARE  ""
 	pwiz_phase_add_rem PREPARE  "%prep"
-	pwiz_phase_add     PREPARE  'rpm_section=prep ; rm -f $PWIZ_TMPDIR/rpm_{vars,pwd}'
+	pwiz_phase_add     PREPARE  'rpm_section=prep ; rm -f $PWIZ_TMPDIR/rpm_{env,pwd}'
 	pwiz_phase_add_rem BUILD    ""
 	pwiz_phase_add_rem BUILD    "%build"
-	pwiz_phase_add     BUILD    'rpm_section=build ; rm -f $PWIZ_TMPDIR/rpm_{vars,pwd}'
+	pwiz_phase_add     BUILD    'rpm_section=build ; rm -f $PWIZ_TMPDIR/rpm_{env,pwd}'
 # FIXME: This should go to gnu_configure callback.
 	pwiz_phase_add_run BUILD    'export CFLAGS="$RPM_OPT_FLAGS"'
 	pwiz_phase_add_rem INSTALL  ""
 	pwiz_phase_add_rem INSTALL  "%install"
-	pwiz_phase_add     INSTALL  'rpm_section=install ; rm -f $PWIZ_TMPDIR/rpm_{vars,pwd}'
+	pwiz_phase_add     INSTALL  'rpm_section=install ; rm -f $PWIZ_TMPDIR/rpm_{env,pwd}'
 	pwiz_phase_add_run INSTALL  'rm -rf $RPM_BUILD_ROOT'
 	pwiz_phase_add_rem CLEAN    ""
-	pwiz_phase_add     CLEAN    'rpm_section=clean ; rm -f $PWIZ_TMPDIR/rpm_{vars,pwd}'
+	pwiz_phase_add     CLEAN    'rpm_section=clean ; cd / ; rm -f $PWIZ_TMPDIR/rpm_{env,pwd}'
 # FIXME: non build-rooted packages
 	pwiz_phase_add_rem CLEAN    "%clean"
 	pwiz_phase_add_run CLEAN    'rm -rf $RPM_BUILD_ROOT'
 	pwiz_phase_add_rem POSTINSTALL ""
 	pwiz_phase_add_rem POSTINSTALL "%post"
 # FIXME
-	pwiz_phase_add     POSTINSTALL 'rpm_section=post ; rm -f $PWIZ_TMPDIR/rpm_{vars,pwd} ; cd /'
+	pwiz_phase_add     POSTINSTALL 'rpm_section=post ; rm -f $PWIZ_TMPDIR/rpm_{env,pwd} ; cd /'
 	pwiz_phase_new_call rpm_files_finish after RESULTS
 	pwiz_phase_new_call rpm_files_list after rpm_files_finish
 
@@ -183,8 +183,8 @@ function pwiz_run_core {
     esac
     cd $PWIZ_SOURCESDIR
     rpmbuild $rpm_build_arg $PWIZ_TMPDIR/rpm_tmp.spec
-    if test -f $PWIZ_TMPDIR/pwd ; then
-	cd "$(<$PWIZ_TMPDIR/pwd)"
+    if test -f $PWIZ_TMPDIR/rpm_pwd ; then
+	cd "$(<$PWIZ_TMPDIR/rpm_pwd)"
     fi
     pwiz_set_rc $pwiz_run_rc
 }
@@ -203,25 +203,25 @@ function rpm_create_dummy_spec {
 	echo -e "\n%$2"
     fi
     shift 3
-# FIXME: maybe better set +x
+# FIXME: replace $* by $1 in future
+# FIXME: setting of POSIXLY_CORRECT in userspace does not yet work
     echo \
-$'set +x
-pwiz_set_options="$(set -o | while read ; do if test "${REPLY##*\t}" = on ; then echo "set -o ${REPLY%%\t*}" ; else echo "set +o ${REPLY%%\t*}" ; fi ; done)"'"
-set +o posix
-if test -f $PWIZ_TMPDIR/rpm_env ; then
-    $PWIZ_TMPDIR/rpm_env 2>/dev/null || true
-else
-    eval \"\$pwiz_set_options\"
+'if test -f '$PWIZ_TMPDIR/rpm_env' ; then
+    set +x
+    cd "$(<'$PWIZ_TMPDIR/rpm_pwd')"
+    . '$PWIZ_TMPDIR/rpm_env' 2>/dev/null
+    eval "$(exec <'$PWIZ_TMPDIR/rpm_shopt$' ; while read ; do if test "${REPLY##*\t}" = on ; then echo "shopt -s ${REPLY%%\t*}" ; else echo "shopt -u ${REPLY%%\t*}" ; fi ; done)"''
+    eval "$(exec <'$PWIZ_TMPDIR/rpm_set_o$' ; while read ; do if test "${REPLY##*\t}" = on ; then echo "set -o ${REPLY%%\t*}" ; else echo "set +o ${REPLY%%\t*}" ; fi ; done)"''
 fi
-set -x
-$*
+'"$*"'
+set -o >'$PWIZ_TMPDIR/rpm_set_o'
 set +x
-export >$PWIZ_TMPDIR/rpm_env
-set >>$PWIZ_TMPDIR/rpm_env
-"$'set -o | while read ; do if test "${REPLY##*\t}" = on ; then echo "set -o ${REPLY%%\t*}" ; else echo "set +o ${REPLY%%\t*}" ; fi ; done'" >>$PWIZ_TMPDIR/rpm_env
-"$'shopt | while read ; do if test "${REPLY##*\t}" = on ; then echo "shopt -s ${REPLY%%\t*}" ; else echo "shopt -u ${REPLY%%\t*}" ; fi ; done'" >>$PWIZ_TMPDIR/rpm_env
-echo \"cd \$PWD\" >>$PWIZ_TMPDIR/rpm_env
-echo \"\$PWD\" >$PWIZ_TMPDIR/pwd"
+shopt >'$PWIZ_TMPDIR/rpm_shopt'
+unset POSIXLY_CORRECT
+echo -e "set +o posix\nset +o errexit" >'$PWIZ_TMPDIR/rpm_env'
+export >>'$PWIZ_TMPDIR/rpm_env'
+set >>'$PWIZ_TMPDIR/rpm_env'
+echo "$PWD" >'$PWIZ_TMPDIR/rpm_pwd
     pwiz_redirect_stdout_close
 }
 # FIXME ^ save set unparsed to separate file, and parse if required. Use set +x for parsing.
