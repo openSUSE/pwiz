@@ -1,3 +1,30 @@
+2004-11-19  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* engines/question/dumb.pwe, configure.in, pwiz.gopts.in:
+	Askmenu implementation.
+
+	* acinclude.m4: Implemented test for
+	AC_BASH_PARAMETER_STAR_EXPANSION_BUG.
+
+2004-11-03  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/Makefile.am, modules/biarch.pwm,
+	modules/filelist_simplify.pwm,
+	modules/filelist_simplify.pwm.in, modules/ftp.pwm,
+	modules/rpm.pwm, configure.in, pwiz.gopts.in: Fixed pwiz work
+	on bi-arch. Work-arounds for ${var/\*/} bash expansion bug.
+	Changes to work with latest wget.
+
+2004-11-01  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* engines/question/dumb.pwe, modules/gnome.pwm,
+	modules/gnu_configure.pwm, modules/gnu_make.pwm,
+	modules/license.pwm, modules/manual.pwm, modules/package.pwm,
+	modules/prefix.pwm, modules/rpm.pwm, modules/rpm_doc.pwm,
+	modules/split_devel.pwm, modules/version.pwm, configure.in,
+	pwiz.gopts.in: Implemented importance, dropped probabbility.
+	Bugfixes.
+
 2004-07-22  Stanislav Brabec  <sbrabec@suse.cz>
 
 	* README, TODO: Documentation fixes.
