@@ -14,7 +14,8 @@ case $1 in
 	pwiz_phase_new package after PROJECT
 	pwiz_phase_new_3_guess package_project after PROJECT
 	pwiz_phase_new_3_guess package_basename after package_project_set
-	pwiz_phase_new_3_guess package_search_uri after package_basename_set
+	pwiz_phase_new_3_guess package_home_page after package_basename_set
+	pwiz_phase_new_3_guess package_search_uri after package_home_page_set
 	pwiz_phase_new_call package_policy after package_search_uri_set
 # FIXME: finish splitting
 	pwiz_phase_new_call package_download after package_policy
@@ -59,13 +60,25 @@ function package_basename_set {
     fi
 }
 
+function package_home_page_prepare {
+    package_home_page=
+}
+
+function package_home_page_set {
+    if test -z "$package_search_uri" ; then
+	pwiz_ask_string "Enter package home page." \
+	    "Package home page is URI, where home WWW (or FTP) page resides." \
+	    q=package_home_page valid=project default="" p=0
+	package_home_page="$pwiz_answer"
+    fi
+}
+
 function package_search_uri_prepare {
     package_search_uri=
 }
 
 function package_search_uri_set {
     if test -z "$package_search_uri" ; then
-# FIXME ask for home page
 	pwiz_ask_string "Enter package search URI." \
 	    "Package search URI is top-level URI, where sources are searched. Can be space separated list." \
 	    q=package_search_uri valid=project

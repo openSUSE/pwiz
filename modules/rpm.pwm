@@ -73,10 +73,14 @@ function rpm_setup {
 	rpm_add_preamble_line basic "%define _name $package_basename"
     fi
     rpm_add_preamble basic  Version      $pwiz_project_version
+    if ! test -z "$package_home_page" ; then
+	rpm_add_preamble basic  URL          "$package_home_page"
+    fi
     rpm_add_preamble basic  Group        "Other"
     rpm_add_preamble basic  License      "Unknown"
     rpm_add_preamble basic  Summary      "DUMMY"
     rpm_add_preamble basic  Release      0
+    rpm_add_preamble ext    Autoreqprov  on
     rpm_add_preamble ext    BuildRoot    %{_tmppath}/%{name}-%{version}-build
     rpm_add_preamble_line temp "%define __check_files %{nil}"
 }
@@ -340,6 +344,16 @@ function rpm_set_attributes {
 	q=rpm_summary__
     rpm_summary__="$pwiz_answer"
     rpm_add_preamble basic  Summary      "$rpm_summary__"
+    pwiz_ask_string "Enter RPM prerequires for main package." \
+	"RPM prerequires are packages required for installing this package." default="" p=20
+    if ! test -z "$pwiz_answer" ; then
+	rpm_add_preamble ext    PreReq       "$pwiz_answer"
+    fi
+    pwiz_ask_string "Enter RPM requires for main package." \
+	"RPM requires are packages required for using this package." default="" p=20
+    if ! test -z "$pwiz_answer" ; then
+	rpm_add_preamble ext    Requires     "$pwiz_answer"
+    fi
     pwiz_ask_string "Enter RPM description for main package." \
 	"RPM requires assigning multiple line description attribute for any package created. You should now write any." \
 	q=rpm_description__ default= p=0
@@ -358,6 +372,16 @@ function rpm_set_attributes {
 	    "PWIZ decided to split binary RPM. It requires assigning one-line summary for subpackage $subpackage. You should now write any." \
 	    q=rpm_summary__$subpackage default="$rpm_summary__" p=20
 	rpm_add_preamble basic  Summary      "$pwiz_answer" $subpackage
+	pwiz_ask_string "Enter RPM prerequires for subpackage $subpackage." \
+	    "RPM prerequires are packages required for installing this subpackage." default="" p=20
+	if ! test -z "$pwiz_answer" ; then
+	    rpm_add_preamble ext    PreReq       "$pwiz_answer"
+	fi
+	pwiz_ask_string "Enter RPM requires for subpackage $subpackage." \
+	    "RPM requires are packages required for using this subpackage." default="" p=20
+	if ! test -z "$pwiz_answer" ; then
+	    rpm_add_preamble ext    Requires     "$pwiz_answer"
+	fi
 	pwiz_ask_string "Enter RPM description for subpackage $subpackage." \
 	    "PWIZ decided to split binary RPM. It requires assigning multiple line description attribute for any package created. You should now write any." \
 	    q=rpm_description__ default="$rpm_description__" p=0
