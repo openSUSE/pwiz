@@ -1499,7 +1499,7 @@ function pwiz_step {
 		    pwiz_prompt +
 		fi
 		if test "${pwiz_step_stage_code%% *}" = pwiz_run ; then
-		    $pwiz_step_stage_code
+		    pwiz_run "${pwiz_step_stage_code#pwiz_run }"
 		else
 		    if ! test "${pwiz_step_stage_code%% *}" = pwiz_rem ; then
 			eval "$pwiz_step_stage_code"

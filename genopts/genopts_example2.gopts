@@ -1,10 +1,12 @@
 @genopts
 
-@program genopts_example
+@program genopts_example2
 
-@version 0.0
+@capitalize_helpusage
 
-@year 2001
+@version 1.2
+
+@year 2004
 
 @author Stanislav Brabec
 
@@ -15,13 +17,13 @@
 @usage [OPTION]... [FILE]...
 
 @short
-Shows an exampldfds sg g sfg dfg gfd ssdg dfg dgf dgf dfg fgdgr reg egre esrg eg esg reg ger e se of all genopts features.
+Shows an example of all genopts features.
 
 @defaults MYOPTIONS
 There can be defaults stored in variable.
 
 @switch SWI -s --switch
-Shows usage of simple switch sfa sdf sf fref er egrg erg ereg eg erg ergsreg drsg gs erg esg ergs ersg ersg ersg se.
+Shows usage of simple switch.
 
 @cntswitch VER -v --verbose
 Shows usage of countable switch.

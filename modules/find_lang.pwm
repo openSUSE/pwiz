@@ -13,7 +13,7 @@ case $1 in
 	pwiz_module_needs filelist
 	pwiz_module_uses rpm
 	filelist_inspect_provider
-# FIXME: use pwiz_phase_new_call
+# FIXME: use pwiz_phase_new_call
 	pwiz_phase_new_call find_lang after INSTALL_POSTCHECK
 	;;
     version )
@@ -39,13 +39,13 @@ function find_lang {
 		item=${item%.mo}
 		echo "$item"
 		;;
-# FIXME:
+# FIXME:
 	    */gnome/help/* )
 		item=${filelist_tag_name#*/gnome/help/}
 		item=${item%%/*}
 		echo "$item"
 		;;
-# FIXME: KDE
+# FIXME: KDE
 	esac
     done
     pwiz_redirect_stdout_close
@@ -75,7 +75,7 @@ function find_lang_filelist_inspect {
     pwiz_redirect_stdout $filelist_file_tmp
     while filelist_read_item ; do
 	case "$filelist_tag_name" in
-# FIXME: GNOME KDE
+# FIXME: GNOME KDE
 # FIXME: Special case for packages installing special files there
 	    */share/locale/* | */gnome/help/* )
 #	    */share/locale/* )

@@ -42,7 +42,7 @@ function license_PREPARE_CHECK {
 		    license_found="${license_found:+$license_found }GPL"
 		    ;;
 # GNU Library General Public License Version 2, June 1991
-		55ca817ccb7d5b5b66355690e9abc605 )
+		3bf50002aefd002f49e7bb854063f7e7 | 55ca817ccb7d5b5b66355690e9abc605 )
 		    license_found="${license_found:+$license_found }LGPL"
 		    ;;
 # GNU Lesser General Public License, Version 2.1, February 1999

@@ -28,7 +28,7 @@ esac
 
 function gnome_prefix {
 # FIXME: better symptomas
-    if grep -q -r --include=configure.in 'PKG_CHECK_MODULES.*\(gnome\)' . ; then
+    if grep -q -r --include=configure.in 'PKG_CHECK_MODULES.*\(gnome\|GNOME\)' . ; then
 	gnome_default_prefix
 	if pwiz_ask_yesno "Package seems to be GNOME2 related. Use standard GNOME2 prefix for your package." \
 	    "It is generally good idea to put GNOME2 related stuff to GNOME2 prefix. Otherwise you can encounter problems. You should most probably answer yes." \
@@ -57,7 +57,7 @@ function gnome_package_search_uri {
 function gnome_PREPARE_CHECK {
     gnome_gconf_used=false
     if grep -q -r --include=configure.in AM_GCONF_SOURCE_2 . ; then
-	gnu_configure_args="$gnu_configure_args --disable-schemas-install"
+	gnu_configure_add_arg --disable-schemas-install
 	gnome_gconf_used=true
     else
 	if grep -q -r --include=Makefile.am GCONF_SCHEMAS_INSTALL . ; then
@@ -83,11 +83,12 @@ function gnome_filelist_install {
 	done
 	filelist_read_close
 	if ! test -z "$gnome_gconf_schemas_list" ; then
-	    pwiz_phase_add_run gnome_gconf_install 'export GCONF_CONFIG_SOURCE=`gconftool-2 --get-default-source`'
-	    for file in $gnome_gconf_schemas_list ; do
-# FIXME: real_uninstall, maybe add path
+# FIXME: Those are SuSE specific.
 # FIXME: gnome prefix without leading /
-		pwiz_phase_add_run gnome_gconf_install "gconftool-2 --makefile-install-rule $file >/dev/null 2>/dev/null"
+	    pwiz_phase_add_run gnome_gconf_install '`export GCONF_CONFIG_SOURCE=`opt/gnome/bin/gconftool-2 --get-default-source`'
+	    for file in $gnome_gconf_schemas_list ; do
+# FIXME: real_uninstall
+		pwiz_phase_add_run gnome_gconf_install "opt/gnome/bin/gconftool-2 --makefile-install-rule etc/opt/gnome/gconf/schemas/$file >/dev/null"
 	    done
 	fi
     fi

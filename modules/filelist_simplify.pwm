@@ -60,7 +60,7 @@ function filelist_simplify {
 	    tagext=
 	fi
 
-	# Is object owned?
+	# Is object owned?
 	# FIXME: maybe add attribute owned/unowned
 	if test "$type" = odir -o  "$type" = ofile ; then
 	    continue
@@ -107,7 +107,7 @@ function filelist_simplify {
 		    file2="${list_files[count2]}"
 		    type2="${list_types[count2]}"
 		    if test "$type2" = odir -o  "$type2" = ofile ; then
-			# If any unowned object match, the simplicifation is invalid.
+			# If any unowned object match, the simplicifation is invalid.
 			if filelist_simplify_compare_file_pattern_use "$file2" ; then
 			    decho_simplify " $file2 breaks this simplification"
 			    usable=false
@@ -262,10 +262,10 @@ function filelist_simplify_add_fallback_pattern {
 #@ filelist_simplify_compare_filename_pattern filename pattern
 #@ Check, whether filename matches pattern
 #@ Returns: OK/fail
-# NOTE: "case" and string replacement in Bash uses different pattern
+# NOTE: "case" and string replacement in Bash uses different pattern
 # matching (filename-like expansion).
-# FIXME: Fails for extglob filename patterns.
-# NOTE: Unused function.
+# FIXME: Fails for extglob filename patterns.
+# NOTE: Unused function.
 function filelist_simplify_compare_file_pattern {
     local rc=1
     local extpat=${2//\\*/*([^/])}
@@ -294,7 +294,7 @@ function filelist_simplify_compare_file_pattern_use {
 	$filelist_simplify_compare_file_pattern_pregen )
 	    rc=0
 	    ;;
-	# NOTE: Special addition against filename expansion: /p/a/t/h will matches its contents, too.
+	# NOTE: Special addition against filename expansion: /p/a/t/h will matches its contents, too.
 	$filelist_simplify_compare_file_pattern_pregen/* )
 	    rc=0
 	    ;;

@@ -8,9 +8,9 @@
 
 @program genopts_example
 
-@version 0.0
+@version 1.2
 
-@year 2001
+@year 2004
 
 @author Stanislav Brabec
 
@@ -21,29 +21,35 @@
 @usage [OPTION]... [FILE]...
 
 @short
-Shows an example of all genopts features.
+shows an example of all genopts features
 
 @defaults MYOPTIONS
-There can be defaults stored in variable.
+there can be defaults stored in variable
 
 @switch SWI -s --switch
-Shows usage of simple switch.
+shows usage of simple switch
 
 @cntswitch VER -v --verbose
-Shows usage of countable switch.
+shows usage of countable switch
 
 @option VAL -d --value=VALUE
-Shows usage of option with value.
+shows usage of option with value
 
-@option VALD -x --dvalue=VALUE NONE
-Shows usage of option with value and default.
+@multioption MULVAL -m --multi-value=VALUE
+shows usage of option with value, which can be used multiple times
+
+@multioption MULPRE --multi-predef=VALUE default1 "multiple words in default 2"
+multioptions can have defaults
+
+@option VALD -x --dvalue=VALUE "this string"
+shows usage of option with value and default
 
 @switch LONGO --longonly
-Switches and options can be long only and short only.
+switches and options can be long only and short only
 Switch description can also be multi-line.
 
 @option SHO -S=VALUE
-Use this trick for defining short option with value.
+use this trick for defining short option with value
 
 @end
 
@@ -53,6 +59,9 @@ echo "There is result of parsing:"
 $OPTARG_SWI && echo "Simple switch was present."
 $OPTARG_VER && echo "Countable verbose switch was present $OPTCNT_VER times."
 $OPTARG_VAL && echo "Value option was present with value $OPTVAL_VAL."
+$OPTARG_MULVAL && echo "Multi value option was present ${#OPTVAL_MULVAL[@]} times with values ${OPTVAL_MULVAL[*]}."
+# Note that $OPTARG_MULPRE is false, if option is not present, but defaults are filles:
+$OPTARG_MULPRE && echo "Multi value option with default has ${#OPTVAL_MULPRE[@]} values: ${OPTVAL_MULPRE[*]}."
 if $OPTARG_VALD
 then
     echo "Dvalue option with default was present and value is $OPTVAL_VALD."

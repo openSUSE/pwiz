@@ -12,6 +12,7 @@ case $1 in
     init )
 	pwiz_module_needs filelist
 	filelist_inspect_provider
+	pwiz_phase_add_callme SETUP
 	filelist_split_candidate devel
 	;;
     version )
@@ -22,6 +23,11 @@ case $1 in
 	return
 	;;
 esac
+
+# FIXME: package_version instead of pwiz_project_version
+function split_devel_SETUP {
+    filelist_split_candidate_requires devel "$package_basename = $pwiz_project_version"
+}
 
 shopt -s extglob
 function split_devel_filelist_inspect {

@@ -49,7 +49,7 @@ function version_parse {
 # Returns: 0: p1 newer than p2
 # Returns: 1: p1 older than p2
 # Returns: 2: p1 equal to p2
-# NOTE: p2 can be an empty array
+# NOTE: p2 can be an empty array
 function version_compare {
     local -a p1 p2 count
     eval p1='( "${'$1'[@]}" )'
@@ -93,7 +93,7 @@ version_policy_register_counter=0
 function version_policy_even_subversion_is_stable {
     local -a version_array
     eval version_array='( "${'$1'[@]}" )'
-# FIXME: situation, if subversion is not number, no-test etc.
+# FIXME: situation, if subversion is not number, no-test etc.
     if test -z "${version_array[1]}" ; then
 	return 1
     fi

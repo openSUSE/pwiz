@@ -1,5 +1,7 @@
 #! /bin/bash
 
+# FIXME: implement package_version in addition to pwiz_project_version
+
 case $1 in
     desc )
 	echo "package selection dialog"
@@ -37,7 +39,7 @@ function package_project_prepare {
 function package_project_set {
 # FIXME: implement selection "try another version" and search this version' URL
 # FIXME: implement to all error questions: error_default_list
-# FIXME: pwiz_project_ -> package_ for names not present in key
+# FIXME: pwiz_project_ -> package_ for names not present in key
     if test -z "$pwiz_project_project" ; then
 	pwiz_ask_string "Project name (name of project for PWIZ)." \
 	    "Now you should enter canonical project name. The name can be global project name, or any selected, if there is a reason for different name." \
@@ -93,7 +95,7 @@ function package_policy {
     version_ask_product_policy
 }
 
-# FIXME: finish splitting
+# FIXME: finish splitting
 function package_download {
 # FIXME: ugly temporary solution:
     if test -d "$PWIZ_CACHEDIR/ftp/${package_search_uri#ftp://}" ; then
@@ -133,7 +135,7 @@ function package_download {
     package_parse_uri "$package_uri"
     pwiz_projectdirs_init
 # FIXME: ugly, use storage engine
-# FIXME: guess type by contents, not URI. Report conflicts.
+# FIXME: guess type by contents, not URI. Report conflicts.
     if test -f "$PWIZ_CACHEDIR/${package_uri##*/}" ; then
 	if pwiz_ask_yesno "Download file now?" \
 	    "Now you can dowload file." \

@@ -23,7 +23,7 @@ case $1 in
 esac
 
 function prefix_START {
-# FIXME better defaults. Check for packaging system presence.
+# FIXME better defaults. Check for packaging system presence.
     pwiz_ask_string "Select default prefix for PWIZ." \
 	"You should enter global prefix. It is a directory, where most packages should go. Use /usr/local for manual installations, /usr for installations with packaging system, eventually $HOME for userland installation." \
 	q=prefix_global valid=setup default[0]=/usr p[0]=50 default[1]=/usr/local p[1]=40 default[2]=$HOME p[2]=30

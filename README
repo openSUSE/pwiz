@@ -2,13 +2,13 @@ PWIZ - A Packaging WIZard
 
 Purpose:
 
-PWIZ is a software tool, which should simplify packaging work by some
-steps automatically.
+PWIZ is a software tool, which should simplify packaging work in
+semi-automatic manner.
 
 STATE
 
 In current state, there are not yet any manual intervention checkponts,
-except question. Promarilly it is tested on GNOME related stuff.
+except question. Primarilly it is tested on GNOME related stuff.
 
 INSTALL
 
@@ -32,17 +32,16 @@ fixing:
 
 - No support for manual actions/patches available.
 - Only FTP parsing support. No support for build from local files.
-- Only single-line answers.
 - No error processing.
 - No support for neededforbuild, Requires etc.
 - No support for %pre, %post, %postun, %preun phase splitting to
   subpackages.
-- Not back steps and random access support.
+- No back steps and random access support.
 - Lots of FIXME in code. For user are visible deprecated calls.
 - No RPM suid support.
-- No RPM CXXFLAGS.
+- RPM CXXFLAGS are now hardwired, even if they are unused.
 - No support for RPM %ghost.
 
 WARNING
 
-Code is subject to big changes.
+Code is subject to changes.

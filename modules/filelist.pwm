@@ -15,7 +15,7 @@ case $1 in
 	pwiz_phase_new_call filelist_raw after CHECKINSTALL
 	pwiz_phase_new_call filelist_clean after filelist_raw
 	pwiz_phase_new filelist_inspect after filelist_clean
-# FIXME: not used???
+# FIXME: not used???
 	pwiz_phase_new filelist_finish after filelist_inspect
 # FIXME
 #	pwiz_phase_new filelist_split after filelist_fix
@@ -49,7 +49,7 @@ function filelist_clean {
     filelist_file_tmp=$PWIZ_TMPDIR/filelist.lst~
     # dual uniq makes sorting faster in many cases
     # FIXME: remove temporaries
-    # fixme: sort -i
+    # fixme: sort -i
     uniq <$filelist_raw_file | tee $filelist_raw_file.0 | filelist_raw_clean_1 | tee $filelist_raw_file.1 | LC_ALL=C sort -u | filelist_raw_clean_2 | tee $filelist_raw_file.2 >$filelist_file
 }
 
@@ -115,7 +115,7 @@ function filelist_raw_clean_2 {
 		    fi
 		fi
 	    done
-# FIXME: Ignores tagext.
+# FIXME: Ignores tagext.
 	    if $owned ; then
 		decho_unowned "... owned"
 		echo "$filelist_tag_name dir"
@@ -129,9 +129,9 @@ function filelist_raw_clean_2 {
     done
 }
 
-#@ filelist_raw_open
+#@ filelist_raw_open
 #@ function for filelist_raw_add
-#@ filelist_raw_close
+#@ filelist_raw_close
 #@ function for filelist_raw_add
 function filelist_raw_open {
     pwiz_redirect_stdout $filelist_raw_file
@@ -170,9 +170,9 @@ function filelist_generate {
     filelist_clean
 }
 
-#@ filelist_read_open [stream#]
+#@ filelist_read_open [stream#]
 #@ function for filelist_read_item
-#@ filelist_read_close [stream#]
+#@ filelist_read_close [stream#]
 #@ function for filelist_read_item
 # ba default uses stream 3
 function filelist_read_open {
@@ -186,11 +186,11 @@ function filelist_read_close {
 
 # FIXME: can be alias?
 # FIXME: tag oriented?
-#@ filelist_read_item [stream#]
+#@ filelist_read_item [stream#]
 #@ Input: filelist line
 #@ Returns:
 #@ filelist_tag_type
-#@ filelist_tagline line containing all characters defining tags and type (for special purposes only)
+#@ filelist_tagline line containing all characters defining tags and type (for special purposes only)
 #@ $filelist_tag_{key}
 #@ Currently known keys: cat (filelist category - doc...), attr (attributes), sub (subpackage)
 # FIXME: include read command here
@@ -223,12 +223,25 @@ function filelist_read_item {
 #@ filelist_split_candidate sub ...
 #@ Defines candidate for splitting package to subpackages.
 # NOTE: This is required, because in time of inspection, we don't know, whether such subpackage will be created.
+# FIXME: split name can contain -, but shell variable not
 function filelist_split_candidate {
     local sub
     for sub in "$@" ; do
 	pwiz_array_add filelist_split_candidates "$sub"
     done
+    eval unset filelist_split_candidate_prerequires_${sub}
+    eval unset filelist_split_candidate_requires_${sub}
+}
+
+# filelist_split_candidate_prerequires subpackage what_requires
+function filelist_split_candidate_prerequires {
+    eval 'pwiz_array_add filelist_split_candidate_prerequires__'$1' "$2"'
+}
+
+# filelist_split_candidate_requires subpackage what_requires
+function filelist_split_candidate_requires {
+    eval 'pwiz_array_add filelist_split_candidate_requires__'$1' "$2"'
 }
 
 # FIXME: There can be splitting package -> package + othername
-# FIXME: Splitting package and splitting %post.
+# FIXME: Splitting package and splitting %post.

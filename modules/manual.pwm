@@ -27,7 +27,7 @@ esac
 # expected negative answer for most of them, but is queried only by one
 # question with chance to select list.
 
-# FIXME: each action can be included only once. Is it correct?
+# FIXME: each action can be included only once. Is it correct?
 
 #@ manual_action_new id [ after | before ] phase "Short desc" "Long desc"
 function manual_action_new {
@@ -39,7 +39,7 @@ function manual_action_new {
 
 #@ manual_action_new id "Short desc" "Long desc"
 #@ It's only abbreviation.
-#@ FIXME: Maybe it should be named better.
+#@ FIXME: Maybe it should be named better.
 function manual_action_new_me {
     manual_action_new "manual_$1" after "$1" "$2" "$3"
     manual_action_add "$1" manual_command "add command manually"

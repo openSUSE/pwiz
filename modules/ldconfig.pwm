@@ -32,7 +32,7 @@ function ldconfig_filelist_install {
     while filelist_read_item ; do
 	case "$filelist_tag_name" in
 	    *.so | *.so.* )
-# FIXME: generate dirlist
+# FIXME: generate dirlist
 		for dir in $LD_LIBRARY_PATH $(</etc/ld.so.conf) ; do
 		    if test "${filelist_tag_name%/*}" = "$dir" ; then
 			run_ldconfig=true

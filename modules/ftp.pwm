@@ -67,7 +67,7 @@ function ftp_list_recursive {
 #@ FIXME: symlinks in listings
 function ftp_list_callback {
     local flags links user group size mount day yearhour name
-# FIXME:???
+# FIXME:???
     if test "${1##*/}" = .listing ; then
 	exec 3<"$PWIZ_CACHEDIR/ftp/$1"
 	while read -u3 flags links user group size mount day yearhour name ; do

@@ -1,6 +1,11 @@
 #! /bin/bash
 
 # genopts: Generator of Bash based option parser.
+# Version 1.2, Stanislav Brabec <sbrabec@suse.cz>, 2004:
+#  Fixed @options_only.
+#  Added @multioption.
+#  Added @capitalize_helpusage.
+#  Code formatting fixes.
 # Version 1.1, Stanislav Brabec <sbrabec@suse.cz>, 2004:
 #  @genopts can be in middle of file.
 #  Added @code_style, @options_only.
@@ -11,7 +16,7 @@
 # Version 1.0, Stanislav Brabec <utx@penguin.cz>, 2002:
 #  Initial version.
 #
-# Usage: $EDITOR FILE.gopts ; genopts FILE (will overwrite FILE)
+# Usage: $EDITOR FILE.gopts ; genopts FILE (will overwrite FILE)
 
 if [ -e $1.gopts ]
 then
@@ -41,15 +46,29 @@ gen_option()
 		LONGOPT="$i"
 		LONGPARSE="$LONGPARSE
 ${TAB[2+CASETAB]}${i%%=*} )
-${TAB[2+2*CASETAB]}[[ \$# < 2 ]] && opt_err_req_arg $i
-${TAB[2+2*CASETAB]}shift
-${TAB[2+2*CASETAB]}OPTARG_$OPTNAME=true
-${TAB[2+2*CASETAB]}OPTVAL_$OPTNAME=\"\$1\"
-${TAB[2+2*CASETAB]};;
+${TAB[3+CASETAB]}[[ \$# < 2 ]] && opt_err_req_arg $i
+${TAB[3+CASETAB]}shift
+${TAB[3+CASETAB]}OPTARG_$OPTNAME=true"
+		if $3 ; then
+		    LONGPARSE="$LONGPARSE
+${TAB[3+CASETAB]}OPTVAL_$OPTNAME[\${#OPTVAL_$OPTNAME[@]}]=\"\$1\""
+		else
+		    LONGPARSE="$LONGPARSE
+${TAB[3+CASETAB]}OPTVAL_$OPTNAME=\"\$1\""
+		fi
+		LONGPARSE="$LONGPARSE
+${TAB[3+CASETAB]};;
 ${TAB[2+CASETAB]}${i%%=*}=* )
-${TAB[2+2*CASETAB]}OPTARG_$OPTNAME=true
-${TAB[2+2*CASETAB]}OPTVAL_$OPTNAME=\"\${1#${i%%=*}=}\"
-${TAB[2+2*CASETAB]};;"
+${TAB[3+CASETAB]}OPTARG_$OPTNAME=true"
+		if $3 ; then
+		    LONGPARSE="$LONGPARSE
+${TAB[3+CASETAB]}OPTVAL_$OPTNAME[\${#OPTVAL_$OPTNAME[@]}]=\"\${1#${i%%=*}=}\""
+		else
+		    LONGPARSE="$LONGPARSE
+${TAB[3+CASETAB]}OPTVAL_$OPTNAME=\"\${1#${i%%=*}=}\""
+		fi
+		LONGPARSE="$LONGPARSE
+${TAB[3+CASETAB]};;"
 		;;
 	    -* )
 		$FIRSTARG && echo >&2 "Error: No OPTNAME in $1"
@@ -57,18 +76,32 @@ ${TAB[2+2*CASETAB]};;"
 		REQ_SARG=true
 		SHORTOPT="$i"
 		SHORTPARSE="$SHORTPARSE
-${TAB[2+CASETAB]}${i:1:1} )
-${TAB[2+2*CASETAB]}OPTARG_$OPTNAME=true
-${TAB[2+2*CASETAB]}OPTVAL_$OPTNAME=\"\${OPTTMP:1}\"
-${TAB[2+2*CASETAB]}if [[ -z \"\$OPTVAL_$OPTNAME\" ]]${LINEUP_SEMIC:-
-${TAB[2+2*CASETAB]}}then
-${TAB[3+2*CASETAB]}[[ \$# < 2 ]] && opt_err_req_sarg ${i:1:1}
-${TAB[3+2*CASETAB]}shift
-${TAB[3+2*CASETAB]}OPTVAL_$OPTNAME=\"\$1\"
-${TAB[2+2*CASETAB]}else
-${TAB[3+2*CASETAB]}break
-${TAB[2+2*CASETAB]}fi
-${TAB[2+2*CASETAB]};;"
+${TAB[4+2*CASETAB]}${i:1:1} )
+${TAB[5+2*CASETAB]}OPTARG_$OPTNAME=true"
+		if $3 ; then
+		    SHORTPARSE="$SHORTPARSE
+${TAB[5+2*CASETAB]}OPTVAL_$OPTNAME[\${#OPTVAL_$OPTNAME[@]}]=\"\${OPTTMP:1}\""
+		else
+		    SHORTPARSE="$SHORTPARSE
+${TAB[5+2*CASETAB]}OPTVAL_$OPTNAME=\"\${OPTTMP:1}\""
+		fi
+		SHORTPARSE="$SHORTPARSE
+${TAB[5+2*CASETAB]}if [[ -z \"\$OPTVAL_$OPTNAME\" ]]${LINEUP_SEMIC:-
+${TAB[5+2*CASETAB]}}then
+${TAB[6+2*CASETAB]}[[ \$# < 2 ]] && opt_err_req_sarg ${i:1:1}
+${TAB[6+2*CASETAB]}shift"
+		if $3 ; then
+		    SHORTPARSE="$SHORTPARSE
+${TAB[6+2*CASETAB]}OPTVAL_$OPTNAME[\${#OPTVAL_$OPTNAME[@]}]=\"\$1\""
+		else
+		    SHORTPARSE="$SHORTPARSE
+${TAB[6+2*CASETAB]}OPTVAL_$OPTNAME=\"\$1\""
+		fi
+		SHORTPARSE="$SHORTPARSE
+${TAB[5+2*CASETAB]}else
+${TAB[6+2*CASETAB]}break
+${TAB[5+2*CASETAB]}fi
+${TAB[5+2*CASETAB]};;"
 		;;
 	    * )
 		if $FIRSTARG
@@ -86,8 +119,18 @@ ${TAB[2+2*CASETAB]};;"
 	fi
     done
     DEFVARS="${TAB[0]}$DEFVARS
-${TAB[0]}OPTARG_$OPTNAME=false
+${TAB[0]}OPTARG_$OPTNAME=false"
+    if $3 ; then
+	DEFVARS="$DEFVARS
+${TAB[0]}unset OPTVAL_$OPTNAME"
+	if [[ ! -z "$DEFAULT" ]] ; then
+	    DEFVARS="$DEFVARS
+${TAB[0]}OPTVAL_$OPTNAME=( $DEFAULT )"
+	fi
+    else
+	DEFVARS="$DEFVARS
 ${TAB[0]}OPTVAL_$OPTNAME=$DEFAULT"
+    fi
     genhelp "$SHORTOPT" "$LONGOPT" "$2"
 }
 
@@ -107,17 +150,17 @@ gen_switch()
 	    if $3
 	    then
 		OPTCNTMP="
-${TAB[2+2*CASETAB]}let OPTCNT_$OPTNAME++"
+${TAB[3+CASETAB]}let OPTCNT_$OPTNAME++"
 	    else
 		OPTCNTMP=
 	    fi
 	    LONGPARSE="$LONGPARSE
 ${TAB[2+CASETAB]}$i )
-${TAB[2+2*CASETAB]}OPTARG_$OPTNAME=true$OPTCNTMP
-${TAB[2+2*CASETAB]};;
+${TAB[3+CASETAB]}OPTARG_$OPTNAME=true$OPTCNTMP
+${TAB[3+CASETAB]};;
 ${TAB[2+CASETAB]}$i=* )
-${TAB[2+2*CASETAB]}opt_err_no_arg $i
-${TAB[2+2*CASETAB]};;"
+${TAB[3+CASETAB]}opt_err_no_arg $i
+${TAB[3+CASETAB]};;"
 	    ;;
        -* )
 	    $FIRSTARG && echo >&2 "Error: No OPTNAME in $1"
@@ -126,14 +169,14 @@ ${TAB[2+2*CASETAB]};;"
 	    if $3
 	    then
 		OPTCNTMP="
-${TAB[2+2*CASETAB]}let OPTCNT_$OPTNAME++"
+${TAB[5+2*CASETAB]}let OPTCNT_$OPTNAME++"
 	    else
 		OPTCNTMP=
 	    fi
 	    SHORTPARSE="$SHORTPARSE
-${TAB[2+CASETAB]}${i:1:1} )
-${TAB[2+2*CASETAB]}OPTARG_$OPTNAME=true$OPTCNTMP
-${TAB[2+2*CASETAB]};;"
+${TAB[4+2*CASETAB]}${i:1:1} )
+${TAB[5+2*CASETAB]}OPTARG_$OPTNAME=true$OPTCNTMP
+${TAB[5+2*CASETAB]};;"
 	    ;;
 	* )
 	    if $FIRSTARG
@@ -227,10 +270,18 @@ init_gen()
 	HELPSIZE=$[HELPSIZE+2]
     fi
     REPLYTO="usehelp $HELPSC"
-    HELPS[HELPSC++]='display this help and exit'
+    if $CAPITALIZE_HELPUSAGE ; then
+	HELPS[HELPSC++]='Display this help and exit.'
+    else
+	HELPS[HELPSC++]='display this help and exit'
+    fi
     gen_switch "HELP -h --help" "$REPLYTO" false
     REPLYTO="usehelp $HELPSC"
-    HELPS[HELPSC++]='output version information and exit'
+    if $CAPITALIZE_HELPUSAGE ; then
+	HELPS[HELPSC++]='Output version information and exit.'
+    else
+	HELPS[HELPSC++]='output version information and exit'
+    fi
     gen_switch "VERSION --version" "$REPLYTO" false
 }
 
@@ -266,10 +317,13 @@ TAB[3]=$'\t    '
 TAB[4]=$'\t\t'
 TAB[5]=$'\t\t    '
 TAB[6]=$'\t\t\t'
+TAB[7]=$'\t\t\t    '
+TAB[8]=$'\t\t\t\t'
 CASETAB=0
 declare -a HELPS
 HELPSC=0
 OPTIONS_ONLY=false
+CAPITALIZE_HELPUSAGE=false
 
 readto()
 {
@@ -384,7 +438,11 @@ TEXTDOMAIN=$ARGS"
 	;;
     @option )
 	readtoz
-	gen_option "$ARGS" "$REPLYTO"
+	gen_option "$ARGS" "$REPLYTO" false
+	;;
+    @multioption )
+	readtoz
+	gen_option "$ARGS" "$REPLYTO" true
 	;;
     @code_style )
 	for CODE in $ARGS
@@ -406,6 +464,8 @@ TEXTDOMAIN=$ARGS"
 		  TAB[4]=$'\t\t\t\t'
 		  TAB[5]=$'\t\t\t\t\t'
 		  TAB[6]=$'\t\t\t\t\t\t'
+		  TAB[7]=$'\t\t\t\t\t\t\t'
+		  TAB[8]=$'\t\t\t\t\t\t\t\t'
 		  ;;
 	      casetab )
 		  CASETAB=1
@@ -416,6 +476,9 @@ TEXTDOMAIN=$ARGS"
 	  esac
 	done
 	;;
+    @capitalize_helpusage )
+	CAPITALIZE_HELPUSAGE=true
+	;;
     @options_only )
 	OPTIONS_ONLY=true
 	;;
@@ -425,7 +488,7 @@ TEXTDOMAIN=$ARGS"
 done
 
 echo "#BEGIN genopts
-# This file is generated by genopts-1.1 from $1.gopts.$NLSINIT
+# This file is generated by genopts-1.2 from $1.gopts.$NLSINIT
 
 ${TAB[0]}${FUNCKEY1}opt_err$FUNCKEY2${LINEUP_BRACE:-
 ${TAB[0]}}{
@@ -505,7 +568,7 @@ if ! $OPTIONS_ONLY
 then
     echo "${TAB[2+CASETAB]}-- )
 ${TAB[3+CASETAB]}shift
-${TAB[3+CASETAB]}ARGV=(\"\${ARGV[@]}\" \"\$@\")
+${TAB[3+CASETAB]}ARGV=( \"\${ARGV[@]}\" \"\$@\" )
 ${TAB[3+CASETAB]}break
 ${TAB[3+CASETAB]};;"
 fi
@@ -521,7 +584,7 @@ ${TAB[3+CASETAB]}opt_err_bad_arg \$1
 ${TAB[3+CASETAB]};;"
 else
     echo "${TAB[2+CASETAB]}- )
-${TAB[3+CASETAB]}ARGV=(\"\${ARGV[@]}\" \"\$1\")
+${TAB[3+CASETAB]}ARGV=( \"\${ARGV[@]}\" \"\$1\" )
 ${TAB[3+CASETAB]};;"
 fi
 
@@ -529,22 +592,23 @@ echo "${TAB[2+CASETAB]}-* )
 ${TAB[3+CASETAB]}OPTTMP=\"\${1:1}\"
 ${TAB[3+CASETAB]}until [[ -z \"\$OPTTMP\" ]]${LINEUP_SEMIC:-
 ${TAB[3+CASETAB]}}do
-${TAB[3+CASETAB]}case \"\${OPTTMP:0:1}\" in$SHORTPARSE
-${TAB[3+2*CASETAB]}* )
-${TAB[4+2*CASETAB]}opt_err_bad_sarg \${OPTTMP:0:1}
-${TAB[4+2*CASETAB]};;
-${TAB[3+CASETAB]}esac
-${TAB[3+CASETAB]}OPTTMP=\"\${OPTTMP:1}\"
+${TAB[4+CASETAB]}case \"\${OPTTMP:0:1}\" in$SHORTPARSE
+${TAB[4+2*CASETAB]}* )
+${TAB[5+2*CASETAB]}opt_err_bad_sarg \${OPTTMP:0:1}
+${TAB[5+2*CASETAB]};;
+${TAB[4+CASETAB]}esac
+${TAB[4+CASETAB]}OPTTMP=\"\${OPTTMP:1}\"
 ${TAB[3+CASETAB]}done
 ${TAB[3+CASETAB]};;"
 
 if $OPTIONS_ONLY
+then
     echo "${TAB[2+CASETAB]}* )
 ${TAB[3+CASETAB]}opt_err_bad_arg \"\$1\"
 ${TAB[3+CASETAB]};;"
-then
+else
     echo "${TAB[2+CASETAB]}* )
-${TAB[3+CASETAB]}ARGV=(\"\${ARGV[@]}\" \"\$1\")
+${TAB[3+CASETAB]}ARGV=( \"\${ARGV[@]}\" \"\$1\" )
 ${TAB[3+CASETAB]};;"
 fi
 

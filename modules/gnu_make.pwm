@@ -50,7 +50,7 @@ function gnu_make_make {
 	    q=gnu_make_use knowledge=build default=true p=95 inherit=95 ; then
 	    pwiz_phase_add_run_eval make "make$gnu_make_vars"
 	    pwiz_phase_add make 'gnu_make_rc=$pwiz_run_rc'
-# FIXME:!!!!!!!!!! invalid callme
+# FIXME:!!!!!!!!!! invalid callme
 	    pwiz_phase_add_callme make_fallback_check
 	fi
     fi
