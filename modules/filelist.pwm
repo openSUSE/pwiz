@@ -11,11 +11,12 @@ case $1 in
 	;;
     init )
 # Phase providing preliminary file list during installation.
-	pwiz_phase_new_callme filelist_install before INSTALL_LAST
-	pwiz_phase_new_callme filelist_raw after CHECKINSTALL
-	pwiz_phase_new_callme filelist_clean after filelist_raw
+	pwiz_phase_new_call filelist_install before INSTALL_LAST
+	pwiz_phase_new_call filelist_raw after CHECKINSTALL
+	pwiz_phase_new_call filelist_clean after filelist_raw
 	pwiz_phase_new filelist_inspect after filelist_clean
-	pwiz_phase_new_callme filelist_finish after filelist_inspect
+# FIXME: not used???
+	pwiz_phase_new filelist_finish after filelist_inspect
 # FIXME
 #	pwiz_phase_new filelist_split after filelist_fix
 # FIXME: do not register twice for subsequent packages

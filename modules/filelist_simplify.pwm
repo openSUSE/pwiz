@@ -11,7 +11,7 @@ case $1 in
 	;;
     init )
 	pwiz_module_needs filelist
-	pwiz_phase_new_callme filelist_simplify before filelist_finish
+	pwiz_phase_new_call filelist_simplify before filelist_finish
 	;;
     version )
 	echo "0.1"

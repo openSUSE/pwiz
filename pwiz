@@ -224,6 +224,7 @@ function pwiz_canonize {
 }
 
 #@ pwiz_run
+# FIXME: Does it work with multi-line strings?
 # Run in protected build environment.
 # Order of evaluation:
 # pwiz_run_prepare - one function defined by build environment system (rpm, ebuild)
@@ -903,48 +904,49 @@ function pwiz_phase_list {
 
 #@ pwiz_phase_add phase contents
 function pwiz_phase_add {
-    local phase=$1
+# FIXME: for debugging only:
+    if test "$3" != "" ; then
+	pwiz_fatal "3 arguments: pwiz_phase_add $*"
+    fi
     local tmp_phase
     eval tmp_phase\=\$PWIZ_PHASE_AFTER_$1
     if test "$tmp_phase" = "" ; then
 	pwiz_fatal "cannot add to phase $1 - phase does not exist"
     fi
-    shift
-    eval PWIZ_STAGE_$phase\[\${#PWIZ_STAGE_$phase\[\*\]}]=\"\$@\"
+    eval PWIZ_STAGE_$1\[\${#PWIZ_STAGE_$1\[\*\]}]=\"\$2\"
 }
 
-#@ pwiz_phase_add_call phase argument contents
-#@ similar to pwiz_phase_add_exec phase contents
-function pwiz_phase_add_call {
-    local phase=$1
-    local arg=$2
-    shift 2
-    pwiz_phase_add_exec "$phase" $pwiz_module_current "$arg" "$@"
-}
-
-#@ pwiz_phase_add_callme phase contents
+#@ pwiz_phase_add_callme phase [ arg ]
 # phase===argument
 #@ similar to pwiz_phase_add_exec phase contents
 # FIXME with pwiz_module_exec: In future, argumentless version will call function named as module
 function pwiz_phase_add_callme {
-    local phase=$1
-    shift
-    pwiz_phase_add_exec "$phase" $pwiz_module_current "$phase" "$@"
+# FIXME: for debugging only:
+    if test "$3" != "" ; then
+	pwiz_fatal "3 arguments: pwiz_phase_add_callme $*"
+    fi
+    if test "$pwiz_module_current" = "ERROR" ; then
+	pwiz_fatal "pwiz_phase_add_callme called outside init"
+    fi
+    pwiz_phase_add "$1" "${pwiz_module_current}_$1${2:+ $2}"
 }
 
 #@ pwiz_phase_new_callme phase [ after | before ] phase_id contents
 # phase===argument
 #@ similar to pwiz_phase_new phase ; pwiz_phase_add_exec phase contents
 # FIXME with pwiz_module_exec: In future, argumentless version will call function named as module
-function pwiz_phase_new_callme {
+function pwiz_phase_new_call {
+# FIXME: for debugging only:
+    if test "$5" != "" ; then
+	pwiz_fatal "5 arguments: pwiz_phase_new_call $*"
+    fi
     pwiz_phase_new "$1" "$2" "$3"
-    local phase=$1
-    shift 3
-    pwiz_phase_add_exec "$phase" $pwiz_module_current "$phase" "$@"
+    pwiz_phase_add "$1" "$1${4:+ $4}"
 }
 
 #@ pwiz_phase_new_3 phase [ after | before ] phase_id
 #@ create all needed for "three phase method"
+# FIXME: comments are out of date
 #@ see more for documantation for its purpose
 #@ adds three phases:
 #@   {phase}_prepare with default contents callme
@@ -953,9 +955,9 @@ function pwiz_phase_new_callme {
 #@ function {phase}_provider adding callme to phase
 #@   {phase}_provider (no args)
 function pwiz_phase_new_3 {
-    pwiz_phase_new_callme $1_prepare $2 $3
+    pwiz_phase_new_call $1_prepare $2 $3
     pwiz_phase_new $1 after $1_prepare
-    pwiz_phase_new_callme $1_set after $1
+    pwiz_phase_new_call $1_set after $1
     eval "function $1_provider {
     pwiz_phase_add_callme $1
 }"
@@ -980,11 +982,11 @@ function pwiz_phase_new_3 {
 #@    not needed.
 function pwiz_phase_new_3_guess {
 #    pwiz_phase_new $1_prepare $2 $3
-    pwiz_phase_new_callme $1_prepare $2 $3
+    pwiz_phase_new_call $1_prepare $2 $3
 #    pwiz_phase_add $1_prepare "$1_guesses_count=0 $1_guesses="
 #    pwiz_phase_add_callme $1_prepare
     pwiz_phase_new $1 after $1_prepare
-    pwiz_phase_new_callme $1_set after $1
+    pwiz_phase_new_call $1_set after $1
     eval "function $1_provider {
     pwiz_phase_add_callme $1
 }"
@@ -993,23 +995,15 @@ function pwiz_phase_new_3_guess {
 }"
 }
 
-#@ pwiz_phase_add_callme_arg phase argument contents
-# phase===argument
-#@ similar to pwiz_phase_add_exec phase contents
-function pwiz_phase_add_callme_arg {
-    local phase=$1
-    local arg=$2
-    shift 2
-    pwiz_phase_add_exec "$phase" $pwiz_module_current "$arg" "$@"
-}
-
 #@ pwiz_phase_add_run phase contents
 #@ similar to pwiz_phase_add_run phase pwiz_run contents
 # Adds protected run command.
 function pwiz_phase_add_run {
-    local phase=$1
-    shift
-    pwiz_phase_add "$phase" pwiz_run "$@"
+# FIXME: for debugging only:
+    if test "$3" != "" ; then
+	pwiz_fatal "3 arguments: pwiz_phase_add_run $*"
+    fi
+    pwiz_phase_add "$1" "pwiz_run $2"
 }
 
 #@ pwiz_phase_add_run_eval phase contents
@@ -1017,34 +1011,30 @@ function pwiz_phase_add_run {
 # Adds protected run command with shell evaluation in time of call.
 # WARNING: Remember not to expand variables, i. e. use single quotes or backslashes.
 function pwiz_phase_add_run_eval {
-    local phase=$1
-    shift
-    pwiz_phase_add "$phase" pwiz_run_eval "$@"
-}
-
-#@ pwiz_phase_add_run phase contents
-#@ similar to pwiz_phase_add_run phase pwiz_run contents
-# Adds module_exec command.
-function pwiz_phase_add_exec {
-    local phase=$1
-    shift
-    pwiz_phase_add "$phase" pwiz_module_exec "$@"
+# FIXME: for debugging only:
+    if test "$3" != "" ; then
+	pwiz_fatal "3 arguments: pwiz_phase_add_run $*"
+    fi
+    pwiz_phase_add "$1" "pwiz_run_eval $2"
 }
 
 #@ pwiz_phase_add_call phase argument contents
 #@ similar to pwiz_phase_add_exec phase contents
 function pwiz_phase_add_rem {
-    local phase=$1
-    shift
-    pwiz_phase_add "$phase" pwiz_rem "$@"
+# FIXME: for debugging only:
+    if test "$3" != "" ; then
+	pwiz_fatal "3 arguments: pwiz_phase_add_rem $*"
+    fi
+    pwiz_phase_add "$1" "pwiz_rem $2"
 }
 
 #@ pwiz_phase_add_call phase argument contents
 #@ similar to pwiz_phase_add_exec phase contents
 function pwiz_phase_add_rem_eval {
-    local phase=$1
-    shift
-    pwiz_phase_add "$phase" pwiz_rem_eval "$@"
+    if test "$3" != "" ; then
+	pwiz_fatal "3 arguments: pwiz_phase_add_rem_eval $*"
+    fi
+    pwiz_phase_add "$1" "pwiz_rem_eval $2"
 }
 #@ pwiz_phase_check phase arguments
 # Special command for init
@@ -1211,7 +1201,7 @@ function pwiz_step {
 		echo -e "*** Running:\n$pwiz_step_stage_code"
 # FIXME: pwiz_rune does not need this expansion, but direct run yes
 # Do it better, this is a hack.
-		if test "${pwiz_step_stage_code%% *}" = pwiz_run -o "${pwiz_step_stage_code%% *}" = pwiz_exec ; then
+		if test "${pwiz_step_stage_code%% *}" = pwiz_run ; then
 		    $pwiz_step_stage_code
 		else
 		    eval "$pwiz_step_stage_code"
@@ -1300,39 +1290,7 @@ function pwiz_module_load {
     fi
 }
 
-# FIXME: We are moving from module call "module arg1" args to module_arg1 args
-# This function will still be present, but used only for init.
-# With new name - pwiz_module_include
-#@ pwiz_module_exec module_name [ arguments ]
-function pwiz_module_exec {
-    echo >&2 "FIXME: calling deprecated pwiz_module_exec $*"
-    local pwiz_module_current_save function_call
-    pwiz_module_current_save="$pwiz_module_current"
-    pwiz_module_current=$1
-    if test "$(type -t "${1}_$2")" = function ; then
-	function_call=${1}_$2
-	shift 2
-	$function_call "$@"
-    else
-	if test "$(type -t "$2")" = function ; then
-	    function_call=$2
-	    shift 2
-	    $function_call "$@"
-	else
-	    if ! test -f ~/pwiz/modules/$1.pwm ; then
-		pwiz_fatal "module $1 not found"
-	    fi
-	    shift
-	    . ~/pwiz/modules/$pwiz_module_current.pwm "$@"
-	fi
-    fi
-    pwiz_module_current="$pwiz_module_current_save"
-}
-
-function pwiz_module_exec_old {
-    pwiz_module_include "$@"
-}
-
+# FIXME: rename to pwiz_module_exec
 function pwiz_module_include {
     local pwiz_module_current_save
     pwiz_module_current_save="$pwiz_module_current"
@@ -1343,12 +1301,6 @@ function pwiz_module_include {
     shift
     . ~/pwiz/modules/$pwiz_module_current.pwm "$@"
     pwiz_module_current="$pwiz_module_current_save"
-}
-
-#@ pwiz_module_execme [ arguments ]
-#@ === pwiz_module_exec $pwiz_module_current
-function pwiz_module_execme {
-    pwiz_module_exec $pwiz_module_current "$@"
 }
 
 #@ pwiz_module_load module_name1 module_name2 ...

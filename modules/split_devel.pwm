@@ -28,7 +28,7 @@ function split_devel_filelist_inspect {
     filelist_read_open
     pwiz_redirect_stdout $filelist_file_tmp
     while filelist_read_item ; do
-	case "$filelist_tag_file" in
+	case "$filelist_tag_name" in
 # FIXME: lib64 - biarch must be run before
 # FIXME: allow file list modification
 # FIXME: allow manual additions

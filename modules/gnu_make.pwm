@@ -35,7 +35,7 @@ function gnu_make_check_unpacked_init {
     gnu_make_args=
 }
 
-function gnu_make {
+function gnu_make_make {
 # FIXME: gnu_make_known - do not use default, if gnu_configure is able to guess better.
     if test -f GNUmakefile -o -f makefile -o -f Makefile ; then
 	if pwiz_ask_yesno \

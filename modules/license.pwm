@@ -12,30 +12,9 @@ case $1 in
     init )
 	pwiz_module_needs check_unpacked
 	check_unpacked_provider
-	return
 	;;
     version )
 	echo "0.1"
-	return
-	;;
-    check_unpacked )
-# FIXME: license_found as array to be able to search more files.
-# As last in resort: sort -u
-	license_found=
-	for license_file in COPYING COPYING.LIB ; do
-	    license_md5sum="$(md5sum "$license_file")"
-	    license_md5sum=${license_md5sum%% *}
-	    case $license_md5sum in
-# GNU General Public License Version 2, June 1991
-		94d55d512a9ba36caa9b7df079bae19f )
-		    license_found="$license_found GPL"
-		    ;;
-# GNU Library General Public License Version 2, June 1991
-		55ca817ccb7d5b5b66355690e9abc605 )
-		    license_found="$license_found LGPL"
-		    ;;
-	    esac
-	done
 	return
 	;;
     * )
@@ -44,4 +23,28 @@ case $1 in
 esac
 
 # FIXME: Add finction license_is_required to proper init scripts.
-# FIXME: The same for summary, descriptions etc.
+# FIXME: The same for summary, descriptions etc.
+
+function license_check_unpacked {
+# FIXME: license_found as array to be able to search more files.
+# As last in resort: sort -u
+    license_found=
+    local file
+    local md5sum
+    for file in COPYING COPYING.LIB ; do
+	if test -f "$file" ; then
+	    md5sum="$(md5sum "$file")"
+	    md5sum=${md5sum%% *}
+	    case $md5sum in
+# GNU General Public License Version 2, June 1991
+		94d55d512a9ba36caa9b7df079bae19f )
+		    license_found="$license_found GPL"
+		    ;;
+# GNU Library General Public License Version 2, June 1991
+		55ca817ccb7d5b5b66355690e9abc605 )
+		    license_found="$license_found LGPL"
+		    ;;
+	    esac
+	fi
+    done
+}

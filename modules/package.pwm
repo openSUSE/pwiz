@@ -15,9 +15,9 @@ case $1 in
 	pwiz_phase_new_3_guess package_project after PROJECT
 	pwiz_phase_new_3_guess package_basename after package_project_set
 	pwiz_phase_new_3_guess package_search_uri after package_basename_set
-	pwiz_phase_new_callme package_policy after package_search_uri_set
+	pwiz_phase_new_call package_policy after package_search_uri_set
 # FIXME: finish splitting
-	pwiz_phase_new_callme download after package_policy
+	pwiz_phase_new_call package_download after package_policy
 	;;
     version )
 	echo "0.1"
@@ -28,11 +28,11 @@ case $1 in
 	;;
 esac
 
-function package_package_project_prepare {
+function package_project_prepare {
     pwiz_project_project=
 }
 
-function package_package_project_set {
+function package_project_set {
 # FIXME: implement selection "try another version" and search this version' URL
 # FIXME: implement to all error questions: error_default_list
 # FIXME: pwiz_project_ -> package_ for names not present in key
@@ -44,11 +44,11 @@ function package_package_project_set {
     fi
 }
 
-function package_package_basename_prepare {
+function package_basename_prepare {
     package_basename=
 }
 
-function package_package_basename_set {
+function package_basename_set {
     if test -z "$package_basename" ; then
 	pwiz_ask_string "Global project source base file name." \
 	    "Now you should enter project base file name (i. e. name without prefix, suffix and version). This can be a string or extended pattern (see extglob in bash(1))." \
@@ -57,11 +57,11 @@ function package_package_basename_set {
     fi
 }
 
-function package_package_search_uri_prepare {
+function package_search_uri_prepare {
     package_search_uri=
 }
 
-function package_package_search_uri_set {
+function package_search_uri_set {
     if test -z "$package_search_uri" ; then
 echo "$package_search_uri_guesses"
 # FIXME ask for home page

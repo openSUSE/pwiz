@@ -30,11 +30,11 @@ function prefix_START {
     prefix_global=$pwiz_answer
 }
 
-function prefix_prefix_prepare {
+function prefix_prepare {
     prefix=@global@
 }
 
-function prefix_prefix_set {
+function prefix_set {
     if test "$prefix" = @global@ ; then
 	pwiz_ask_string "Select prefix for your package." \
 	    "You should enter prefix for your package. It is a main directory, where most packages should go. Most packages should use global prefix, but some needs extra prefix." \
