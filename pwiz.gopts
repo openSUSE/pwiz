@@ -644,7 +644,7 @@ pwiz_engine_interface question yesno radio selection string list auto_answer
 # your own instance. There is no chance to reset it back to global
 # ones. If we want to recurse without inheritance, there is no chance
 # to use local variables.
-alias pwiz_read_tags='local pwiz_tag ; for pwiz_tag in "$@" ; do pwiz_tag=${pwiz_tag/\'\''/\'\''\\\'\''\'\''}\'\'' ; pwiz_tag=${pwiz_tag/=/=\'\''} ; eval pwiz_tag_"$pwiz_tag" ; done'
+alias pwiz_read_tags='local pwiz_tag ; for pwiz_tag in "$@" ; do pwiz_tag=${pwiz_tag//\'\''/\'\''\\\'\''\'\''}\'\'' ; pwiz_tag=${pwiz_tag/=/=\'\''} ; eval pwiz_tag_"$pwiz_tag" ; done'
 # For better readability use '\'' -> '
 # Asking interface is used for querying users, saving and re-using results.
 
@@ -1048,7 +1048,11 @@ alias pwiz_ask_radio="set -o noglob ; pwiz_ask_radio_f"
 function pwiz_ask_radio_f {
     echo "*** FIXME: pwiz_ask_radio is obsolete. Use pwiz_ask_string with tag allow_new=false"
     set +o noglob
-    pwiz_ask_core pwiz_question_radio "$@"
+
+    local desc="$1"
+    local longdesc="$2"
+    shift 2
+    pwiz_ask_core pwiz_question_string "$desc" "$longdesc" allow_new=false "$@"
 }
 
 # FIXME: implement pwiz_ask_selection === unordered list
@@ -1078,8 +1082,11 @@ function pwiz_ask_list_f {
     desc="$1"
     longdesc="$2"
     shift 2
+    pwiz_reset_tags
     pwiz_read_tags
     pwiz_keys_set
+    # Add '*' to pattern for keys, where credit inheritance function exists.
+    # This is really needed in pwiz_guess, but it's simpler to set it here.
     for pwiz_key in $pwiz_key_list ; do
 	if test "$(type -t "pwiz_guess_credit_$pwiz_key")" = function ; then
 	    eval $pwiz_key\=\'\*\'
@@ -1092,20 +1099,21 @@ function pwiz_ask_list_f {
 	pwiz_fatal "pwiz_ask_list must contain tag q"
     fi
 
-    local -a pwiz_list_all pwiz_list_p pwiz_list_strings pwiz_list_hotkeys
+    local -a pwiz_list_all pwiz_list_c pwiz_list_p pwiz_list_strings pwiz_list_hotkeys v_item v_c v_p v_string v_hotkey
 
 #    if ! test -z "$pwiz_tag_q" ; then
 
-	# parse items in environment variables pwiz_list_item_{q} pwiz_list_p_{q}, pwiz_list_string_{q} pwiz_list_hotkey_{q}
+	# parse items in environment variables pwiz_list_item_{q} pwiz_list_c_{q} pwiz_list_p_{q} pwiz_list_string_{q} pwiz_list_hotkey_{q}
 	# WARNING: Those quesses does not recomputed p
 	eval v_total\=\${#pwiz_list_item_$pwiz_tag_q\[@\]}
 	for (( count=0 ; count < v_total ; count++ )) ; do
 	    eval v_item\=\"\${pwiz_list_item_$pwiz_tag_q\[count\]}\"
+	    eval v_c\=\${pwiz_list_c_$pwiz_tag_q\[count\]}
 	    eval v_p\=\${pwiz_list_p_$pwiz_tag_q\[count\]}
 	    eval v_string\=\"\${pwiz_list_string_$pwiz_tag_q\[count\]}\"
 	    eval v_hotkey\=\"\${pwiz_list_hotkey_$pwiz_tag_q\[count\]}\"
 	    decho_guess "list item in variable: $v_item"
-	    pwiz_list_eval "$v_item" "$v_p" "$v_string" "$v_hotkey"
+	    pwiz_list_eval "$v_item" "$v_c" "$v_p" "$v_string" "$v_hotkey"
 	done
 
 	# callback of pwiz_list_callback_{q}[*]
@@ -1133,7 +1141,17 @@ function pwiz_ask_list_f {
 	pwiz_list_eval "$key" 0
     done
 
-    pwiz_ask_core pwiz_question_list "$desc" "$longdesc" #%#"$@"
+    for (( count=0 ; count < ${#pwiz_list_all[*]} ; count++ )) ; do
+	# Compute average probablility and probability for other values.
+	if test ${pwiz_list_pc[count]} -gt 0 ; then
+	    pwiz_list_p[count]=$(( pwiz_list_p[count] / pwiz_list_pc[count] ))
+	    # Adapt credits a bit from average probability, if available.
+	    # Maximum probability credit: 100% = 10c. FIXME: Maybe parametrizable.
+	    pwiz_list_c[count]=$(( pwiz_list_c[count] + pwiz_list_p[count] / 10 ))
+	fi
+    done
+
+    pwiz_ask_core pwiz_question_list "$desc" "$longdesc" "$@"
 
 # FIXME: Return usable result in array.
 }
@@ -1147,8 +1165,15 @@ function pwiz_list_eval {
     local is_new=true
     for (( count=0 ; count < size ; count++ )) ; do
 	if test "${pwiz_list_all[count]}" = "$1" ; then
-	    if test $2 -gt ${pwiz_list_p[count]} ; then
-		pwiz_list_p[count]=$2
+	    # If current credit is higher than previous, use current one.
+	    # If guess does not provide credit, assume 0.
+	    if test ${2:-0} -gt ${pwiz_list_c[count]} ; then
+		pwiz_list_c[count]=${2:-0}
+	    fi
+	    # If guess provides probability, create a sum.
+	    if test "$3" != "" ; then
+		pwiz_list_p[count]=$(( pwiz_list_p[count] + $3 ))
+		pwiz_list_pc[count]=$(( pwiz_list_pc[count] + 1 ))
 	    fi
 	    is_new=false
 	    break
@@ -1156,36 +1181,43 @@ function pwiz_list_eval {
     done
 # FIXME: Maybe test -z is not required.
     if $is_new ; then
-	pwiz_list_p[size]=$2
-	if ! test -z "$3" ; then
-	    pwiz_list_strings[size]="$3"
+	pwiz_list_c[size]=${2:-0}
+	if test "$3" != "" ; then
+	    pwiz_list_p[size]=$3
+	    pwiz_list_pc[size]=1
+	else
+	    pwiz_list_pc[size]=0
 	fi
 	if ! test -z "$4" ; then
-	    pwiz_list_hotkeys[size]="$4"
+	    pwiz_list_strings[size]="$4"
+	fi
+	if ! test -z "$5" ; then
+	    pwiz_list_hotkeys[size]="$5"
 	fi
 	pwiz_array_add pwiz_list_all "$1"
     else
-	if test -z "${pwiz_list_strings[count]}" -a ! -z "$3" ; then
-	    pwiz_list_strings[count]="$3"
+	if test -z "${pwiz_list_strings[count]}" -a ! -z "$4" ; then
+	    pwiz_list_strings[count]="$4"
 	fi
-	if test -z "${pwiz_list_hotkeys[count]}" -a ! -z "$4" ; then
-	    pwiz_list_hotkeys[count]="$4"
+	if test -z "${pwiz_list_hotkeys[count]}" -a ! -z "$5" ; then
+	    pwiz_list_hotkeys[count]="$5"
 	fi
     fi
 }
 
-#@ pwiz_list_add q item p [ string hotkey ]
+#@ pwiz_list_add q item c p [ string hotkey ]
 #@ Add predefined list item to environment variables pwiz_list_item_{q} pwiz_list_string_p_{q} and pwiz_list_hotkey_{q}
 # FIXME: p has not yet any meaning.
 function pwiz_list_add {
     eval local count\=\${#pwiz_list_item_$1\[@\]}
     eval pwiz_list_item_$1\[count\]\=\"\$2\"
-    eval pwiz_list_p_$1\[count\]\=\"\$3\"
-    if ! test -z "$4" ; then
-	eval pwiz_list_string_$1\[count\]\=\"\$4\"
-    fi
+    eval pwiz_list_c_$1\[count\]\=\"\$3\"
+    eval pwiz_list_p_$1\[count\]\=\"\$4\"
     if ! test -z "$5" ; then
-	eval pwiz_list_hotkey_$1\[count\]\=\"\$5\"
+	eval pwiz_list_string_$1\[count\]\=\"\$5\"
+    fi
+    if ! test -z "$6" ; then
+	eval pwiz_list_hotkey_$1\[count\]\=\"\$6\"
     fi
 }
 
@@ -1283,11 +1315,14 @@ function pwiz_ask_core {
 	else
 	    guesslevel=$pwiz_tag_guesslevel
 	fi
+	# Set again keys (we want value without any *)
+	pwiz_keys_set
+	pwiz_cache_validity_apply
 	let answer_credit="knowledge*guesslevel/100"
 	decho_guess "caching answer \"$pwiz_answer\" to $pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$build with credit $answer_credit%
 (user credit ${pwiz_knowledge}c, guess level $guesslevel%)"
 #%# ### !!!!!!!!!! FIXME: Write selected tags or all tags
-	pwiz_cache_write $pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$build "$pwiz_answer" "$@" credit=$answer_credit
+	pwiz_cache_write "$pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$build" "$pwiz_answer" "$@" credit=$answer_credit
 	eval $pwiz_tag_q\=\"\$pwiz_answer\"
     fi
 
