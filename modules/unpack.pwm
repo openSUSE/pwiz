@@ -13,7 +13,7 @@ case $1 in
 	pwiz_module_uses archive
 	pwiz_module_needs package
 	pwiz_phase_new unpack after PREPARE
-	pwiz_phase_add_callme_arg unpack
+	pwiz_phase_add_callme unpack
 	pwiz_phase_add_callme package
 	;;
     version )
@@ -38,7 +38,7 @@ function unpack_unpack {
 
 # FIXME: Make a function
 function unpack_search_dirname {
-    unpack_dirname=
+    local unpack_dirname=
     for unpack_name in * ; do
 	if test -d "$unpack_name" ; then
 	    if test -z "$unpack_dirname" ; then
@@ -82,6 +82,6 @@ function unpack_check_extension {
 
 function unpack_prepare {
 	pwiz_phase_add_run_eval unpack '$unpack_seq "$PWIZ_SOURCESDIR/${package_uri##*/}"'
-	pwiz_phase_add_callme_arg unpack search_dirname
+	pwiz_phase_add unpack unpack_search_dirname
 	pwiz_phase_add_run_eval unpack 'cd "$unpack_dirname"'
 }

@@ -13,9 +13,9 @@ case $1 in
 	pwiz_module_needs package version unpack
 	pwiz_module_uses filelist unpack
 # FIXME: after package or after SOURCE?
-	pwiz_phase_new rpmsetup after package
-	pwiz_phase_add_callme rpmsetup
-	pwiz_phase_new rpmheader after rpmsetup
+	pwiz_phase_new_callme rpm_setup after package
+# FIXME: not used:
+	pwiz_phase_new rpm_header after rpm_setup
 # FIXME: move from init:
 	pwiz_phase_add_rem PREPARE  ""
 	pwiz_phase_add_rem PREPARE  "%prep"
@@ -54,7 +54,7 @@ case $1 in
 	;;
 esac
 
-function rpm_rpmsetup {
+function rpm_setup {
 # FIXME: This phase should be at the end of process, not beginning
 	# FIXME: Extract these attributes from spec file, if it exists, either old one or bundled.
     rpm_add_preamble Name         $pwiz_project_project

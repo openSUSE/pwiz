@@ -16,7 +16,6 @@ case $1 in
 	package_search_uri_provider
 	check_unpacked_provider
 	filelist_install_provider
-	gnome_prefix_global=NONE
 	;;
     version )
 	echo "0.1"
@@ -38,6 +37,7 @@ function gnome_prefix {
 	fi
     fi
 }
+gnome_prefix_global=NONE
 
 function gnome_package_search_uri {
     local default

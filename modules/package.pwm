@@ -15,9 +15,9 @@ case $1 in
 	pwiz_phase_new_3_guess package_project after PROJECT
 	pwiz_phase_new_3_guess package_basename after package_project_set
 	pwiz_phase_new_3_guess package_search_uri after package_basename_set
-	pwiz_phase_new_callme policy after package_search_uri_set
+	pwiz_phase_new_callme package_policy after package_search_uri_set
 # FIXME: finish splitting
-	pwiz_phase_new_callme download after policy
+	pwiz_phase_new_callme download after package_policy
 	;;
     version )
 	echo "0.1"

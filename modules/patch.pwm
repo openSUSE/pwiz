@@ -12,8 +12,8 @@ case $1 in
     init )
     	pwiz_module_needs check_unpacked
 	pwiz_phase_new patch after check_unpacked
+	pwiz_phase_add_call patch patch_patch
 	check_unpacked_init_provider
-	pwiz_phase_add_callme patch
 	;;
     version )
 	echo "0.1"
