@@ -112,7 +112,7 @@ function package_download {
 	    "Now you can specify latest version. Default is most probably the latest." \
 	    q=package_latest_version valid=product
 	pwiz_project_version=$pwiz_answer
-	pwiz_ask_string "Enter latest version." \
+	pwiz_ask_string "Enter latest version URI." \
 	    "Now you can specify latest version. Default is most probably the latest." \
 	    q=package_latest_uri valid=product
 	package_uri=$pwiz_answer

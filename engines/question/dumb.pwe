@@ -23,54 +23,6 @@ function pwiz_engine_question_dumb_quit {
 
 # pwiz_question_yesno desc longdesc [ tags ... ]
 # FIXME: Probably obsolete - replaced by special case of ask_string
-function pwiz_engine_question_dumb_yesno {
-    local desc longdesc guesses_count=0 true_p=0 false_p=0 REPLY
-    desc="$1"
-    longdesc="$2"
-    shift 2
-    while test $guesses_count -lt ${#pwiz_guesses[*]} ; do
-	eval "${pwiz_guesses[guesses_count]}_p=${pwiz_trusts[guesses_count]}"
-	let guesses_count++
-    done
-    while : ; do
-	echo
-	echo "$desc"
-	if test "$pwiz_guess_best_value" = true ; then
-	    echo "y) yes ($true_p%, default)"
-	else
-	    echo "y) yes ($true_p%)"
-	fi
-	if test "$pwiz_guess_best_value" = false ; then
-	    echo "n) no ($false_p%, default)"
-	else
-	    echo "n) no ($false_p%)"
-	fi
-	echo "h) help"
-	read
-	case "$REPLY" in
-	    "" )
-		if test "$pwiz_guess_best_value" = @@PWIZ_UNDEFINED@@ ; then
-		    echo "This question has no default."
-		    continue
-		fi
-		pwiz_answer="$pwiz_guess_best_value";
-		break
-		;;
-	    y )
-		pwiz_answer=true;
-		break
-		;;
-	    n )
-		pwiz_answer=false;
-		break
-		;;
-	    h )
-		echo "$longdesc"
-		;;
-	esac
-    done
-}
-
 # pwiz_question_string desc longdesc [ tags ... ]
 function pwiz_engine_question_dumb_string {
     local desc longdesc guesses_count selection default REPLY
@@ -115,12 +67,20 @@ function pwiz_engine_question_dumb_string {
 		;;
 # FIXME: sometimes m and h can have other meaning
 # probably entirely rewrite to have h and m as pluggable answers
+# FIXME: support m[number] to start editing with value
 	    m )
 		if $pwiz_tag_allow_new ; then
 		    if test -z "$pwiz_tag_callback" ; then
 			echo -n "Your value: "
-			read
-			pwiz_answer="$REPLY";
+			if $pwiz_tag_multiline ; then
+# FIXME: document file $PWIZ_TMPDIR/pwiz_answer
+			    ${EDITOR:-vi} $PWIZ_TMPDIR/dumb_answer
+			    pwiz_answer="$(<$PWIZ_TMPDIR/dumb_answer)"
+			    rm $PWIZ_TMPDIR/dumb_answer
+			else
+			    read
+			    pwiz_answer="$REPLY"
+			fi
 		    else
 			$pwiz_tag_callback "$@"
 		    fi
@@ -228,11 +188,12 @@ function pwiz_engine_question_dumb_list {
 	echo "$desc"
 	echo "Active items (in order):"
 	guesses_count=0
-	list_off="$pwiz_list_all"
+	list_off=" ${pwiz_list_all[*]} "
 	for list_item in $pwiz_answer ; do
 # FIXME: Text representation of items
 	    echo "$guesses_count) $list_item"
 	    items[guesses_count]="$list_item"
+# Maybe FIXME: Implement this on arrays:
 	    list_off=${list_off/ $list_item / }
 	    let guesses_count++
 	done
@@ -369,3 +330,4 @@ Formal type for this is a list. Now you have a chance to add new item to this li
     pwiz_answer="${pwiz_answer# }"
     pwiz_answer="${pwiz_answer% }"
 }
+pwiz_tag_multiline=false

@@ -49,15 +49,14 @@ function manual_action_ask {
     local item
     eval "pwiz_ask_list \"Manual action point: \$manual_action_desc_$1\" \"\$manual_action_longdesc_$1\" q=$1 allow_new=false"
     for item in $pwiz_answer ; do
-	pwiz_phase_add "$1" "$item"
+	pwiz_phase_add "$1" "$item $1"
     done
 }
 
-# FIXME: what description is correct
-#@ manual_action_add phase_id "Short desc" "Long desc" q=question_id [tags]
 #@ manual_action_add phase_id function [ string hotkey ]
+#@ callback convention: function manual_point_id
 function manual_action_add {
-    pwiz_guess_add "manual_$1" "$2" 0 "$3" "$4"
+    pwiz_list_add "manual_$1" "$2" 0 "$3" "$4"
 }
 
 manual_action_new_me PREPARE_PREUNPACK  "before unpacking main archive" "Now you should define actions you want to do before unpacking main archive."

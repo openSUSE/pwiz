@@ -455,6 +455,7 @@ function pwiz_rem {
 #@ pwiz_rem_eval args
 # Expand variables, save them and then call pwiz_rem
 function pwiz_rem_eval {
+    pwiz_warning "deprecated: pwiz_rem_eval $*"
     eval PWIZ_STAGE_EVAL_$PWIZ_PHASE_CURRENT\[$PWIZ_STAGE_CURRENT\]\=\"\$@\"
     eval pwiz_rem "$@"
 }
@@ -762,7 +763,7 @@ function pwiz_guess {
 
     # parse guesses in tags
     for (( count=0 ; count < ${#pwiz_tag_default[@]} ; count++ )) ; do
-	decho_guess "guess in tags ${pwiz_tag_default[count]} (${pwiz_tag_p[count]}%)"
+	decho_guess "guess in tags: ${pwiz_tag_default[count]} (${pwiz_tag_p[count]}%)"
 	pwiz_guess_eval "${pwiz_tag_default[count]}" ${pwiz_tag_p[count]}\
 	    "${pwiz_tag_string[count]}" "${pwiz_tag_hotkey[count]}"
     done
@@ -777,7 +778,7 @@ function pwiz_guess {
 	    eval v_p\=\${pwiz_guess_p_$pwiz_tag_q\[count\]}
 	    eval v_string\=\"\${pwiz_guess_string_$pwiz_tag_q\[count\]}\"
 	    eval v_hotkey\=\"\${pwiz_guess_hotkey_$pwiz_tag_q\[count\]}\"
-	    decho_guess "found guess in variable $v_default ($v_p%)"
+	    decho_guess "guess in variable: $v_default ($v_p%)"
 	    pwiz_guess_eval "$v_default" "$v_p" "$v_string" "$v_hotkey"
 	done
 
@@ -826,8 +827,9 @@ unset pwiz_tag_default
 #@ Evaluate guess for guess array in pwiz_guess (internal) or in callback.
 function pwiz_guess_eval {
     local count
+    local size=${#pwiz_guesses[*]}
     local is_new=true
-    for (( count=0 ; count < ${#pwiz_guesses[*]} ; count++ )) ; do
+    for (( count=0 ; count < size ; count++ )) ; do
 	if test "${pwiz_guesses[count]}" = "$1" ; then
 	    if test $2 -gt ${pwiz_trusts[count]} ; then
 		pwiz_trusts[count]=$2
@@ -838,12 +840,12 @@ function pwiz_guess_eval {
     done
 # FIXME: Maybe test -z is not required.
     if $is_new ; then
-	pwiz_trusts[${#pwiz_guesses[*]}]=$2
+	pwiz_trusts[size]=$2
 	if ! test -z "$3" ; then
-	    pwiz_strings[${#pwiz_guesses[*]}]="$3"
+	    pwiz_strings[size]="$3"
 	fi
 	if ! test -z "$4" ; then
-	    pwiz_hotkeys[${#pwiz_guesses[*]}]="$4"
+	    pwiz_hotkeys[size]="$4"
 	fi
 	pwiz_array_add pwiz_guesses "$1"
     else
@@ -870,7 +872,6 @@ function pwiz_guess_add {
     if ! test -z "$5" ; then
 	eval pwiz_guess_hotkey_$1\[count\]\=\"\$5\"
     fi
-set >/tmp/set
 }
 
 #@ pwiz_guess_trust [tags] (internal function)
@@ -934,7 +935,7 @@ function pwiz_ask_core {
     if $pwiz_tag_allow_new ; then
 	pwiz_hotarray[64#m]=m
     fi
-    for (( count=0 ; count < ${#pwiz_guesses[*]} ; count++ )) ; do
+    for (( count=0 ; count < size ; count++ )) ; do
 	hotkey="${pwiz_hotkeys[$count]}"
 	if ! test -z "$hotkey" ; then
 	    if test -z "${pwiz_hotarray[64#$hotkey]}" ; then
@@ -1007,16 +1008,24 @@ function pwiz_ask_radio_f {
 
 #@tags callback: Callback function for "new item" (returns $pwiz_answer).
 #@tags item_type: List item type (default: string).
-#@ Prepares for backend: pwiz_list_all - list of active entries in cache (in form q=${q}_${list_item}) (with leading and trailing space)
+#@FIXME: complete it: tags item[], itemstring[]: Addition to list item.
+#@ Prepares for backend: {pwiz_list_all[@]} - list of active entries in cache (in form q=${q}_${list_item}) (with leading and trailing space)
 #@ FIXME: Maybe {key}_{tag} can be reduced to {tag} while calling subsequent questions
 #@ FIXME: Tag default is not implemented
 #@ FIXME: Implement text representation support
 #@ FIXME: Implement block tag (if block tag is in best guess, item will not be included in pwiz_list_all).
+#@ NOTE: defaults different from best guess are ignored. There can be only one default preset for now.
+#@ FIXME: Implement presets.
+# FIXME: implement list in list feature (when any item list is ask list).
+# It requires cache renaming:
+# mylist1 + mylist1_item_1 + mylist_item_2 + mylist_item_2_sub_item_1 => problem
+# mylist1 + mylist1__item_1 + mylist__item_2 + mylist__item_2__subitem1 - cut the second @.
+# FIXME: Maybe result should have space before and after it (before parsing).
 alias pwiz_ask_list="set -o noglob ; pwiz_ask_list_f"
 function pwiz_ask_list_f {
     set +o noglob
 
-    local desc longdesc key_found is_new list_key list_count
+    local desc longdesc key
 
     desc="$1"
     longdesc="$2"
@@ -1031,35 +1040,107 @@ function pwiz_ask_list_f {
     done
     pwiz_cache_validity_apply
 
+# FIXME: Is it still true? Probably not.
     if test -z "$pwiz_tag_q" ; then
 	pwiz_fatal "pwiz_ask_list must contain tag q"
     fi
 
-    pwiz_list_all=
+    unset pwiz_list_all pwiz_list_p pwiz_list_strings pwiz_list_hotkeys
+
+#    if ! test -z "$pwiz_tag_q" ; then
+
+	# parse items in environment variables pwiz_list_item_{q} pwiz_list_p_{q}, pwiz_list_string_{q} pwiz_list_hotkey_{q}
+	# WARNING: Those quesses does not recomputed p
+	eval v_total\=\${#pwiz_list_item_$pwiz_tag_q\[@\]}
+	for (( count=0 ; count < v_total ; count++ )) ; do
+	    eval v_item\=\"\${pwiz_list_item_$pwiz_tag_q\[count\]}\"
+	    eval v_p\=\${pwiz_list_p_$pwiz_tag_q\[count\]}
+	    eval v_string\=\"\${pwiz_list_string_$pwiz_tag_q\[count\]}\"
+	    eval v_hotkey\=\"\${pwiz_list_hotkey_$pwiz_tag_q\[count\]}\"
+	    decho_guess "list item in variable: $v_item"
+	    pwiz_list_eval "$v_item" "$v_p" "$v_string" "$v_hotkey"
+	done
+
+	# callback of pwiz_list_callback_{q}[*]
+	eval 'for callback in ${pwiz_list_callback_'"$pwiz_tag_q"'[@]} ; do
+	    $callback
+	done'
+
+#    fi
+
+    # parse items in tags
+    for (( count=0 ; count < ${#pwiz_tag_item[@]} ; count++ )) ; do
+	decho_guess "list item in tags: ${pwiz_tag_item[count]}"
+# FIXME: read itemstring tag and probability...
+	pwiz_list_eval "${pwiz_tag_item[count]}" 0
+    done
+
+    # parse items in cache
     decho_guess "list query: $pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$product/$pversion/$build"
     pwiz_cache_list "${pwiz_tag_q}_*/$project/$subproject/$version/$patchlevel/$vendor/$product/$pversion/$build"
     for key_found in $pwiz_result ; do
-	decho_guess "list found: $key_found"
-	pwiz_key_parse $key_found
-	is_new=true
-	list_count=0
-	for list_key in $pwiz_list_all ; do
-	    if test "$list_key" = "$pwiz_item_q" ; then
-		is_new=false
-		break
-	    fi
-	done
-	if $is_new ; then
-	    eval 'pwiz_list_all="$pwiz_list_all ${pwiz_item_q#'$pwiz_tag_q'_}"'
-	fi
+        pwiz_key_parse $key_found
+	eval 'key="${pwiz_item_q#'$pwiz_tag_q'_}"'
+	decho_guess "list key in cache: $key"
+# FIXME: try to read string tag
+	pwiz_list_eval "$key" 0
     done
-    pwiz_list_all="$pwiz_list_all "
-    decho_guess "list completed: \"$pwiz_list_all\""
 
     pwiz_ask_core pwiz_question_list "$desc" "$longdesc" "$@"
 
 }
 pwiz_tag_item_type=string
+
+#@ pwiz_list_eval value trust string hotkey
+#@ Evaluate guess for guess array in pwiz_guess (internal) or in callback.
+# FIXME: pwiz_list_p has not yet any meaning.
+function pwiz_list_eval {
+    local count
+    local size=${#pwiz_list_all[*]}
+    local is_new=true
+    for (( count=0 ; count < size ; count++ )) ; do
+	if test "${pwiz_list_all[count]}" = "$1" ; then
+	    if test $2 -gt ${pwiz_list_p[count]} ; then
+		pwiz_list_p[count]=$2
+	    fi
+	    is_new=false
+	    break
+	fi
+    done
+# FIXME: Maybe test -z is not required.
+    if $is_new ; then
+	pwiz_list_p[size]=$2
+	if ! test -z "$3" ; then
+	    pwiz_list_strings[size]="$3"
+	fi
+	if ! test -z "$4" ; then
+	    pwiz_list_hotkeys[size]="$4"
+	fi
+	pwiz_array_add pwiz_list_all "$1"
+    else
+	if test -z "${pwiz_list_strings[count]}" -a ! -z "$3" ; then
+	    pwiz_list_strings[count]="$3"
+	fi
+	if test -z "${pwiz_list_hotkeys[count]}" -a ! -z "$4" ; then
+	    pwiz_list_hotkeys[count]="$4"
+	fi
+    fi
+}
+
+#@ pwiz_list_add q item p [ string hotkey ]
+#@ Add predefined list item to environment variables pwiz_list_item_{q} pwiz_list_string_p_{q} and pwiz_list_hotkey_{q}
+# FIXME: p has not yet any meaning.
+function pwiz_list_add {
+    eval local count\=\${#pwiz_list_item_$1\[@\]}
+    eval pwiz_list_item_$1\[count\]\=\"\$2\"
+    eval pwiz_list_p_$1\[count\]\=\"\$3\"
+    if ! test -z "$4" ; then
+	eval pwiz_list_string_$1\[count\]\=\"\$4\"
+    fi
+    if ! test -z "$5" ; then
+	eval pwiz_list_hotkey_$1\[count\]\=\"\$5\"
+    fi
+}
 
 #@ callback [ tags ]
 # Returns $pwiz_answer with result.

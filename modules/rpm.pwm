@@ -11,14 +11,14 @@ case $1 in
 	;;
     init )
 	pwiz_array_add pwiz_projectdirs_init_callback rpm_projectdirs_init_callback
-	pwiz_module_needs package version unpack
+	pwiz_module_needs package version unpack manual
 	pwiz_module_uses filelist unpack
 # FIXME: after package or after SOURCE?
 	pwiz_phase_new_call rpm_setup after package
 # FIXME: not used:
 	pwiz_phase_new rpm_header after rpm_setup
 # FIXME: move from init:
-	pwiz_phase_add     PREPARE  rpm_source
+	pwiz_phase_add     PREPARE  rpm_source_main
 	pwiz_phase_add_rem PREPARE  ""
 	pwiz_phase_add_rem PREPARE  "%prep"
 	pwiz_phase_add     PREPARE  'rpm_section=prep ; rm -f $PWIZ_TMPDIR/rpm_{env,pwd}'
@@ -82,9 +82,9 @@ function rpm_setup {
 }
 
 # FIXME: define source list dynamically
-function rpm_source {
+function rpm_source_main {
     rpm_subst_names "$package_uri"
-    rpm_add_preamble source Source       $pwiz_result
+    rpm_source_add main $pwiz_result
 }
 
 function rpm_files_finish {
@@ -294,8 +294,7 @@ unset rpm_subpackage_list
 #@ RPM preambles:
 # There are following types of preamble:
 # basic: Basic, required preambles. These are reset and set to real values before spec file finalizing.
-# source: Source* list (only main package)
-# patch: Patch* list (only main package)
+# FIXME: delete this comment: sourcepatch: Source* and Patch* list (internal)
 # ext: extended preambles.
 # temp: These are throw away before finalizing.
 
@@ -374,13 +373,36 @@ rpm_summary__=DUMMY
 # rpm_write_spec_preamble
 # Writes spec preamble to stdout.
 function rpm_write_spec_preamble {
-    local subpackage subsection string
+    local subpackage i subsection string
+    local pad='              '
     for subpackage in "" "${rpm_subpackage_list[@]}" ; do
 	if ! test -z "$subpackage" ; then
 	    echo ""
 	    echo "%package $subpackage"
 	fi
-	for subsection in basic source patch ext temp ; do
+# FIXME: if will not be needed, remove for cycle
+	for subsection in basic ; do
+	    eval "for string in \"\${rpm_preamble__${subsection}_$subpackage[@]}\" ; do
+		echo \"\$string\"
+	    done"
+	done
+	for (( i=0 ; i < ${#rpm_sources[@]} ; i++ )) ; do
+	    if test $i = 0 ; then
+		string=Source
+	    else
+		string=Source$i
+	    fi
+	    echo "$string: ${pad:${#string}+3}${rpm_sources[i]}"
+	done
+	for (( i=0 ; i < ${#rpm_patches[@]} ; i++ )) ; do
+	    if test $i = 0 ; then
+		string=Patch
+	    else
+		string=Patch$i
+	    fi
+	    echo "$string: ${pad:${#string}+3}${rpm_patches[i]}"
+	done
+	for subsection in ext temp ; do
 	    eval "for string in \"\${rpm_preamble__${subsection}_$subpackage[@]}\" ; do
 		echo \"\$string\"
 	    done"
@@ -448,3 +470,57 @@ function rpm_spec_compile {
 # FIXME: rpm should auto-ask for splitted package args, if none are supported.
 
 # FIXME: Stuff should work, if package name != project name
+
+# FIXME: Should be list in future.
+function rpm_manual_source {
+    local source
+    pwiz_ask_string "Extra RPM sources needed before main package unpacking (lines containing \"source_id source_filename\")." "Now you can manage extra sources needed before main package unpacking." q=$1_rpm_manual_source multiline=true #callback=rpm_manual_source_callback
+# FIXME: without temp file?
+# FIXME: echo -n, but verify all pwiz_ask code before?
+    echo "$pwiz_result" >$PWIZ_TMPDIR/rpm_answer_tmp
+    exec 3<$PWIZ_TMPDIR/rpm_answer_tmp
+    while read -u3 id source ; do
+	rpm_source_add "$id" "$source"
+    done
+    exec 3<&-
+    rm $PWIZ_TMPDIR/rpm_answer_tmp
+}
+
+function rpm_manual_patch {
+    local patch
+    pwiz_ask_string "Extra RPM patches needed before main package unpacking (lines containing \"patch_id patch_filename\")." "Now you can manage extra patches needed before main package unpacking." q=$1_rpm_manual_patch multiline=true #callback=rpm_manual_patch_callback
+# FIXME: without temp file?
+# FIXME: echo -n, but verify all pwiz_ask code before?
+    echo "$pwiz_result" >$PWIZ_TMPDIR/rpm_answer_tmp
+    exec 3<$PWIZ_TMPDIR/rpm_answer_tmp
+    while read -u3 id patch ; do
+	rpm_patch_add "$id" "$patch"
+    done
+    exec 3<&-
+    rm $PWIZ_TMPDIR/rpm_answer_tmp
+}
+
+# rpm_source_add id name
+function rpm_source_add {
+    eval "rpm_source__$1=${#rpm_sources[@]}"
+    pwiz_array_add rpm_sources $2
+}
+
+# rpm_patch_add id name
+function rpm_patch_add {
+    eval "rpm_patch__$1=${#rpm_patches[@]}"
+    pwiz_array_add rpm_patches $2
+}
+
+
+# FIXME: not yet used andd patch callback, too
+function rpm_manual_source_callback {
+    local id
+    pwiz_ask_string "Enter source ID." "ID string recognizes this source across versions. It cound be short, but unique and explanative. It can contain only letters, underbars and numbers (must not begin by number)."
+    id="$pwiz_answer"
+    
+    pwiz_answer="$id"
+}
+
+manual_action_add PREPARE_PREUNPACK rpm_manual_source "manage extra RPM sources"
+manual_action_add PREPARE_PREUNPACK rpm_manual_patch  "manage extra RPM patches"
