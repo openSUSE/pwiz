@@ -95,6 +95,7 @@ fhs_sysconfdir="${prefix}/etc"
 fhs_localstatedir="${prefix}/var"
 fhs_imddir="${prefix}"
 fhs_mandir=
+fhs_sharedstatedir=/srv
 
 case "$prefix" in
     "" | / )
@@ -119,13 +120,14 @@ case "$prefix" in
 	;;
     /usr/local )
 	fhs_localstatedir=/var/local
-	fhs_sysconfdir=/etc/local
+	fhs_imddir="$fhs_datadir"
+	fhs_mandir=/usr/local/man
 	;;
     /usr/X11* )
 	fhs_datadir="${prefix}/lib/X11"
 	fhs_sysconfdir=/etc/X11
 	fhs_localstatedir=/var # guess from /var/lib/xdm
-	fhs_mandir="${prefix}/man"
+	fhs_mandir="${datadir}/man"
 	fhs_imddir="$fhs_datadir"
 	;;
     /opt | /opt/* )
@@ -166,12 +168,12 @@ esac
 #if test "$sharedstatedir" = "${prefix}/com" ; then
     if test "$enable_games_fhs" = yes ; then
 	if test "$enable_games_games" = no ; then
-	    sharedstatedir="$fhs_localstatedir"
+	    sharedstatedir="$fhs_sharedstatedir"
 	else
-	    sharedstatedir="$fhs_localstatedir/games"
+	    sharedstatedir="$fhs_sharedstatedir/games"
 	fi
     else
-	sharedstatedir="$fhs_localstatedir/cache"
+	sharedstatedir="$fhs_sharedstatedir"
     fi
 #fi
 #if test "$infodir" = "${prefix}/info" ; then
