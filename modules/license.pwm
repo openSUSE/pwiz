@@ -11,8 +11,8 @@ case $1 in
 	;;
     init )
 # FIXME: do not depend on rpm, but rpm on license
-	pwiz_module_needs check_unpacked rpm
-	check_unpacked_provider
+	pwiz_module_needs rpm
+	pwiz_phase_add_callme PREPARE_CHECK
 	;;
     version )
 	echo "0.1"
@@ -26,7 +26,7 @@ esac
 # FIXME: Add finction license_is_required to proper init scripts.
 # FIXME: The same for summary, descriptions etc.
 
-function license_check_unpacked {
+function license_PREPARE_CHECK {
 # FIXME: license_found as array to be able to search more files.
 # As last in resort: sort -u
     local license_found=

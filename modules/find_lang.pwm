@@ -14,7 +14,7 @@ case $1 in
 	pwiz_module_uses rpm
 	filelist_inspect_provider
 # FIXME: use pwiz_phase_new_call
-	pwiz_phase_new_call find_lang after filelist_install
+	pwiz_phase_new_call find_lang after INSTALL_POSTCHECK
 	;;
     version )
 	echo "0.1"

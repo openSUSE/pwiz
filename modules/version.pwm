@@ -73,14 +73,12 @@ function version_compare {
 #@ version_policy_register name string
 # name is function name without leading version_policy_
 # Register version policy to version policy registry.
+# FIXME: use pwiz_guess_add
+# version_policy_register function value [ string hotkey ]
 function version_policy_register {
-    local str
-    if test -z "$2" ; then
-	version_policy_register_string="${version_policy_register_string}default[$version_policy_register_counter]=$1 p[$version_policy_register_counter]=0 "
-    else
-	tmp=${2/\'/\'\\\'\'}
-	version_policy_register_string="${version_policy_register_string}default[$version_policy_register_counter]=$1 string[$version_policy_register_counter]='$tmp' p[$version_policy_register_counter]=0 "
-    fi
+    local id=$1
+    shift
+    pwiz_guess_add version_policy $id 0 "$@"
 }
 version_policy_register_string=""
 version_policy_register_counter=0
@@ -102,12 +100,17 @@ function version_policy_even_subversion_is_stable {
 }
 version_policy_register even_subversion_is_stable "even minor version means stable version"
 
+function version_policy_any_version_is_stable {
+    return
+}
+version_policy_register any_version_is_stable "all versions are stable versions"
+
 #@ version_ask_policy
 # WARNING: Call it after setting $pwiz_project_project!
 function version_ask_policy {
 	eval pwiz_ask_string '"Select package version policy." \
 	    "You should now define version policy of selected project your product, i. e. which versions are stable and which unstable. To define new one, you must create a module."' \
-	    q=version_policy "${version_policy_register_string}"valid=project allow_new=false
+	    q=version_policy valid=project allow_new=false
 	if test "$(type -t "version_policy_$pwiz_answer")" != function ; then
 	    pwiz_fatal "invalid version policy $version_project_policy (probably removed some modules from PWIZ)"
 	fi

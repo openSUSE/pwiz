@@ -10,17 +10,23 @@ case $1 in
 	return
 	;;
     init )
-	pwiz_module_needs check_unpacked patch
-	pwiz_phase_new make after BUILD
-# gnu_make_fallback_check is reserved for last-in-resort failure check.
-	pwiz_phase_new fallback_check after make
-# FIXME: install_default. If none, use "make install"
-	pwiz_phase_new install_action after INSTALL
-	pwiz_phase_new install_before_action before install_action
-	pwiz_phase_new install_after_action  after  install_action
-# FIXME: pwiz_phase_add_callme
-	pwiz_phase_add_callme make
-	check_unpacked_init_provider
+## BIG FIXME: gnu_make is incomplete and broken
+	:
+## FIXME: prefix is needed to ensure prefix_set before phase make for gnu_configure
+#	pwiz_module_needs check_unpacked patch prefix
+## BIG FIXME:
+##	pwiz_phase_new make after BUILD
+#	pwiz_phase_new make after prefix_set
+## gnu_make_fallback_check is reserved for last-in-resort failure check.
+#	pwiz_phase_new fallback_check after make
+## FIXME: install_default. If none, use "make install"
+#	pwiz_phase_new install_action after INSTALL
+#	pwiz_phase_new install_before_action before install_action
+#	pwiz_phase_new install_after_action  after  install_action
+## FIXME: pwiz_phase_add_callme
+## BIG FIXME: Not yet supported. Causes troubles with configure. Make it better.
+##	pwiz_phase_add_callme make
+#	check_unpacked_init_provider
 	;;
     version )
 	echo "0.1"
@@ -31,7 +37,7 @@ case $1 in
 	;;
 esac
 
-function gnu_make_check_unpacked_init {
+function gnu_make_SETUP {
     gnu_make_args=
 }
 
@@ -44,6 +50,7 @@ function gnu_make_make {
 	    q=gnu_make_use knowledge=build default=true p=95 inherit=95 ; then
 	    pwiz_phase_add_run_eval make "make$gnu_make_vars"
 	    pwiz_phase_add make 'gnu_make_rc=$pwiz_run_rc'
+# FIXME:!!!!!!!!!! invalid callme
 	    pwiz_phase_add_callme make_fallback_check
 	fi
     fi

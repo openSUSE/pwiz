@@ -10,11 +10,11 @@ case $1 in
 	return
 	;;
     init )
-    	pwiz_module_needs check_unpacked
-	pwiz_phase_new patch after check_unpacked
+    	pwiz_phase_add_callme PREPARE_POSTUNPACK
+	pwiz_phase_new patch after PREPARE_PATCH
 # FIXME: rename and callme?
 	pwiz_phase_add patch patch_patch
-	check_unpacked_init_provider
+	pwiz_phase_add_callme PREPARE_POSTUNPACK
 	;;
     version )
 	echo "0.1"
@@ -25,7 +25,7 @@ case $1 in
 	;;
 esac
 
-function patch_check_unpacked_init {
+function patch_PREPARE_POSTUNPACK {
 # FIXME: implement callback function.
     pwiz_ask_list "Initial source patches, you want to have." \
 	"Before PWIZ starts automatic tests, you have a chance to apply initial patches. These patches can add features, perform behavior improvement etc. Not recommended for auto-detectable bug fixes - you will be asked for them later after all automatic tests." q=patch_unp #callback=patch_new_patch

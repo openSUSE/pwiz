@@ -18,12 +18,15 @@ case $1 in
 # FIXME: not used:
 	pwiz_phase_new rpm_header after rpm_setup
 # FIXME: move from init:
+	pwiz_phase_add     PREPARE  rpm_source
 	pwiz_phase_add_rem PREPARE  ""
 	pwiz_phase_add_rem PREPARE  "%prep"
 	pwiz_phase_add     PREPARE  'rpm_section=prep ; rm -f $PWIZ_TMPDIR/rpm_{vars,pwd}'
 	pwiz_phase_add_rem BUILD    ""
 	pwiz_phase_add_rem BUILD    "%build"
 	pwiz_phase_add     BUILD    'rpm_section=build ; rm -f $PWIZ_TMPDIR/rpm_{vars,pwd}'
+# FIXME: This should go to gnu_configure callback.
+	pwiz_phase_add_run BUILD    'export CFLAGS="$RPM_OPT_FLAGS"'
 	pwiz_phase_add_rem INSTALL  ""
 	pwiz_phase_add_rem INSTALL  "%install"
 	pwiz_phase_add     INSTALL  'rpm_section=install ; rm -f $PWIZ_TMPDIR/rpm_{vars,pwd}'
@@ -37,8 +40,17 @@ case $1 in
 	pwiz_phase_add_rem POSTINSTALL "%post"
 # FIXME
 	pwiz_phase_add     POSTINSTALL 'rpm_section=post ; rm -f $PWIZ_TMPDIR/rpm_{vars,pwd} ; cd /'
-	pwiz_phase_new_call rpm_files_finish after FINISH
+	pwiz_phase_new_call rpm_files_finish after RESULTS
 	pwiz_phase_new_call rpm_files_list after rpm_files_finish
+
+	pwiz_phase_new rpm_write after rpm_files_list
+	pwiz_phase_add rpm_write rpm_set_attributes
+	pwiz_phase_add rpm_write rpm_write_spec
+	pwiz_phase_add rpm_write rpm_write_sources
+
+	pwiz_phase_new rpm_test after rpm_write
+	pwiz_phase_add rpm_test rpm_spec_compile
+
 # FIXME: remove this
 #	pwiz_run_wrapper_register rpm_spec_run_wrapper
 	rpm_section=preamble
@@ -55,7 +67,20 @@ esac
 
 # FIXME: Initialize guesses here.
 function rpm_setup {
-    :
+    # Initialize dummy entries.
+    rpm_add_preamble basic  Name         $pwiz_project_project
+    rpm_add_preamble basic  Version      $pwiz_project_version
+    rpm_add_preamble basic  Group        "Other"
+    rpm_add_preamble basic  License      "Unknown"
+    rpm_add_preamble basic  Summary      "DUMMY"
+    rpm_add_preamble basic  Release      0
+    rpm_add_preamble ext    BuildRoot    %{_tmppath}/%{name}-%{version}-build
+    rpm_add_preamble_line temp "%define __check_files %{nil}"
+}
+
+# FIXME: define source list dynamically
+function rpm_source {
+    rpm_add_preamble source Source       $package_uri
 }
 
 function rpm_files_finish {
@@ -64,33 +89,6 @@ function rpm_files_finish {
 }
 
 function rpm_files_list {
-# FIXME: Ask maybe even later in packaging process?
-	# FIXME: Extract these attributes from spec file, if it exists, either old one or bundled.
-    rpm_add_preamble Name         $pwiz_project_project
-    rpm_add_preamble Version      $pwiz_project_version
-    pwiz_ask_string "Enter RPM group for main package." \
-	"RPM requires assigning group attribute for any package created. You should select one of the list." \
-	q=rpm_group__ default=Other p=0
-    rpm_group__="$pwiz_answer"
-    rpm_add_preamble Group        "$rpm_group__"
-    pwiz_ask_string "Enter RPM license for main package." \
-	"RPM requires assigning license attribute for any package created. You should select one of the list." \
-	q=rpm_license default=Unknown p=0
-    rpm_license="$pwiz_answer"
-    rpm_add_preamble License      "$rpm_license"
-    rpm_add_preamble Release      0
-    rpm_add_preamble Source       $package_uri
-    rpm_add_preamble BuildRoot    %{_tmppath}/%{name}-%{version}-build
-    pwiz_ask_string "Enter RPM summary for main package." \
-	"RPM requires assigning one-line summary attribute for any package created. You should now write any." \
-	q=rpm_summary__
-    rpm_summary__="$pwiz_answer"
-    rpm_add_preamble Summary      "$rpm_summary__"
-    pwiz_ask_string "Enter RPM description for main package." \
-	"RPM requires assigning multiple line description attribute for any package created. You should now write any." \
-	q=rpm_description__ default= p=0
-    rpm_description__="$pwiz_answer"
-    rpm_add_description           "$rpm_description__"
 # FIXME: move to globals or other section, do not create final list, but replace dir -> systemdir
     local supbackage
     filelist_read_open
@@ -154,19 +152,19 @@ function pwiz_run_core {
 # FIXME: %post etc.
     case $rpm_section in
 	prep )
-	    rpm_create_spec -bp prep false "$@"
+	    rpm_create_dummy_spec -bp prep false "$@"
 	    ;;
 # FIXME: probably obsolete
 #	prep_after_setup )
-#	    rpm_create_spec -bp prep false "$@"
+#	    rpm_create_dummy_spec -bp prep false "$@"
 #	    ;;
 	build )
-	    rpm_create_spec "-bc --short-circuit" build true "$@"
+	    rpm_create_dummy_spec "-bc --short-circuit" build true "$@"
 	    ;;
 # NOTE: rpmbuild has no support for calling clean
 # FIXME: This is not OK for %post. It has different environment.
 	install | clean | post )
-	    rpm_create_spec "-bi --short-circuit" install true "$@"
+	    rpm_create_dummy_spec "-bi --short-circuit" install true "$@"
 	    ;;
 	* )
 	    pwiz_fatal "Unimplemented RPM section"
@@ -180,48 +178,42 @@ function pwiz_run_core {
     pwiz_set_rc $pwiz_run_rc
 }
 
-#@ rpm_create_spec rpm_build_arg section add_setup "$@"
-function rpm_create_spec {
+#@ rpm_create_dummy_spec rpm_build_arg section add_setup "$@"
+function rpm_create_dummy_spec {
     rpm_build_arg="$1"
-    echo >$PWIZ_TMPDIR/rpm_tmp.spec \
-"Name:         $pwiz_project_project
-Version:      $pwiz_project_version
-Group:        DUMMY
-License:      DUMMY
-Release:      0
-Source:       $package_uri
-BuildRoot:    %{_tmppath}/%{name}-%{version}-build
-Summary:      DUMMY
-%define __check_files false
+    pwiz_redirect_stdout $PWIZ_TMPDIR/rpm_tmp.spec
+    rpm_write_spec_preamble
 
-%description
-DUMMY
-
-%prep"
+    echo "%prep"
     if $3 ; then
-	echo >>$PWIZ_TMPDIR/rpm_tmp.spec "%setup"
+	echo "%setup"
     fi
     if test $2 != prep ; then
-	echo >>$PWIZ_TMPDIR/rpm_tmp.spec -e "\n%$2"
+	echo -e "\n%$2"
     fi
     shift 3
-    echo >>$PWIZ_TMPDIR/rpm_tmp.spec \
-$'pwiz_set_options="$(set -o | while read ; do if test "${REPLY##*\t}" = on ; then echo "set -o ${REPLY%%\t*}" ; else echo "set +o ${REPLY%%\t*}" ; fi ; done)"'"
+# FIXME: maybe better set +x
+    echo \
+$'set +x
+pwiz_set_options="$(set -o | while read ; do if test "${REPLY##*\t}" = on ; then echo "set -o ${REPLY%%\t*}" ; else echo "set +o ${REPLY%%\t*}" ; fi ; done)"'"
 set +o posix
 if test -f $PWIZ_TMPDIR/rpm_env ; then
     $PWIZ_TMPDIR/rpm_env 2>/dev/null || true
 else
     eval \"\$pwiz_set_options\"
 fi
+set -x
 $*
+set +x
 export >$PWIZ_TMPDIR/rpm_env
 set >>$PWIZ_TMPDIR/rpm_env
 "$'set -o | while read ; do if test "${REPLY##*\t}" = on ; then echo "set -o ${REPLY%%\t*}" ; else echo "set +o ${REPLY%%\t*}" ; fi ; done'" >>$PWIZ_TMPDIR/rpm_env
 "$'shopt | while read ; do if test "${REPLY##*\t}" = on ; then echo "shopt -s ${REPLY%%\t*}" ; else echo "shopt -u ${REPLY%%\t*}" ; fi ; done'" >>$PWIZ_TMPDIR/rpm_env
 echo \"cd \$PWD\" >>$PWIZ_TMPDIR/rpm_env
 echo \"\$PWD\" >$PWIZ_TMPDIR/pwd"
+    pwiz_redirect_stdout_close
 }
-# FIXME ^ save set unparset to separate file, and parse if required. Use set +x for parsing.
+# FIXME ^ save set unparsed to separate file, and parse if required. Use set +x for parsing.
 
 function rpm_projectdirs_init_callback {
     PWIZ_SOURCESDIR=/usr/src/packages/SOURCES
@@ -268,42 +260,161 @@ function rpm_files_create {
     esac
 }
 
-# rpm_add_subpackage subpackage
+# rpm_subpackage_add subpackage
 function rpm_subpackage_add {
-    rpm_subpackage_list="$rpm_subpackage_list $1"
-    eval rpm_description__$1\=FIXME
-# FIXME:
-    pwiz_ask_string "Enter RPM group for subpackage $1." \
-	"PWIZ decided to split binary RPM. It requires assigning group attribute for subpackage $1. You should select one of the list." \
-	q=rpm_group__$1 default="$rpm_group__" p=20
-    rpm_add_preamble Group        "$pwiz_answer" $1
-    pwiz_ask_string "Enter RPM summary for subpackage $1." \
-	"PWIZ decided to split binary RPM. It requires assigning one-line summary for subpackage $1. You should now write any." \
-	q=rpm_summary__$1 default="$rpm_summary__" p=20
-    rpm_add_preamble Summary      "$pwiz_answer" $1
-    pwiz_ask_string "Enter RPM description for subpackage $1." \
-	"PWIZ decided to split binary RPM. It requires assigning multiple line description attribute for any package created. You should now write any." \
-	q=rpm_description__ default="$rpm_description__" p=0
-    rpm_add_description           "$pwiz_answer" $1
+    pwiz_array_add rpm_subpackage_list "$1"
+    rpm_add_preamble basic  Group        "Other" $subpackage
+    rpm_add_preamble basic  Summary      "DUMMY" $subpackage
 }
-declare -a rpm_preamble__
-rpm_subpackage_list=
+# FIXME: declare -a ?
+unset rpm_subpackage_list
 
-# rpm_add_preamble_line line subpackage
+#@ RPM preambles:
+# There are following types of preamble:
+# basic: Basic, required preambles. These are reset and set to real values before spec file finalizing.
+# source: Source* list (only main package)
+# patch: Patch* list (only main package)
+# ext: extended preambles.
+# temp: These are throw away before finalizing.
+
+# rpm_add_preamble_line type line subpackage
 function rpm_add_preamble_line {
-    pwiz_array_add rpm_preamble__$2 "$1"
+    pwiz_array_add rpm_preamble__$1_$3 "$2"
 }
 
-# rpm_add_preamble atribute value subpackage
+# rpm_add_preamble type atribute value subpackage
 function rpm_add_preamble {
     local pad='              '
-    rpm_add_preamble_line "$1: ${pad:${#1}+2}$2" "$3"
+    rpm_add_preamble_line $1 "$2: ${pad:${#2}+3}$3" "$4"
 }
 
 # rpm_add_description description subpackage
 function rpm_add_description {
     eval 'rpm_description__'$2'="$1"'
 }
+
+function rpm_set_attributes {
+    # FIXME: Extract these attributes from spec file, if it exists, either old one or bundled.
+    local subpackage
+
+    unset rpm_preamble__basic_
+    unset rpm_preamble__temp_
+    rpm_add_preamble basic  Name         $pwiz_project_project
+    rpm_add_preamble basic  Version      $pwiz_project_version
+    pwiz_ask_string "Enter RPM group for main package." \
+	"RPM requires assigning group attribute for any package created. You should select one of the list." \
+	q=rpm_group__ default=Other p=0
+    rpm_group__="$pwiz_answer"
+    rpm_add_preamble basic  Group        "$rpm_group__"
+    pwiz_ask_string "Enter RPM license for main package." \
+	"RPM requires assigning license attribute for any package created. You should select one of the list." \
+	q=rpm_license default=Unknown p=0
+    rpm_license="$pwiz_answer"
+    rpm_add_preamble basic  License      "$rpm_license"
+    rpm_add_preamble basic  Release      0
+    pwiz_ask_string "Enter RPM summary for main package." \
+	"RPM requires assigning one-line summary attribute for any package created. You should now write any." \
+	q=rpm_summary__
+    rpm_summary__="$pwiz_answer"
+    rpm_add_preamble basic  Summary      "$rpm_summary__"
+    pwiz_ask_string "Enter RPM description for main package." \
+	"RPM requires assigning multiple line description attribute for any package created. You should now write any." \
+	q=rpm_description__ default= p=0
+    rpm_description__="$pwiz_answer"
+    rpm_add_description           "$rpm_description__"
+
+    for subpackage in "${rpm_subpackage_list[@]}" ; do
+    unset rpm_preamble__basic_$subpackage
+    unset rpm_preamble__temp_$subpackage
+# FIXME:
+	pwiz_ask_string "Enter RPM group for subpackage $subpackage." \
+	    "PWIZ decided to split binary RPM. It requires assigning group attribute for subpackage $subpackage. You should select one of the list." \
+	    q=rpm_group__$subpackage default="$rpm_group__" p=20
+	rpm_add_preamble basic  Group        "$pwiz_answer" $subpackage
+	pwiz_ask_string "Enter RPM summary for subpackage $subpackage." \
+	    "PWIZ decided to split binary RPM. It requires assigning one-line summary for subpackage $subpackage. You should now write any." \
+	    q=rpm_summary__$subpackage default="$rpm_summary__" p=20
+	rpm_add_preamble basic  Summary      "$pwiz_answer" $subpackage
+	pwiz_ask_string "Enter RPM description for subpackage $subpackage." \
+	    "PWIZ decided to split binary RPM. It requires assigning multiple line description attribute for any package created. You should now write any." \
+	    q=rpm_description__ default="$rpm_description__" p=0
+	rpm_add_description           "$pwiz_answer" $subpackage
+    done
+}
+# Dummy items for temporary spec files.
+rpm_group__=DUMMY
+rpm_license=DUMMY
+rpm_summary__=DUMMY
+
+# rpm_write_spec_preamble
+# Writes spec preamble to stdout.
+function rpm_write_spec_preamble {
+    local subpackage subsection string
+    for subpackage in "" "${rpm_subpackage_list[@]}" ; do
+	if ! test -z "$subpackage" ; then
+	    echo ""
+	    echo "%package $subpackage"
+	fi
+	for subsection in basic source patch ext temp ; do
+	    eval "for string in \"\${rpm_preamble__${subsection}_$subpackage[@]}\" ; do
+		echo \"\$string\"
+	    done"
+	done
+	echo ""
+	echo "%description${subpackage:+ $subpackage}"
+	eval echo \"\$rpm_description__$subpackage\"
+    done
+}
+
+# rpm_write_spec_body
+# Writes spec body to stdout.
+function rpm_write_spec_body {
+    pwiz_phase_save
+    pwiz_phase_reset
+    while pwiz_step query ; do
+	case "$pwiz_result" in
+	    "pwiz_run "* )
+		echo "${pwiz_result#pwiz_run }"
+		;;
+	    "pwiz_rem "* )
+		echo "${pwiz_result#pwiz_rem }"
+		;;
+# FIXME: will be removed
+	    "pwiz_run_eval "* | "pwiz_rem_eval "* )
+		eval echo \"\${PWIZ_STAGE_EVAL_$PWIZ_PHASE_CURRENT\[$PWIZ_STAGE_CURRENT\]}\"
+	    ;;
+	esac
+    done
+    pwiz_phase_restore
+}
+
+# rpm_write_spec
+# Writes complete spec to $PWIZ_RESULTDIR.
+function rpm_write_spec {
+    rm -f $PWIZ_RESULTDIR/$pwiz_project_project.spec
+    pwiz_redirect_stdout $PWIZ_RESULTDIR/$pwiz_project_project.spec
+    echo "# *** This file is generated by PWIZ. Do not edit by hand. ***"
+    rpm_write_spec_preamble
+    rpm_write_spec_body
+    pwiz_redirect_stdout_close
+}
+
+# rpm_write_sources
+# Copies sources to resultdir.
+function rpm_write_sources {
+    cp -a $PWIZ_SOURCESDIR/* $PWIZ_RESULTDIR
+}
+
+# rpm_spec_compile
+# Compile RPM package from spec file.
+# FIXME: don't hardwire paths
+function rpm_spec_compile {
+    cd $PWIZ_RESULTDIR
+    rpmbuild -ba $pwiz_project_project.spec
+    cp -a /usr/src/packages/RPMS/*/$pwiz_project_project-[0-9]* .
+    cp -a /usr/src/packages/SRPMS/$pwiz_project_project-[0-9]* .
+}
+
 
 # FIXME: rpm should auto-ask for splitted package args, if none are supported.
 

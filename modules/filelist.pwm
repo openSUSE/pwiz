@@ -11,7 +11,7 @@ case $1 in
 	;;
     init )
 # Phase providing preliminary file list during installation.
-	pwiz_phase_new_call filelist_install before INSTALL_LAST
+	pwiz_phase_new_call filelist_install after INSTALL_CHECK
 	pwiz_phase_new_call filelist_raw after CHECKINSTALL
 	pwiz_phase_new_call filelist_clean after filelist_raw
 	pwiz_phase_new filelist_inspect after filelist_clean
@@ -92,10 +92,8 @@ function filelist_raw_clean_2 {
     local pkg sub owned
     while filelist_read_item 0 ; do
 	if test $filelist_tag_type = dir ; then
-# FIXME: remove redirection
 # FIXME: implement and ask more files at once
 	    pwiz_pkgdb_what_owns "$filelist_tag_name"
-# FIXME check for both package and package-devel
 # FIXME: For non install root installation, we should generate ofile, too (but can be based on mtime).
 	    # If directory is owned by any installed package except this one and sub candidates, it is unowned.
 	    owned=true

@@ -10,11 +10,11 @@ case $1 in
 	return
 	;;
     init )
-	pwiz_module_needs check_unpacked prefix ldconfig package filelist_simplify
+	pwiz_module_needs prefix ldconfig package filelist_simplify
 	pwiz_phase_new gnome_gconf_install after ldconfig
 	prefix_provider
 	package_search_uri_provider
-	check_unpacked_provider
+	pwiz_phase_add_callme PREPARE_CHECK
 	filelist_install_provider
 	;;
     version )
@@ -54,7 +54,7 @@ function gnome_package_search_uri {
     fi
 }
 
-function gnome_check_unpacked {
+function gnome_PREPARE_CHECK {
     gnome_gconf_used=false
     if grep -q -r --include=configure.in AM_GCONF_SOURCE_2 . ; then
 	gnu_configure_args="$gnu_configure_args --disable-schemas-install"

@@ -11,7 +11,7 @@ case $1 in
 	;;
     init )
 	pwiz_phase_add_callme START
-	pwiz_phase_new_3 prefix after BUILD
+	pwiz_phase_new_3 prefix after PREPARE_CHECK
 	;;
     version )
 	echo "0.1"

@@ -11,7 +11,7 @@ case $1 in
 	;;
     init )
 	pwiz_module_needs filelist
-	pwiz_phase_add_callme SOURCE
+	pwiz_phase_add_callme SETUP
 	filelist_raw_provider
 	;;
     version )
@@ -23,7 +23,7 @@ case $1 in
 	;;
 esac
 
-function installwatch_SOURCE {
+function installwatch_SETUP {
     pwiz_phase_add SOURCE "mkdir -p $PWIZ_TMPDIR/installwatch"
 }
 

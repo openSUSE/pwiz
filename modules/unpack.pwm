@@ -12,7 +12,7 @@ case $1 in
     init )
 	pwiz_module_uses archive
 	pwiz_module_needs package
-	pwiz_phase_new unpack after PREPARE
+	pwiz_phase_new unpack after PREPARE_UNPACK
 	pwiz_phase_add_callme unpack
 	pwiz_phase_add_callme package
 	;;

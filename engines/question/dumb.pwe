@@ -29,7 +29,7 @@ function pwiz_engine_question_dumb_yesno {
     longdesc="$2"
     shift 2
     while test $guesses_count -lt ${#pwiz_guesses[*]} ; do
-	eval "${pwiz_guesses[$guesses_count]}_p=${pwiz_trusts[$guesses_count]}"
+	eval "${pwiz_guesses[guesses_count]}_p=${pwiz_trusts[guesses_count]}"
 	let guesses_count++
     done
     while : ; do
@@ -82,22 +82,21 @@ function pwiz_engine_question_dumb_string {
     while : ; do
 	echo
 	echo "$desc"
-	guesses_count=0
 	for (( guesses_count=0 ; guesses_count < ${#pwiz_guesses[*]} ; guesses_count++ )) ; do
 	    if test $guesses_count = "$pwiz_guess_best" ; then
 		default=", default"
 	    else
 		default=
 	    fi
-	    if test -z "${pwiz_hotkeys[$guesses_count]}" ; then
+	    if test -z "${pwiz_hotkeys[guesses_count]}" ; then
 		selection="$guesses_count"
 	    else
-		selection="$guesses_count, ${pwiz_hotkeys[$guesses_count]}"
+		selection="$guesses_count, ${pwiz_hotkeys[guesses_count]}"
 	    fi
-	    if test -z "${pwiz_strings[$guesses_count]}" ; then
-		echo "$selection) \"${pwiz_guesses[$guesses_count]}\" (${pwiz_trusts[$guesses_count]}%$default)"
+	    if test -z "${pwiz_strings[guesses_count]}" ; then
+		echo "$selection) \"${pwiz_guesses[guesses_count]}\" (${pwiz_trusts[guesses_count]}%$default)"
 	    else
-		echo "$selection) ${pwiz_strings[$guesses_count]} (${pwiz_trusts[$guesses_count]}%$default)"
+		echo "$selection) ${pwiz_strings[guesses_count]} (${pwiz_trusts[guesses_count]}%$default)"
 	    fi
 	done
 	if $pwiz_tag_allow_new ; then
@@ -167,19 +166,17 @@ function pwiz_engine_question_dumb_radio {
     while : ; do
 	echo
 	echo "$desc"
-	guesses_count=0
-	while test $guesses_count -lt ${#pwiz_guesses[*]} ; do
+	for (( guesses_count=0 ; guesses_count < ${#pwiz_guesses[*]} ; guesses_count++ )) ; do
 	    if test $guesses_count = "$pwiz_guess_best" ; then
 		default=", default"
 	    else
 		default=
 	    fi
-	    if test -z "${pwiz_strings[$guesses_count]}" ; then
-		echo "$guesses_count) \"${pwiz_guesses[$guesses_count]}\" (${pwiz_trusts[$guesses_count]}%$default)"
+	    if test -z "${pwiz_strings[guesses_count]}" ; then
+		echo "$guesses_count) \"${pwiz_guesses[guesses_count]}\" (${pwiz_trusts[guesses_count]}%$default)"
 	    else
-		echo "$guesses_count) ${pwiz_strings[$guesses_count]} (${pwiz_trusts[$guesses_count]}%$default)"
+		echo "$guesses_count) ${pwiz_strings[guesses_count]} (${pwiz_trusts[guesses_count]}%$default)"
 	    fi
-	    let guesses_count++
 	done
 	echo "h) help"
 	read
@@ -235,7 +232,7 @@ function pwiz_engine_question_dumb_list {
 	for list_item in $pwiz_answer ; do
 # FIXME: Text representation of items
 	    echo "$guesses_count) $list_item"
-	    items[$guesses_count]="$list_item"
+	    items[guesses_count]="$list_item"
 	    list_off=${list_off/ $list_item / }
 	    let guesses_count++
 	done
@@ -244,7 +241,7 @@ function pwiz_engine_question_dumb_list {
 	for list_item in $list_off ; do
 # FIXME: Text representation of items
 	    echo "$guesses_count) $list_item"
-	    items[$guesses_count]="$list_item"
+	    items[guesses_count]="$list_item"
 	    let guesses_count++
 	done
 	if test "$menu_mode" = "" ; then
@@ -302,15 +299,15 @@ Formal type for this is a list. Now you have a chance to add new item to this li
 			pwiz_answer=" "
 			guesses_count=0
 			while test $guesses_count -lt $REPLY ; do
-			    if test "${items[$guesses_count]}" != "${items[$menu_mode]}" ; then
-				pwiz_answer="$pwiz_answer${items[$guesses_count]} "
+			    if test "${items[guesses_count]}" != "${items[$menu_mode]}" ; then
+				pwiz_answer="$pwiz_answer${items[guesses_count]} "
 			    fi
 			    let guesses_count++
 			done
 			pwiz_answer="$pwiz_answer${items[$menu_mode]} "
 			while test $guesses_count -lt $count_off ; do
-			    if test "${items[$guesses_count]}" != "${items[$menu_mode]}" ; then
-				pwiz_answer="$pwiz_answer${items[$guesses_count]} "
+			    if test "${items[guesses_count]}" != "${items[$menu_mode]}" ; then
+				pwiz_answer="$pwiz_answer${items[guesses_count]} "
 			    fi
 			    let guesses_count++
 			done

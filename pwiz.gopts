@@ -59,7 +59,7 @@ All turns all debugging messages.
 
 @end
 
-#@ Verbose messages.
+#@ Verbose messages.
 alias eecho='echo >&2'
 
 if test $OPTCNT_VERBOSE -ge 1 ; then
@@ -80,7 +80,7 @@ else
     alias vvvecho=:
 fi
 
-#@ Unverbose messages.
+#@ Unverbose messages.
 if test $OPTCNT_QUIET -ge 1 ; then
     alias qecho=:
 else
@@ -371,7 +371,7 @@ function pwiz_canonize {
 #@ pwiz_run_wrapper_register function
 # Register wrapper for pwiz_run
 # wrapper uses pwiz_run_wrap for subsequent call
-#@ example:
+#@ example:
 #function mywrapper {
 #    do_anything
 #    operate_on "@" # returns ${result[]}
@@ -426,7 +426,7 @@ function pwiz_run_prepare {
 #@ WARNING: Do not alter pwiz_run_rc!
 function pwiz_run {
 # FIXME: for debugging only:
-# FIXME: Adopt other parts of run stuff to 1 arg
+# FIXME: Adopt other parts of run stuff to 1 arg
     if test "$2" != "" ; then
 	pwiz_warning "2 arguments: pwiz_run $*"
     fi
@@ -435,8 +435,10 @@ function pwiz_run {
 }
 
 #@ pwiz_run_eval args
-# Expand variables, save them and then call pwiz_run
+# Expand variables, save them and then call pwiz_run
+# FIXME: deprecated: replace by special phase with two stages
 function pwiz_run_eval {
+    pwiz_warning "deprecated: pwiz_run_eval $*"
     eval PWIZ_STAGE_EVAL_$PWIZ_PHASE_CURRENT\[$PWIZ_STAGE_CURRENT\]\=\"\$@\"
     eval pwiz_run "$@"
 }
@@ -450,7 +452,7 @@ function pwiz_rem {
 }
 
 #@ pwiz_rem_eval args
-# Expand variables, save them and then call pwiz_rem
+# Expand variables, save them and then call pwiz_rem
 function pwiz_rem_eval {
     eval PWIZ_STAGE_EVAL_$PWIZ_PHASE_CURRENT\[$PWIZ_STAGE_CURRENT\]\=\"\$@\"
     eval pwiz_rem "$@"
@@ -580,19 +582,22 @@ pwiz_engine_interface pkgdb what_owns
 # Question engine is iterface for communication with users. Engine
 # asks user and waits for response.
 
-# FIXME: obsolete #@ pwiz_question_yesno desc longdesc [ tags ... ]
+# FIXME: question callback implementation:
+# Any question will contain callbacked functions (it can be implementation background for "enter manually" and "help").
+
+# FIXME: obsolete #@ pwiz_question_yesno desc longdesc [ tags ... ]
 #@ Returns: 0: yes
 #@ Returns: 1: false
 #@ pwiz_question_radio desc longdesc [ tags ... ]
-#@ Returns: $pwiz_answer with selection.
+#@ Returns: $pwiz_answer with selection.
 #@ pwiz_question_selection desc longdesc [ tags ... ]
-#@ Returns: FIXME
+#@ Returns: FIXME
 #@ pwiz_question_string desc longdesc [ tags ... ]
-#@ Returns: $pwiz_answer answer.
+#@ Returns: $pwiz_answer answer.
 #@ pwiz_question_list desc longdesc [ tags ... ]
-#@ Returns: FIXME
+#@ Returns: FIXME
 
-# FIXME: obsolete yesno
+# FIXME: obsolete yesno
 #pwiz_engine_interface question radio selection string list
 pwiz_engine_interface question yesno radio selection string list
 
@@ -608,7 +613,7 @@ pwiz_engine_interface question yesno radio selection string list
 # It uses special Bash tricks to prevent expansion or splitting of tags.
 # If you want to prevent expansion at all, use set -o noglob in function alias.
 alias pwiz_read_tags='local pwiz_tag ; for pwiz_tag in "$@" ; do eval local pwiz_tag_${pwiz_tag%%[=[]*} ; done ; for pwiz_tag in "$@" ; do pwiz_tag=${pwiz_tag/\'\''/\'\''\\\'\''\'\''}\'\'' ; pwiz_tag=${pwiz_tag/=/=\'\''} ; eval pwiz_tag_"$pwiz_tag" ; done'
-# For better readability (needs ' -> '\''
+# For better readability (needs ' -> '\''
 # set -o noglob ; local pwiz_tag ; for pwiz_tag in "$@" ; do eval local pwiz_tag_${pwiz_tag%%=*} ; done ; for pwiz_tag in "$@" ; do pwiz_tag=${pwiz_tag/\'/\'\\\'\'}\' ; pwiz_tag=${pwiz_tag/=/=\'} ; eval pwiz_tag_"$pwiz_tag" ; done ; set +o noglob
 
 # Asking interface is used for querying users, saving and re-using results.
@@ -719,7 +724,7 @@ pwiz_tag_inherit=80
 #@tags valid: Validity range.
 #@tags id, after, before: Tags for ordered lists.
 function pwiz_guess {
-    local key_found is_new tags count guesses_count v_total v_default v_p v_string v_hotkey callback
+    local key_found is_new tags count v_total v_default v_p v_string v_hotkey callback
 
     pwiz_read_tags
     pwiz_keys_set
@@ -731,23 +736,35 @@ function pwiz_guess {
     done
     pwiz_cache_validity_apply
 
-    # parse guesses in tags
-    guesses_count=0
-    unset pwiz_guesses pwiz_strings pwiz_hotkeys pwiz_trusts
-    while test $guesses_count -lt ${#pwiz_tag_default[*]} -a "${pwiz_tag_default[0]}" != @@PWIZ_UNDEFINED@@ ; do
-	pwiz_guesses[guesses_count]="${pwiz_tag_default[guesses_count]}"
-	pwiz_strings[guesses_count]="${pwiz_tag_string[guesses_count]}"
-	pwiz_hotkeys[guesses_count]="${pwiz_tag_hotkey[guesses_count]}"
-	pwiz_check_p "${pwiz_tag_p[guesses_count]}"
-	pwiz_trusts[guesses_count++]=$((${pwiz_tag_p[guesses_count]} * $pwiz_auto_guess / 100))
-    done
+    unset pwiz_guesses pwiz_trusts pwiz_strings pwiz_hotkeys
 
+    # Defaults for Boolean.
+    if $pwiz_tag_yesno ; then
+	pwiz_guesses[0]="false"
+	pwiz_trusts[0]=0
+	pwiz_strings[0]="no"
+	pwiz_hotkeys[0]="n"
+	pwiz_guesses[1]="true"
+	pwiz_trusts[1]=0
+	pwiz_strings[1]="yes"
+	pwiz_hotkeys[1]="y"
+    fi
+
+    # callback of pwiz_guess_callback_{q}[*]
     if ! test -z "$pwiz_tag_q" ; then
-
-	# callback of pwiz_guess_callback_{q}[*]
 	eval 'for callback in ${pwiz_guess_callback_'"$pwiz_tag_q"'[@]} ; do
 	    $callback
 	done'
+    fi
+
+    # parse guesses in tags
+    for (( count=0 ; count < ${#pwiz_tag_default[@]} ; count++ )) ; do
+	decho_guess "guess in tags ${pwiz_tag_default[count]} (${pwiz_tag_p[count]}%)"
+	pwiz_guess_eval "${pwiz_tag_default[count]}" ${pwiz_tag_p[count]}\
+	    "${pwiz_tag_string[count]}" "${pwiz_tag_hotkey[count]}"
+    done
+
+    if ! test -z "$pwiz_tag_q" ; then
 
 	# parse guesses in environment variables pwiz_guess_default_{q} pwiz_guess_p_{q}, pwiz_guess_string_{q} pwiz_guess_hotkey_{q}
 	# WARNING: Those quesses does not recomputed p
@@ -758,33 +775,7 @@ function pwiz_guess {
 	    eval v_string\=\"\${pwiz_guess_string_$pwiz_tag_q\[count\]}\"
 	    eval v_hotkey\=\"\${pwiz_guess_hotkey_$pwiz_tag_q\[count\]}\"
 	    decho_guess "found guess in variable $v_default ($v_p%)"
-	    is_new=true
-	    for (( guesses_count=0 ; guesses_count < ${#pwiz_guesses[*]} ; guesses_count++ )) ; do
-		if test "${pwiz_guesses[guesses_count]}" = "$v_default" ; then
-		    if test $v_p -gt ${pwiz_trusts[guesses_count]} ; then
-			pwiz_trusts[guesses_count]=$v_p
-		    fi
-		    is_new=false
-		    break
-		fi
-	    done
-	    if $is_new ; then
-		pwiz_trusts[${#pwiz_guesses[*]}]=$v_p
-		if ! test -z "$v_string" ; then
-		    pwiz_strings[${#pwiz_guesses[*]}]="$v_string"
-		fi
-		if ! test -z "$v_hotkey" ; then
-		    pwiz_hotkeys[${#pwiz_guesses[*]}]="$v_hotkey"
-		fi
-		pwiz_array_add pwiz_guesses "$v_default"
-	    else
-		if ! test -z "${pwiz_strings[guesses_count]}" ; then
-		    pwiz_strings[guesses_count]="$v_string"
-		fi
-		if ! test -z "${pwiz_hotkeys[guesses_count]}" ; then
-		    pwiz_hotkeys[guesses_count]="$v_hotkey"
-		fi
-	    fi
+	    pwiz_guess_eval "$v_default" "$v_p" "$v_string" "$v_hotkey"
 	done
 
     # parse cached guesses
@@ -797,20 +788,8 @@ function pwiz_guess {
 	    tags="$pwiz_result"
 	    pwiz_cache_read $key_found
 	    eval pwiz_guess_trust "$tags"
-	    is_new=true
-	    for (( guesses_count=0 ; guesses_count < ${#pwiz_guesses[*]} ; guesses_count++ )) ; do
-		if test "${pwiz_guesses[guesses_count]}" = "$pwiz_result" ; then
-		    if test $pwiz_trust -gt ${pwiz_trusts[guesses_count]} ; then
-			pwiz_trusts[guesses_count]=$pwiz_trust
-		    fi
-		    is_new=false
-		    break
-		fi
-	    done
-	    if $is_new ; then
-		pwiz_trusts[${#pwiz_guesses[*]}]=$pwiz_trust
-		pwiz_array_add pwiz_guesses "$pwiz_result"
-	    fi
+# FIXME: Maybe parse tags to find string and hotkey.
+	    pwiz_guess_eval "$pwiz_result" "$pwiz_trust" "" ""
 	    decho_guess "result: $pwiz_result"
 	    decho_guess "trust: $pwiz_trust"
 	done
@@ -820,12 +799,12 @@ function pwiz_guess {
     pwiz_guess_best_value=@@PWIZ_UNDEFINED@@
     local best_guess_trust=0
     pwiz_guess_best=-1
-    for (( guesses_count=0 ; guesses_count < ${#pwiz_guesses[*]} ; guesses_count++ )) ; do
-	decho_guess "guess[$guesses_count]: ${pwiz_guesses[guesses_count]} trust=${pwiz_trusts[guesses_count]}"
-	if test "${pwiz_trusts[guesses_count]}" -ge $best_guess_trust ; then
-	    best_guess_trust=${pwiz_trusts[guesses_count]}
-	    pwiz_guess_best=$guesses_count
-	    pwiz_guess_best_value="${pwiz_guesses[guesses_count]}"
+    for (( count=0 ; count < ${#pwiz_guesses[*]} ; count++ )) ; do
+	decho_guess "guess[$count]: \"${pwiz_guesses[count]}\" trust=${pwiz_trusts[count]}"
+	if test "${pwiz_trusts[count]}" -ge $best_guess_trust ; then
+	    best_guess_trust=${pwiz_trusts[count]}
+	    pwiz_guess_best=$count
+	    pwiz_guess_best_value="${pwiz_guesses[count]}"
 	fi
     done
     decho_guess "available guesses: ${#pwiz_guesses[*]}"
@@ -838,7 +817,42 @@ pwiz_tag_trust=50
 # FIXME: Should be dependent on knowledge tag.
 pwiz_auto_guess=50
 # Default is undefined (definition prevents collision with empty strung default).
-pwiz_tag_default=@@PWIZ_UNDEFINED@@
+unset pwiz_tag_default
+
+#@ pwiz_guess_eval guess trust string hotkey
+#@ Evaluate guess for guess array in pwiz_guess (internal) or in callback.
+function pwiz_guess_eval {
+    local count
+    local is_new=true
+    for (( count=0 ; count < ${#pwiz_guesses[*]} ; count++ )) ; do
+	if test "${pwiz_guesses[count]}" = "$1" ; then
+	    if test $2 -gt ${pwiz_trusts[count]} ; then
+		pwiz_trusts[count]=$2
+	    fi
+	    is_new=false
+	    break
+	fi
+    done
+# FIXME: Maybe test -z is not required.
+    if $is_new ; then
+	pwiz_trusts[${#pwiz_guesses[*]}]=$2
+	if ! test -z "$3" ; then
+	    pwiz_strings[${#pwiz_guesses[*]}]="$3"
+	fi
+	if ! test -z "$4" ; then
+	    pwiz_hotkeys[${#pwiz_guesses[*]}]="$4"
+	fi
+	pwiz_array_add pwiz_guesses "$1"
+    else
+	if test -z "${pwiz_strings[count]}" -a ! -z "$3" ; then
+	    pwiz_strings[count]="$3"
+	fi
+	if test -z "${pwiz_hotkeys[count]}" -a ! -z "$4" ; then
+	    pwiz_hotkeys[count]="$4"
+	fi
+    fi
+}
+
 
 #@ pwiz_guess_add q value p [ string hotkey ]
 #@ Add predefined guess to environment variables pwiz_guess_default_{q} pwiz_guess_p_{q} and pwiz_guess_string_{q}
@@ -960,7 +974,8 @@ function pwiz_ask_yesno_f {
     local desc="$1"
     local longdesc="$2"
     shift 2
-    pwiz_ask_core pwiz_question_string "$desc" "$longdesc" "default[0]=false" "string[0]=no" "p[0]=0" "hotkey[0]=n" "default[1]=true" "string[1]=yes" "p[1]=0" "hotkey[1]=y" yesno=true allow_new=false "$@"
+    pwiz_read_tags
+    pwiz_ask_core pwiz_question_string "$desc" "$longdesc" yesno=true allow_new=false "$@"
     if $pwiz_answer ; then
 	return
     else
@@ -1206,8 +1221,9 @@ function pwiz_phase_add_run {
 # WARNING: Remember not to expand variables, i. e. use single quotes or backslashes.
 function pwiz_phase_add_run_eval {
 # FIXME: for debugging only:
+    pwiz_warning "deprecated: pwiz_phase_add_run_eval $*"
     if test "$3" != "" ; then
-	pwiz_fatal "3 arguments: pwiz_phase_add_run $*"
+	pwiz_fatal "3 arguments: pwiz_phase_add_run_eval $*"
     fi
     pwiz_phase_add "$1" "pwiz_run_eval $2"
 }
@@ -1415,8 +1431,28 @@ function pwiz_step {
     fi
 }
 
-PWIZ_PHASE_CURRENT=BEGIN
-PWIZ_STAGE_CURRENT=0
+#@ pwiz_phase_reset
+# reset phase engine
+function pwiz_phase_reset {
+    PWIZ_PHASE_CURRENT=BEGIN
+    PWIZ_STAGE_CURRENT=0
+}
+pwiz_phase_reset
+
+#@ pwiz_phase_save
+# save phase engine state
+function pwiz_phase_save {
+    PWIZ_PHASE_CURRENT_save=$PWIZ_PHASE_CURRENT
+    PWIZ_STAGE_CURRENT_save=$PWIZ_STAGE_CURRENT
+}
+
+#@ pwiz_phase_restore
+# restore phase engine state
+function pwiz_phase_restore {
+    PWIZ_PHASE_CURRENT=$PWIZ_PHASE_CURRENT_save
+    PWIZ_STAGE_CURRENT=$PWIZ_STAGE_CURRENT_save
+    unset PWIZ_PHASE_CURRENT_save PWIZ_STAGE_CURRENT_save
+}
 
 
 #@@ checkpoints
@@ -1425,6 +1461,32 @@ PWIZ_STAGE_CURRENT=0
 # special actions. User is not disturbed by lots of questions with
 # expected negative answer for most of them, but is queried only by one
 # question with chance to select list.
+
+# FIXME: each action can be included only once. Is it correct?
+
+#@ pwiz_checkpoint_new id [ after | before ] phase "Short desc" "Long desc"
+function pwiz_checkpoint_new {
+    pwiz_phase_new "$1" "$2" "$3"
+    pwiz_phase_add "$1" "pwiz_checkpoint_ask $1"
+    eval pwiz_checkpoint_desc_$1\=\"\$4\"
+    eval pwiz_checkpoint_longdesc_$1\=\"\$5\"
+}
+
+#@ pwiz_checkpoint_ask id (internal)
+function pwiz_checkpoint_ask {
+    local item
+    pwiz_ask_list "$4" \"$5\" q=checkpoint_$1 allow_new=false
+    for item in $pwiz_answer ; do
+	pwiz_phase_add "$1" "$item"
+    done
+}
+
+# FIXME: what description is correct
+#@ pwiz_checkpoint_add phase_id "Short desc" "Long desc" q=question_id [tags]
+#@ pwiz_checkpoint_add phase_id function [ string hotkey ]
+function pwiz_checkpoint_add {
+    pwiz_guess_add "$1" "$2" 0 "$3" "$4"
+}
 
 #@@ modules
 
@@ -1538,8 +1600,8 @@ function pwiz_module_uses {
 #@ If your action surely does not need any action before it in the
 #@ same range, you can use listed phases, otherwise create own phase.
 #@ Each phase has counterpair {phase}_LAST for simple and portable adding to the end of actions.
-#@ WARNING: For listed phases, avoid if possible: pwiz_phase_add before PHASE
-#@ WARNING: For listed phases, avoid if possible: pwiz_phase_add after PHASE_LAST
+#@ WARNING: For listed major phases, avoid if possible: pwiz_phase_add before PHASE
+#@ WARNING: For listed major phases, avoid if possible: pwiz_phase_add after PHASE_LAST
 #@ basic phase descriptions:
 #@ BEGIN
 #@  > special general actions
@@ -1547,18 +1609,23 @@ function pwiz_module_uses {
 #@  > general actions only, $pwiz_project_* attributes are not defined
 #@ PROJECT
 #@  > project and version selection process, here you can set $pwiz_project_*
-# FIXME: rename it?:
+# FIXME: rename it?:
+#@ SETUP
+#@  > set up pwiz for work with known project, access where appropriate ($PWIZ_TMPSDIR)
 #@ SOURCE
 #@  > get sources, set extended project attributes, $pwiz_project_* are set, access to $PWIZ_SOURCESDIR
 #@ PREPARE
 #@  > prepare source code (unpack, patch), access to $PWIZ_SRCDIR
+#@    subphases: PREPARE_CLEAN PREPARE_PREUNPACK PREPARE_UNPACK PREPARE_POSTUNPACK PREPARE_CHECK PREPARE_PATCH PREPARE_RECHECK
 #@ BUILD
 #@  > build project (configure, compile), access to $PWIZ_BUILDDIR
+#@    subphases: BUILD_SETENV BUILD_CONF BUILD_POSTCONFHACK BUILD_PRECOMPILE BUILD_COMPILE BUILD_POSTCOMPILE
 #@ PREINSTALL
 #@  > special actions before installation to install root, keep empty if possible
 #@    WARNING: use premerge for standard pre-installation processes
 #@ INSTALL
 #@  > install project, access to $PWIZ_INSTALLROOT
+#@    subphases: INSTALL_PREPARE INSTALL_PREACTION INSTALL_ACTION INSTALL_POSTACTION INSTALL_CHECK INSTALL_POSTCHECK
 #@ CHECKINSTALL
 #@  > Check all installed things. Read access.
 #@ PREMERGE
@@ -1585,7 +1652,12 @@ function pwiz_module_uses {
 function init_phase_skeleton {
     local phase prev_phase
     prev_phase=BEGIN
-    for phase in START PROJECT SOURCE PREPARE BUILD PREINSTALL INSTALL CHECKINSTALL PREMERGE MERGE CLEAN POSTINSTALL RUNTEST PREUNINSTALL UNINSTALL POSTUNINSTALL RESULTS FINISH ; do
+    for phase in START PROJECT SETUP SOURCE\
+	PREPARE PREPARE_CLEAN PREPARE_PREUNPACK PREPARE_UNPACK PREPARE_POSTUNPACK PREPARE_CHECK PREPARE_PATCH\
+	BUILD BUILD_SETENV BUILD_CONF BUILD_POSTCONFHACK BUILD_PRECOMPILE BUILD_COMPILE BUILD_POSTCOMPILE\
+	PREINSTALL\
+	INSTALL INSTALL_PREPARE INSTALL_PREACTION INSTALL_ACTION INSTALL_POSTACTION INSTALL_CHECK INSTALL_POSTCHECK\
+	CHECKINSTALL PREMERGE MERGE CLEAN POSTINSTALL RUNTEST PREUNINSTALL UNINSTALL POSTUNINSTALL RESULTS FINISH ; do
 	pwiz_phase_new $phase after $prev_phase
 	pwiz_phase_new ${phase}_LAST after $phase
 	prev_phase=${phase}_LAST
@@ -1663,8 +1735,8 @@ init_phase_skeleton
 
 pwiz_modules_load
 
-# FIXME: feature list and all
-# FIXME: Report unknown features.
+# FIXME: feature list and all
+# FIXME: Report unknown features.
 #@ Debug messages (cannot appear in module init phase).
 IFS="${IFS}:,"
 pwiz_debug_list=false
@@ -1737,53 +1809,7 @@ while pwiz_step run ; do
     :
 done
 
-eecho ""
-eecho "* Finished. Build summary:"
-
-# BIG FIXME
-rm -f $PWIZ_RESULTDIR/$pwiz_project_project.spec
-echo >$PWIZ_RESULTDIR/$pwiz_project_project.spec "# *** Autogenerated by PWIZ. Do not edit by hand. ***"
-cp -a $PWIZ_SOURCESDIR/* $PWIZ_RESULTDIR
-PWIZ_PHASE_CURRENT=BEGIN
-PWIZ_STAGE_CURRENT=0
-pwiz_redirect_stdout $PWIZ_RESULTDIR/$pwiz_project_project.spec
-# FIXME: to rpm: rpm_generate_preamble
-for rpm_subpackage in "" $rpm_subpackage_list ; do
-    if ! test -z "$rpm_subpackage" ; then
-	echo ""
-	echo "%package $rpm_subpackage"
-    fi
-    eval rpm_preamble_length\=\${#rpm_preamble__$rpm_subpackage\[@\]}
-    for (( i=0 ; i < $rpm_preamble_length ; i++ )) ; do
-	eval echo \"\${rpm_preamble__$rpm_subpackage\[i\]}\"
-    done
-    echo ""
-    echo "%description${rpm_subpackage:+ $rpm_subpackage}"
-    eval echo \"\$rpm_description__$rpm_subpackage\"
-done
-while pwiz_step query ; do
-    case "$pwiz_result" in
-	"pwiz_run "* )
-	    echo "${pwiz_result#pwiz_run }"
-	    ;;
-	"pwiz_rem "* )
-	    echo "${pwiz_result#pwiz_rem }"
-	    ;;
-	"pwiz_run_eval "* | "pwiz_rem_eval "* )
-	    eval echo \"\${PWIZ_STAGE_EVAL_$PWIZ_PHASE_CURRENT\[$PWIZ_STAGE_CURRENT\]}\"
-	    ;;
-    esac
-done
-pwiz_redirect_stdout_close
-echo "*** File $PWIZ_RESULTDIR/$pwiz_project_project.spec was written."
-
+# FIXME:
 set >$PWIZ_TMPDIR/pwiz.set
 
-echo "Veryfying spec file."
-cd $PWIZ_RESULTDIR
-rpmbuild -ba $pwiz_project_project.spec
-cp -a /usr/src/packages/RPMS/*/$pwiz_project_project-[0-9]* .
-cp -a /usr/src/packages/SRPMS/$pwiz_project_project-[0-9]* .
-
-echo "All done."
 pwiz_exit
