@@ -1087,6 +1087,7 @@ function pwiz_ask_list_f {
 
     pwiz_ask_core pwiz_question_list "$desc" "$longdesc" "$@"
 
+# FIXME: Return usable result in array.
 }
 pwiz_tag_item_type=string
 
