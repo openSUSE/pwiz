@@ -1,0 +1,22 @@
+PWIZ - A Packaging WIZard
+
+Purpose:
+
+PWIZ is a software tool, which should simplify packaging work by some
+steps automatically.
+
+STATE
+
+In current state, there are not yet any manual intervention checkponts,
+except question. Promarilly it is tested on GNOME related stuff.
+
+INSTALL
+
+copy pwiz and all related files into ~/pwiz.
+
+Then do:
+
+cd pwiz
+./pwiz
+
+That's all.
