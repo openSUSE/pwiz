@@ -18,8 +18,30 @@ RPM %files suid support.
 
 RPM CXXFLAGS are now hardwired, even if they are unused.
 
-Support for RPM %ghost.
+Support for RPM %ghost and standalone %dir.
 
 Support for not GNU configure based programs.
 
-Support for more cache sources and force-overwrite in local cache.
+Support for more cache sources (remote cache) and force-overwrite in local cache.
+
+SuSE RPM support and some paths are hardcoded in some places.
+
+Nicer filename simplification - use *.ext or "file" instead of *, even if * is OK.
+
+Better manual control over packaging process.
+
+Action logging and analysis.
+
+Make some debugging optional and clean after build.
+
+More compilation paradigms (perl module, python module, apache module,
+xmkmf, plain make...)
+
+Checking for devel package dependences (.la and .pc files).
+
+Desktop file and mime type checking.
+
+More package building modes (fast packaging, standard packaging,
+torture mode).
+
+Preferences editor instead of hardwired product.

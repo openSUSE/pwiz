@@ -280,12 +280,12 @@ function filelist_read_close {
 # Reads list item from opened stream.
 # Known tags variables:
 # $filelist_tag_type: type of object ("file", "dir", "read")
-# $filelist_tag_attr: attributes of file in package (not permissions,
+# $filelist_tag_cat: attributes of file in package (not permissions,
 #but attributes like doc, man, noverify etc.)
 # $filelist_tag_sub: subpackage
 # Filelist line format (for writing to list):
 #@<
-#filename type@sub=subname@attr=doc
+#filename type@sub=subname@cat=doc
 #filename2 type
 #@>
 function filelist_read_item {
@@ -298,7 +298,7 @@ function filelist_read_item {
 	filelist_tagline="${filelist_line##* }"
 	filelist_tag_name="${filelist_line% *}"
 	filelist_tag_type="${filelist_tagline%%@*}"
-	filelist_tag_attr=
+	filelist_tag_cat=
 	filelist_tag_sub=
 	local IFS="${IFS}@"
 	local tag val

@@ -1,3 +1,14 @@
+2004-07-22  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* README, TODO: Documentation fixes.
+
+	* Makefile.am, configure.in: Documentation and packaging fixes.
+
+	* pwiz.gopts.in, filelist.pwm, gnu_configure.pwm, rpm.pwm,
+	rpm_doc.pwm: Documentation packaging and file tagging fixes.
+
+	* filelist_simplify.pwm: Fixed dead loop for symbolic paths.
+
 2004-07-16  Stanislav Brabec  <sbrabec@suse.cz>
 
 	* modules/filelist.pwm, modules/installwatch.pwm.in,

@@ -10,9 +10,10 @@ case $1 in
 	return
 	;;
     init )
-	pwiz_module_needs rpm
+	pwiz_module_needs rpm gnu_configure
 	pwiz_phase_new_call rpm_doc_check after BUILD_POSTCOMPILE
 	pwiz_phase_new_call rpm_doc_copy after INSTALL_POSTCHECK
+	pwiz_phase_add configure_args rpm_doc_configure
 	filelist_install_provider
 	filelist_inspect_provider
 	;;
@@ -70,10 +71,30 @@ function rpm_doc_check {
 }
 shopt -u extglob
 
+function rpm_doc_configure {
+    # FIXME: don't hardwire SuSE defaults
+    local p="/usr/share/doc/packages/$pwiz_project_project-$pwiz_project_version"
+    local d="/usr/share/doc/packages"
+    pwiz_cache_load q=rpm_doc_wants_docdir default=false
+    if $pwiz_guess_best_value ; then
+	# FIXME: something can be guessed by configure --help
+	if pwiz_ask_string "Enter configure option for changing documentation destination." \
+	    "Based on previous PWIZ runs, it seems, that package uses ugly located documentation and you wants to change documentation destination by configure script. This argument has no standard and varies package from package. You can use \"\$p\" instead of \"$p\" and \"\$d\" instead of \"$d\". Predefined defaults are one of most often."\
+	    q=rpm_doc_configure_arg \
+	    default[0]="--with-docdir=\$p" \
+	    default[1]="--with-docdir=\$d" \
+	    default[2]="--with-doc-dir=\$p" \
+	    default[3]="--with-doc-dir=\$d" ; then
+	    eval gnu_configure_add_arg "$pwiz_answer"
+	fi
+    fi
+}
+
 function rpm_doc_copy {
     if $rpm_doc_has_doc_files_addon ; then
 	# mkdir check not needed, done by adding actions.
-	pwiz_phase_add_run rpm_doc_copy "cp ${rpm_doc_files[*]} \$RPM_BUILD_ROOT%{_defaultdocdir}"
+	rpm_subst_names "cp ${rpm_doc_files[*]} \$RPM_BUILD_ROOT/usr/share/doc/packages/$pwiz_project_project-$pwiz_project_version"
+	pwiz_phase_add_run rpm_doc_copy "$pwiz_result"
     fi
 }
 rpm_doc_has_doc_files_addon=false
@@ -100,18 +121,20 @@ function rpm_doc_filelist_install {
     local ugly_file ugly_datadir
     filelist_read_open
     while filelist_read_item ; do
-	if test "${filelist_tag_name#/usr/share/doc/packages}" != "$filelist_tag_name" ; then
-	    has_doc_packages=true
-	else
-	    if test "${filelist_tag_name#$datadir/doc}" != "$filelist_tag_name" ; then
-		ugly_file=$filelist_tag_name
-		ugly_datadir=true
-		has_ugly_doc=true
+	if test "$filelist_tag_name" != /usr/share/doc/packages -a "$filelist_tag_name" != /usr/share/doc ; then
+	    if test "${filelist_tag_name#/usr/share/doc/packages/}" != "$filelist_tag_name" ; then
+		has_doc_packages=true
 	    else
-		if test "${filelist_tag_name#$prefix/doc}" != "$filelist_tag_name" ; then
+		if test "${filelist_tag_name#$datadir/doc}" != "$filelist_tag_name" ; then
 		    ugly_file=$filelist_tag_name
-		    ugly_datadir=false
+		    ugly_datadir=true
 		    has_ugly_doc=true
+		else
+		    if test "${filelist_tag_name#$prefix/doc}" != "$filelist_tag_name" ; then
+			ugly_file=$filelist_tag_name
+			ugly_datadir=false
+			has_ugly_doc=true
+		    fi
 		fi
 	    fi
 	fi
@@ -137,26 +160,37 @@ function rpm_doc_filelist_install {
 		rpm_doc_has_doc_files_addon=true
 		# FIXME: Use path from RPM
 		if ! test -d "$PWIZ_INSTALLROOT/usr/share/doc/packages/$pwiz_project_project-$pwiz_project_version" ; then
-		    pwiz_phase_add_run rpm_doc_copy "mkdir -p \$RPM_BUILD_ROOT%{_defaultdocdir}"
+		    rpm_subst_names "mkdir -p \$RPM_BUILD_ROOT/usr/share/doc/packages/$pwiz_project_project-$pwiz_project_version"
+		    pwiz_phase_add_run rpm_doc_copy "$pwiz_result"
 		fi
-		pwiz_phase_add_run rpm_doc_copy "mv \$RPM_BUILD_ROOT$ugly_dir/* \$RPM_BUILD_ROOT%{_defaultdocdir}"
+		rpm_subst_names "mv \$RPM_BUILD_ROOT$ugly_dir/* \$RPM_BUILD_ROOT/usr/share/doc/packages/$pwiz_project_project-$pwiz_project_version"
+		pwiz_phase_add_run rpm_doc_copy "$pwiz_result"
+		rpm_subst_names "rmdir \$RPM_BUILD_ROOT$ugly_dir"
+		pwiz_phase_add_run rpm_doc_copy "$pwiz_result"
 		;;
 	    movesubdir )
 		rpm_doc_has_doc_files_addon=true
 		pwiz_ask_string "Enter docdir subdirectory." "You have decided to package documentation to subdirectory of defaultdocdir. Now you should enter its name." \
 		    q=rpm_doc_move_subdir
 		# FIXME: Use path from RPM
-		if ! test -d "$PWIZ_INSTALLROOT/usr/share/doc/packages/$pwiz_project_project-$pwiz_project_version" ; then
-		    pwiz_phase_add_run rpm_doc_copy "mkdir -p \$RPM_BUILD_ROOT%{_defaultdocdir}/$pwiz_answer"
+		if ! test -d "$PWIZ_INSTALLROOT/usr/share/doc/packages/$pwiz_project_project-$pwiz_project_version/$pwiz_answer" ; then
+		    rpm_subst_names "mkdir -p \$RPM_BUILD_ROOT/usr/share/doc/packages/$pwiz_project_project-$pwiz_project_version/$pwiz_answer"
+		    pwiz_phase_add_run rpm_doc_copy "$pwiz_result"
 		fi
-		pwiz_phase_add_run rpm_doc_copy "mv \$RPM_BUILD_ROOT$ugly_dir \$RPM_BUILD_ROOT%{_defaultdocdir}/$pwiz_answer"
+		rpm_subst_names "mv \$RPM_BUILD_ROOT$ugly_dir/* \$RPM_BUILD_ROOT/usr/share/doc/packages/$pwiz_project_project-$pwiz_project_version/$pwiz_answer"
+		pwiz_phase_add_run rpm_doc_copy "$pwiz_result"
+		rpm_subst_names "rmdir \$RPM_BUILD_ROOT$ugly_dir"
+		pwiz_phase_add_run rpm_doc_copy "$pwiz_result"
 		;;
 	    config )
 		pwiz_exit
 		;;
 	esac
-    else
-	pwiz_cache_save false q=rpm_doc_wants_docdir
+# FIXME: Do not save, that things are OK. It is not perfect solution,
+# because used can define --with-docdir=/usr/share/doc and the result
+# will be bad entry in cache.
+#    else
+#	pwiz_cache_save false q=rpm_doc_wants_docdir
     fi
 }
 
@@ -165,8 +199,10 @@ function rpm_doc_filelist_inspect {
     pwiz_redirect_stdout $filelist_file_tmp
     while filelist_read_item ; do
 	case "$filelist_tag_name" in
-	    /usr/share/doc/packages/* | $mandir/* | $infodir/* )
-		echo "$filelist_tag_name $filelist_tagline@attr=doc"
+# FIXME: hardcoded path
+	    /usr/share/doc/packages | /usr/share/doc/packages/* | $mandir | $mandir/* | $infodir | $infodir/* )
+		rpm_subst_names "$filelist_tag_name"
+		echo "$pwiz_result $filelist_tagline@cat=doc"
 		;;
 	    * )
 		echo "$filelist_tag_name $filelist_tagline"

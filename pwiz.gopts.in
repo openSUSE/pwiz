@@ -1026,6 +1026,8 @@ function pwiz_cache_load {
 	pwiz_fatal "pwiz_cache_remove called without q tag"
     fi
     pwiz_keys_set
+    pwiz_cache_validity_apply
+    local pwiz_cache_key="$pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$build"
 
     # Add '*' to pattern for keys, where credit inheritance function exists.
     # This is really needed in pwiz_guess, but it's simpler to set it here.
@@ -1355,7 +1357,7 @@ function pwiz_guess_credit {
 # uses tag hotkey[@@]: guess hotkey for predefined defaults (optional - array can be sparse)
 # uses tag valid: validity range (see @pwiz_cache_validity_{name}) (default exact)
 # uses tag yesno: tag for boolean questions (default false)
-# uses $pwiz_cache_key: cache key name, where answer should be cached
+# uses $pwiz_cache_key: cache key name, where answer should be cached (required)
 # uses ${pwiz_guess_default_{tag q}[@@]}: predefined defaults in variables
 # uses ${pwiz_guess_c_{tag q}[@@]}: credits of predefined defaults in
 #variables (optional - array can be sparse)
@@ -1780,7 +1782,9 @@ function pwiz_ask_core {
 		rc=1
 	    fi
 	fi
-	guesslevel=100
+	# We cannot give any credit to automatic answer.
+	# FIXME: In multiple-cache source mode, we can copy item from remote cache to local.
+	guesslevel=0
     else
 	local pwiz_hotarray
 	# Search for unique hotkeys.
@@ -1853,7 +1857,7 @@ function pwiz_ask_core {
 		fi
 		# Is there a chance to increase patchlevel?
 		if test "$patchlevel" != @ ; then
-		    nocred_string="$nocred_string default[$nocred_no]=patchlevel string[$nocred_no]=\"increase a patchlevel\""
+		    nocred_string="$nocred_string default[$nocred_no]=patchlevel string[$nocred_no]=\"increase patchlevel\""
 		    let nocred_no++
 		else
 		    nocred_help="$nocred_help Increasing of patchlevel is not possible, because this question validity range does not support patchlevel."
@@ -1975,8 +1979,9 @@ function pwiz_get_guesslevel {
 	    p0=10 p25=30 p50=25 p75=20 p100=15
 	fi
     fi
+# FIXME: implement and add " or specify guess level in your answer (if it is supported by question engine)"
     pwiz_ask_string "Specify, how sure you are."\
-	"You should say, how sure you are with last answer. If you are sure, you will not be asked next time. If you are unsure, next time you will be asked again. If you don't want to see this dialog after each question, specify guess level in your answer (if it is supported by question engine). On the other side, this additional question allows you to press Enter without thinking and giving extra credit to your answer."\
+	"You should say, how sure you are with last answer. If you are sure, you will not be asked next time. If you are unsure, next time you will be asked again. If you don't want to see this dialog after each question, use proper command line argument. On the other side, this additional question allows you to press Enter without thinking and giving extra credit to your answer."\
 	knowledge=total\
 	default[0]=0 string[0]="Random guess. (0%)." p[0]=$p0\
 	default[1]=25 string[1]="I'm trying. (25%)." p[1]=$p25\

@@ -12,6 +12,7 @@ case $1 in
     init )
 # FIXME: Name conventions of "three phase action"
 # FIXME: gnu_make now not needed
+# FIXME: Add phase for users or wrapper instead of plain use configure_args.
 	pwiz_knowledge_feature build "package building process" "Knowledge on general package configuration and compilation."
 	pwiz_module_uses prefix gnu_make
 	pwiz_phase_new configure_check after PREPARE_CHECK

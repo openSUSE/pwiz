@@ -32,6 +32,7 @@ doc: pwizdoc $(top_srcdir)/modules/*.pwm $(top_srcdir)/modules/*.pwm.in pwiz.gop
 	rm doc/stamp
 
 EXTRA_DIST=\
+	autogen.sh\
 	pwiz.gopts.in\
 	pwizdoc\
 	TODO\

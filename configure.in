@@ -6,7 +6,7 @@ AC_CONFIG_SRCDIR([pwiz.gopts.in])
 AM_CONFIG_HEADER([config.h])
 AM_INIT_AUTOMAKE([dist-bzip2])
 AC_ARG_WITH([docdir], [path for documentation],
-  [docdir="$ac_arg_with"], [docdir='${datadir}/doc'])
+  [docdir="$withval"], [docdir='${datadir}/doc'])
 AC_SUBST([docdir], ["${docdir}"])
 
 # Static wrappers are impossible and pwiz does not contain any other libraries.

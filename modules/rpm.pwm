@@ -284,15 +284,16 @@ function rpm_projectdirs_init_callback {
     PWIZ_INSTALLROOT=/var/tmp/$pwiz_project_project-$pwiz_project_version-build
 }
 
-#@ rpm_subst string
+#@ rpm_subst_names string
 # string: string, where names should be replaced
 # returns $pwiz_result: string with replaced names
 #
-# Substitute %{name}, %{_name}, %{version} in source string.
+# Substitute %{name}, %{_name}, %{version}, %{_defaultdocdir} in source string.
 
 # FIXME: implement and substitute %{_name}
 # BIG FIXME: crashes for packages with "name" and "version" in package name
 # FIXME: should be part of pwiz_add_run
+# FIXME: %{_defaultdocdir} don't hardcode
 function rpm_subst_names {
     pwiz_result="$1"
     pwiz_result=${pwiz_result//$pwiz_project_project/%\{name\}}
@@ -300,6 +301,7 @@ function rpm_subst_names {
 	pwiz_result=${pwiz_result//$package_basename/%\{_name\}}
     fi
     pwiz_result=${pwiz_result//$pwiz_project_version/%\{version\}}
+    pwiz_result=${pwiz_result//\/usr\/share\/doc\/packages/%\{_defaultdocdir\}}
 }
 
 #@ rpm_files_create

@@ -35,7 +35,7 @@ function filelist_simplify {
     local -i count count2
     local file type tagline tagext
     local file2 type2 tagline2 tagext2
-    local usable valid_pattern valid_glob_pattern path callback pattern
+    local usable valid_pattern valid_glob_pattern path old_path callback pattern
     local -a list_files list_types list_taglines
 
 # Read file list to memory.
@@ -90,7 +90,6 @@ function filelist_simplify {
 	    path="${file%/*}"
 	fi
 
-# FIXME: If path is not absolute, dead loop occurs
 	until test "$path" = "" ; do
 
 	    for callback in "${filelist_simplify_callbacks[@]}" ; do
@@ -166,10 +165,15 @@ function filelist_simplify {
 
 	    # Now cut rightmost part of path and try again with shorter pattern
 	    # and loop to try to find even better simplification.
+	    old_path=$path
 	    if test "$path" = / ; then
 		path=
 	    else
 		path="${path%/*}"
+		# Prevent dead loop, if path does not start with "/".
+		if test "$path" = "$old_path" ; then
+		    path=
+		fi
 	    fi
 	done
 
