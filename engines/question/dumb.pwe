@@ -98,7 +98,7 @@ function pwiz_engine_question_dumb_string {
 	fi
 	echo -n "$pwiz_engine_question_dumb_question_end"
 	echo "$longdesc" | fmt -w $(tput cols)
-	read
+	read -p "pwiz${pwiz_tag_q:+@$pwiz_tag_q}> "
 	case "$REPLY" in
 	    "" )
 		if test "$pwiz_guess_best_value" = @@PWIZ_UNDEFINED@@ ; then
@@ -203,7 +203,7 @@ function pwiz_engine_question_dumb_radio {
 	done
 	echo -n "$pwiz_engine_question_dumb_question_end"
 	echo "$longdesc" | fmt -w $(tput cols)
-	read
+	read -p "pwiz${pwiz_tag_q:+@$pwiz_tag_q}> "
 	case "$REPLY" in
 	    "" )
 		if test "$pwiz_guess_best_value" = @@PWIZ_UNDEFINED@@ ; then
@@ -235,6 +235,8 @@ function pwiz_engine_question_dumb_list {
     local desc longdesc list_off list_item items_count count_off menu_mode="" bdefault edefault default REPLY pwiz_answer_save string
     local -a items
 
+    pwiz_fallback_answer=true
+
     desc="$1"
     longdesc="$2"
     shift 2
@@ -251,7 +253,7 @@ function pwiz_engine_question_dumb_list {
     done
     while : ; do
 	echo "$pwiz_engine_question_dumb_desc_begin$desc$pwiz_engine_question_dumb_desc_end"
-	echo "Active items (in order):"
+	echo "${yellow}Active items (in order):$black"
 	items_count=0
 	list_off=" ${pwiz_list_all[*]} "
 # FIXME: Hotkeys.
@@ -268,7 +270,7 @@ function pwiz_engine_question_dumb_list {
 	    let items_count++
 	done
 	count_off=$items_count
-	echo "Inactive items:"
+	echo "${yellow}Inactive items:$black"
 	for list_item in $list_off ; do
 	    eval string\=\"\$list__$list_item\"
 	    if test -z "$string" ; then
@@ -288,7 +290,7 @@ function pwiz_engine_question_dumb_list {
 	    echo "x) exit list editor (default)"
 	    echo -n "$pwiz_engine_question_dumb_question_end"
 echo "$longdesc" | fmt -w $(tput cols)
-	    read
+	    read -p "pwiz${pwiz_tag_q:+@$pwiz_tag_q}> "
 	    case "$REPLY" in
 		n )
 		    if $pwiz_tag_allow_new ; then
@@ -302,6 +304,7 @@ echo "$longdesc" | fmt -w $(tput cols)
 Formal type for this is a list. Now you have a chance to add new item to this list." "$@" q=${pwiz_tag_q}_$REPLY'
 			pwiz_answer="$pwiz_answer_save"
 			menu_mode=""
+			pwiz_fallback_answer=false
 		    else
 			echo "Invalid choice!"
 		    fi
@@ -317,6 +320,7 @@ Formal type for this is a list. Now you have a chance to add new item to this li
 			continue
 		    fi
 		    menu_mode="$REPLY"
+		    pwiz_fallback_answer=false
 		    ;;
 		* )
 		    echo "Invalid choice!"
@@ -329,7 +333,7 @@ Formal type for this is a list. Now you have a chance to add new item to this li
 		echo "i) inactivate item"
 		echo "n) new item in this position"
 		echo "x) exit item editor (default)"
-		read
+		read -p "pwiz@$menu_mode${pwiz_tag_q:+@$pwiz_tag_q}> "
 		case "$REPLY" in
 	    # FIXME: Limit is 1000 guesses.
 		    [0-9] | [0-9][0-9] | [0-9][0-9][0-9] )
@@ -380,7 +384,7 @@ Formal type for this is a list. Now you have a chance to add new item to this li
 	    else
 		echo "a) activate item"
 		echo "x) exit item editor (default)"
-		read
+		read -p "pwiz@$menu_mode${pwiz_tag_q:+@$pwiz_tag_q}> "
 		case "$REPLY" in
 		    a )
 			pwiz_answer="$pwiz_answer${items[$menu_mode]} "
