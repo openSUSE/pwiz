@@ -20,14 +20,19 @@ case $1 in
 	;;
 esac
 
-#@ uri_provider [ uri ]
+# BIG FIXME: Change API to allow more URIs at once to allow optimizing
+# via keep-alive.
+
+# FIXME: Know URIs like mailto:xxx@yyy.zz
+
+#@ uri_provider [ uri ]
 # uri: URI provider name (optional, default=module name)
 #
 # Function for init of modules providing URI functions. Module must
 #define functions @{uri}_list and @{uri}_get.
 # NOTE: Any ocurrence of "-" in URI provider part is converted to "_".
 
-#@ ${uri_providers[@@]}
+#@ ${uri_providers[@@]}
 # Array, which contains all registered URI providers.
 
 function uri_provider {
@@ -97,32 +102,34 @@ function uri_get {
 #
 # Call callback for all available hyperlinks in specified URI.
 
-#@ {uri_list_callback}
+#@ {uri_list_callback} uri uri_type
 # uri: URI of found hyperlink
+# uri_type: "list": URI contains sub-URIs (directory, web page),
+#"file": URI is file (downloadable file without links), "link": URI is
+#hyper-reference or alias of different URI, "unknown": unknown type of
+#URI (can be any of previous type)
+# returns: 0: no action needed, 1: follow this URI
 #
-# Callback function for uri_list.
-
+# Callback function for @uri_list. If it returns 1, list function will
+#suppose, that URI type is a "list" (or "link") and will follow this
+#URI.
+# NOTE: Real calling of callback is delayed, so back-end can have
+#opened fixed file I/O during call. There is no guarantee of callback
+#order.
 function uri_list {
     uri_parse
+    local i
+    # FIXME: uri_callbacks maybe can be simple variable, not array (not sure)
+    local -a uri_callbacks uri_uris uri_types
     eval ${provider//-/_}_list '"$1" "$provider" "$domain" "$path" "${2:-$pwiz_callback}"'
+    unset ${!uri_list_hash_*}
+    for (( i=0 ; i < ${#uri_callbacks[@]} ; i++ )) ; do
+	if ! "${uri_callbacks[i]}" "${uri_uris[i]}" "${uri_types[i]}" ; then
+	    uri_list "${uri_uris[i]}" "${uri_callbacks[i]}"
+	fi
+    done
 }
-
-#@ uri_list_recursive uri uri_list_callback
-# uri: complete URI
-# uri_list_callback: callback for found items (can be
-#empty - $pwiz_callback is used instead - probably echo)
-#
-# Recursivelly call callback for all available hyperlinks in specified URI.
-
-#@ {uri_list_callback}
-# uri: URI of found hyperlink
-#
-# Callback function for uri_list.
-
-function uri_list_recursive {
-    uri_parse
-    eval ${provider//-/_}_list_recursive '"$1" "$provider" "$domain" "$path" "${2:-$pwiz_callback}"'
-}
+unset ${!uri_list_hash_*}
 
 #@ {uri}_exists uri provider domain path
 # uri: complete URI
@@ -152,14 +159,59 @@ function uri_list_recursive {
 # uri_list_callback: callback for found items
 #
 # Back-end function for URI provider. Call callback for all available
-#hyperlinks in specified URI.
+#hyperlinks in specified URI. Callback function must be called by:
+#@<
+# uri_callback uri_list_callback uri uri_type
+#@>
 
-#@ {uri}_recursive_list uri provider domain path uri_list_callback
-# uri: complete URI
-# provider: provider part of URI
-# domain: domain part of URI
-# path: path part of URI
+#@ uri_callback uri_list_callback uri uri_type
 # uri_list_callback: callback for found items
+# uri: URI of found hyperlink
+# uri_type: "list": URI contains sub-URIs (directory, web page),
+#"file": URI is file (downloadable file without links), "link": URI is
+#hyper-reference or alias of different URI, "unknown": unknown type of
+#URI (can be any of previous type)
 #
-# Back-end function for URI provider. Recursivelly call callback for
-#all available hyperlinks in specified URI.
+# Internal function for @{uri}_list back-end of URI provider. this
+#function performs calling of uri_list_callback and does recursive
+#calling, if required.
+function uri_callback {
+    # FIXME: Optimize callback calling - implement callback collector:
+    # collect all URIs to fetch and fetch them at once. It can use
+    # keepalive and be faster.
+
+    # Collect all callbacks and call them after finishing - it
+    # simpifies recurse (back-end can have opened file I/O during
+    # call.
+
+    # Only unknown URIs are added to callback.
+    # Check, whether URI is unique. Create a hash variable containing
+    # letters from URI and check its existence. This implements
+    # something like associative array and allows to decrease
+    # evaluation time from to n*log(n) without need to implement
+    # sorting or call external programs.
+
+    # Required Arrays are defined in uri_list.
+
+    # Hash arrays are global variables containing indexes, removed
+    # before optional recurse.
+
+    local uri_hash=uri_list_hash_${2//[^A-Za-z0-9_]/_}
+
+    # FIXME: Maybe we should check uri_types and possibly set
+    # type, if previous type was unknown.
+    local index
+    eval 'for index in ${'$uri_hash'[@]} ; do
+	if test "${uri_uris[index]}" = "$2" ; then
+	    return
+	fi
+    done'
+
+    pwiz_array_add $uri_hash "${#uri_uris[@]}"
+    pwiz_array_add uri_callbacks "$1"
+    pwiz_array_add uri_uris "$2"
+    pwiz_array_add uri_types "$3"
+}
+
+
+# FIXME: Impement API for URI link target (can cover ftp symlink and http redirect)
