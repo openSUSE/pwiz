@@ -1,3 +1,14 @@
+2004-12-13  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* engines/question/dumb.pwe, modules/Makefile.am,
+	modules/filelist.pwm, modules/ftp.pwm, modules/html.pwm.in,
+	modules/installwatch.pwm.in, modules/ldconfig.pwm,
+	modules/manual.pwm, modules/rpm.pwm, modules/version.pwm,
+	ChangeLog, configure.in, pwiz.gopts.in: Typo fixes. Added
+	html.pwm.
+
+	* develdoc.txt, userdoc.txt: Updated documentation.
+
 2004-12-02  Stanislav Brabec  <sbrabec@suse.cz>
 
 	* pwiz.gopts.in: Unset pwiz_askmenu_build_ids in
