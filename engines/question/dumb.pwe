@@ -178,7 +178,8 @@ function pwiz_engine_question_dumb_string {
 }
 
 # pwiz_question_radio desc longdesc #%#[ tags ... ]
-function pwiz_engine_question_dumb_radio {
+# FIXME: obsolete, should be removed
+function pwiz_engine_question_dumb_radio_remove_me {
     local desc longdesc guesses_count bdefault edefault default REPLY
     desc="$1"
     longdesc="$2"
@@ -234,6 +235,8 @@ function pwiz_engine_question_dumb_radio {
 function pwiz_engine_question_dumb_list {
     local desc longdesc list_off list_item items_count count_off menu_mode="" bdefault edefault default REPLY pwiz_answer_save string
     local -a items
+    local guess_best_string="selection credit: ${pwiz_guess_best_credit}c
+"
 
     pwiz_fallback_answer=true
 
@@ -281,14 +284,13 @@ function pwiz_engine_question_dumb_list {
 	    items[items_count]="$list_item"
 	    let items_count++
 	done
-	echo -n "$pwiz_engine_question_dumb_question_end"
 	if test "$menu_mode" = "" ; then
 	    echo "[number]) action in this position (item operations, new)"
 	    if $pwiz_tag_allow_new ; then
 		echo "n) new item at the end"
 	    fi
 	    echo "x) exit list editor (default)"
-	    echo -n "$pwiz_engine_question_dumb_question_end"
+	    echo -n "$guess_best_string$pwiz_engine_question_dumb_question_end"
 echo "$longdesc" | fmt -w $(tput cols)
 	    read -p "PWIZ:$PWIZ_PHASE_CURRENT[$PWIZ_STAGE_CURRENT]${pwiz_tag_q:+@$pwiz_tag_q}> "
 	    case "$REPLY" in
@@ -300,11 +302,15 @@ echo "$longdesc" | fmt -w $(tput cols)
 			echo -n  "Enter ID for this new item: "
 			read
 			pwiz_answer_save="$pwiz_answer$REPLY "
+			pwiz_reset_tags
 			eval pwiz_ask_$pwiz_tag_item_type '"$pwiz_engine_question_dumb_desc_begin$desc$pwiz_engine_question_dumb_desc_end Enter value for new item." "$longdesc
 Formal type for this is a list. Now you have a chance to add new item to this list." "$@" q=${pwiz_tag_q}_$REPLY'
+			pwiz_reset_tags
+			pwiz_read_tags
 			pwiz_answer="$pwiz_answer_save"
 			menu_mode=""
 			pwiz_fallback_answer=false
+			guess_best_string=
 		    else
 			echo "Invalid choice!"
 		    fi
@@ -321,17 +327,21 @@ Formal type for this is a list. Now you have a chance to add new item to this li
 		    fi
 		    menu_mode="$REPLY"
 		    pwiz_fallback_answer=false
+		    guess_best_string=
 		    ;;
 		* )
 		    echo "Invalid choice!"
 		    ;;
 	    esac
 	else
+	echo -n "$pwiz_engine_question_dumb_question_end"
 	    echo "Actions with item $menu_mode:"
 	    if test $menu_mode -lt $count_off ; then
 		echo "[number]) move to selected position"
 		echo "i) inactivate item"
-		echo "n) new item in this position"
+		if $pwiz_tag_allow_new ; then
+		    echo "n) new item in this position"
+		fi
 		echo "x) exit item editor (default)"
 		read -p "PWIZ:$PWIZ_PHASE_CURRENT[$PWIZ_STAGE_CURRENT]@$menu_mode${pwiz_tag_q:+@$pwiz_tag_q}> "
 		case "$REPLY" in
@@ -365,14 +375,21 @@ Formal type for this is a list. Now you have a chance to add new item to this li
 		    n )
 			# FIXME: better desc and londesc
 			# FIXME: one word and unique
-			echo -n  "Enter ID for this new item: "
-			read
-			pwiz_answer_save="$pwiz_answer"
+			if $pwiz_tag_allow_new ; then
+			    echo -n  "Enter ID for this new item: "
+			    read
+			    pwiz_answer_save="$pwiz_answer"
+			    pwiz_reset_tags
 # FIXME: This probably should disappear and only callback should exist.
-			eval pwiz_ask_$pwiz_tag_item_type '"$$pwiz_engine_question_dumb_desc_begin$desc$pwiz_engine_question_dumb_desc_end Enter value for new item." "$longdesc
+			    eval pwiz_ask_$pwiz_tag_item_type '"Enter value for new item." "$longdesc
 Formal type for this is a list. Now you have a chance to add new item to this list." "$@" q=${pwiz_tag_q}_$REPLY'
-			pwiz_answer="$pwiz_answer_save"
-			menu_mode=""
+			    pwiz_reset_tags
+			    pwiz_read_tags
+			    pwiz_answer="$pwiz_answer_save"
+			    menu_mode=""
+			else
+			    echo "Invalid choice!"
+			fi
 			;;
 		    x | "" )
 			menu_mode=""
@@ -408,10 +425,12 @@ pwiz_register_tag_default pwiz_tag_multiline=false
 function pwiz_engine_question_dumb_auto_answer {
     local string
     if test -z "${pwiz_strings[$3]}" ; then
-	string="${pwiz_guesses[guesses_count]}"
+	string="\"${pwiz_guesses[$3]}\""
     else
-	string="${pwiz_strings[guesses_count]}"
+	string="${pwiz_strings[$3]}"
     fi
     echo "$pwiz_engine_question_dumb_auto_begin*** Question was: $pwiz_engine_question_dumb_autodesc_begin$1$pwiz_engine_question_dumb_autodesc_end"
     echo "*** PWIZ answered: $pwiz_engine_question_dumb_autodesc_begin$string$pwiz_engine_question_dumb_autodesc_end (${pwiz_credits[$3]}c)$pwiz_engine_question_dumb_auto_end"
+    echo "$longdesc" | fmt -w $(tput cols)
+    echo "PWIZ:$PWIZ_PHASE_CURRENT[$PWIZ_STAGE_CURRENT]${pwiz_tag_q:+@$pwiz_tag_q}..."
 }

@@ -88,7 +88,7 @@ function gnome_filelist_install {
 	    case "$filelist_tag_name" in
 # FIXME - gnome-panel needs more
 		*.schemas )
-		    gnome_gconf_schemas_list="$gnome_gconf_schemas_list $filelist_tag_name"
+		    gnome_gconf_schemas_list="$gnome_gconf_schemas_list ${filelist_tag_name##*/}"
 		    ;;
 	    esac
 	done
@@ -96,7 +96,7 @@ function gnome_filelist_install {
 	if ! test -z "$gnome_gconf_schemas_list" ; then
 # FIXME: Those are SuSE specific.
 # FIXME: gnome prefix without leading /
-	    pwiz_phase_add_run gnome_gconf_install '`export GCONF_CONFIG_SOURCE=`opt/gnome/bin/gconftool-2 --get-default-source`'
+	    pwiz_phase_add_run gnome_gconf_install 'export GCONF_CONFIG_SOURCE=`opt/gnome/bin/gconftool-2 --get-default-source`'
 	    for file in $gnome_gconf_schemas_list ; do
 # FIXME: real_uninstall
 		pwiz_phase_add_run gnome_gconf_install "opt/gnome/bin/gconftool-2 --makefile-install-rule etc/opt/gnome/gconf/schemas/$file >/dev/null"

@@ -80,7 +80,7 @@ function manual_action_ask {
 # hotkey: guess hotkey (can be empty string)
 #
 # Add a new item to manual action.
-@ callback convention: function manual_point_id
+# callback convention: function manual_point_id
 function manual_action_add {
     pwiz_list_add "manual_$1" "$2" 0 0 "$3" "$4"
 }

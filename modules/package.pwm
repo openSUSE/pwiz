@@ -18,9 +18,8 @@ case $1 in
 	pwiz_phase_new_3_guess package_basename after package_project_set
 	pwiz_phase_new_3_guess package_home_page after package_basename_set
 	pwiz_phase_new_3_guess package_search_uri after package_home_page_set
-	pwiz_phase_new_call package_policy after package_search_uri_set
 # FIXME: finish splitting
-	pwiz_phase_new_call package_download after package_policy
+	pwiz_phase_new_call package_download after package_search_uri_set
 	pwiz_debug_feature uri "URI search progress" "This feature turns on verbose displaying of searching of URI."
 	;;
     version )
@@ -41,8 +40,9 @@ function package_project_set {
 # FIXME: implement to all error questions: error_default_list
 # FIXME: pwiz_project_ -> package_ for names not present in key
     pwiz_ask_string "Project name (name of project for PWIZ)." \
-	"Now you should enter canonical project xname. The name can be global project name, or any selected, if there is a reason for different name." \
-	q=pwiz_project_project valid=setup
+	"Now you should enter canonical project name. The name can be global project name, or any selected, if there is a reason for different name." \
+	q=pwiz_project_project valid=setup knowledge=total guesslevel=0
+    pwiz_patchlevel_set
 }
 
 function package_basename_prepare {
@@ -76,13 +76,6 @@ function package_search_uri_set {
 	q=package_search_uri valid=project
 }
 
-function package_policy {
-# FIXME: subproject
-# FIXME: more sources with more policies
-    version_ask_policy
-    version_ask_product_policy
-}
-
 # FIXME: finish splitting
 function package_download {
 # FIXME: ugly temporary solution:
@@ -91,40 +84,40 @@ function package_download {
     else
 	package_default=true
     fi
-    if pwiz_ask_yesno "Do FTP lookup now?" \
-	"Now you can lookup for FTP. Stored version will be used otherwise." \
-	default=$package_default p=90 ; then
-# FIXME: ugly callback
-# FIXME: If new version comes, has less priority than old one. The same for URI.
-# FIXME: p=200
-	unset package_latest_version_array
-	package_latest_unpack_priority=0
-	ftp_list_recursive $package_search_uri package_parse_uri
-	decho_uri "latest URI: $package_latest_uri"
-	decho_uri "latest version: $package_latest_version"
-	pwiz_ask_string "Enter latest version." \
-	    "Now you can specify latest version. Default is most probably the latest." \
-	    q=package_latest_version valid=product default=$package_latest_version p=200
-# FIXME: Use default answer variable
-	pwiz_project_version=$pwiz_answer
-	pwiz_ask_string "Enter latest version URI." \
-	    "Now you can specify URI of latest version. Default is most probably the latest URI." \
-	    q=package_latest_uri valid=product default=$package_latest_uri p=200
-# FIXME: Use default answer variable
-	package_uri=$pwiz_answer
+#    if pwiz_ask_yesno "Do FTP lookup now?" \
+#	"Now you can lookup for FTP. Stored version will be used otherwise." \
+#	default=$package_default p=90 ; then
+    ftp_list_recursive $package_search_uri package_collect_uri
+    pwiz_guess_add package_version latest 0 100 "latest conforming policy"
+    pwiz_ask_string "Enter required version." \
+	"Now you can specify required version. Default is most probably the latest conforming policy. In this case you will be asked for policy to identify latest version. If you are entering version manually, use version string for forced version and \"latest\" for current latest version." \
+	q=package_version valid=product
+    if test "$package_version" = latest ; then
+# FIXME: subproject
+# FIXME: more sources with more policies
+	version_ask_policy
+	version_ask_product_policy
+	package_find_latest_version
+	# FIXME: What to do, if latest version is not found.
+	# Trick: guesslevel is 0. Answer is cached with no credit.
+	# If you want to browse web, it has no credibility, if you
+	# don't want, you will be asked each time.
+	# You will be notified about update.
+	# FIXME: Auto-update feature (d not ask before overwriting)
+	# means implementing volatile=true
+	pwiz_guess_add package_latest_version "$pwiz_result" 100 100
+	pwiz_ask_string "What is the latest version conforming policy?" \
+	    "This is only a rhetorical question. PWIZ searched package search URI and is nearly sure, that it is suggested one." \
+	    q=package_latest_version valid=product knowledge=none guesslevel=100
+	pwiz_project_version=$package_latest_version
     else
-	pwiz_ask_string "Enter latest version." \
-	    "Now you can specify latest version. Default is most probably the latest." \
-	    q=package_latest_version valid=product
-# FIXME: Use default answer variable
-	pwiz_project_version=$pwiz_answer
-	pwiz_ask_string "Enter latest version URI." \
-	    "Now you can specify latest version. Default is most probably the latest." \
-	    q=package_latest_uri valid=product
-# FIXME: Use default answer variable
-	package_uri=$pwiz_answer
+	pwiz_project_version=$package_version
     fi
-    package_parse_uri "$package_uri"
+    pwiz_ask_string "Enter required version URI." \
+	"Now you can specify URI of required version. Default is most probably the latest URI." \
+	q=package_uri_${pwiz_project_version//[.-]/_} valid=product
+# FIXME: Use default answer variable
+    package_uri=$pwiz_answer
     pwiz_projectdirs_init
 # FIXME: ugly, use storage engine
 # FIXME: guess type by contents, not URI. Report conflicts.
@@ -143,19 +136,18 @@ function package_download {
     fi
 }
 
-#@ package_parse_uri URI
-# URI: URI to be parsed
+#@ package_collect_uri URI
+# URI: URI information to be collected
 # returns: 0: known archive, 1: unknown file
 # returns $pwiz_result: stripped package version
 #
-# URI parser searching archives of current project and its versions.
-
-# FIXME: Rename this function.
-function package_parse_uri {
-    local version_save
-    decho_uri -n "$1..."
+# Parses URI and collects guesses of versions and package URIs. (internal)
+function package_collect_uri {
+    local unpack_credit
+    decho_uri -n "found $1..."
     if unpack_check_extension "$1" ; then
 	pwiz_result="${pwiz_result##*/}"
+	# package_basename can be an extglob pattern
 	shopt -s extglob
 	if test "$pwiz_result" = "${pwiz_result#$package_basename}" ; then
 	    decho_uri " not archive of required package"
@@ -165,35 +157,44 @@ function package_parse_uri {
 	    pwiz_result="${pwiz_result#$package_basename}"
 	    shopt -u extglob
 # package-version separators
-	    pwiz_result="${pwiz_result#[-_]}"
 	    decho_uri -n " is archive of ${pwiz_result##*/}"
-#!!!!! FIXME
-	    version_save="$pwiz_result"
-	    version_parse "$pwiz_result"
-	    if version_policy_check pwiz_result ; then
-		if version_compare pwiz_result package_latest_version_array ; then
-		    decho_uri " - latest version yet found"
-		    package_latest_version="$version_save"
-		    package_latest_version_array=( "${pwiz_result[@]}" )
-		    package_latest_uri="$1"
-		    package_latest_unpack_priority=$unpack_priority
-		else
-		    if test $? = 2 -a $unpack_priority -gt $package_latest_unpack_priority ; then
-			decho_uri " - equal to latest version, but has preferred format"
-			package_latest_version="$version_save"
-			package_latest_version_array=( "${pwiz_result[@]}" )
-			package_latest_uri="$1"
-			package_latest_unpack_priority=$unpack_priority
-		    else
-			decho_uri " - newer or equal version exists"
-		    fi
-		fi
-	    else
-		decho_uri " - disabled by policy"
-	    fi
+	    pwiz_result="${pwiz_result#[-_]}"
+	    let unpack_credit=90+unpack_priority
+	    pwiz_guess_add package_uri_${pwiz_result//[.-]/_} "$1" $unpack_credit
+	    pwiz_guess_add package_version "$pwiz_result" 0 0 "force $pwiz_result"
 	fi
     else
 	decho_uri " not archive"
 	return 1
     fi
+}
+
+#@ package_find_latest_version
+# returns: 0: known archive, 1: unknown file
+# returns $pwiz_result: stripped package version
+#
+# Goes through all versions found and find latest conforming policy. (internal)
+function package_find_latest_version {
+    local version latest_version
+    local -a latest_version_array
+
+    for version in ${pwiz_guess_default_package_version[*]} ; do
+	if test "$version" = latest ; then
+	    continue
+	fi
+	decho_uri -n "$version..."
+	version_parse "$version"
+	if version_policy_check pwiz_result ; then
+	    if version_compare pwiz_result latest_version_array ; then
+		decho_uri " - latest version yet found"
+		latest_version="$version"
+		latest_version_array=( "${pwiz_result[@]}" )
+	    else
+		decho_uri " - newer or same version exists"
+	    fi
+	else
+	    decho_uri " - disabled by policy"
+	fi
+    done
+    pwiz_result=$latest_version
 }
