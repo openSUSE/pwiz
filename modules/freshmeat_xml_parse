@@ -1,0 +1,25 @@
+#!/usr/bin/perl -w
+
+# Code based on XML::Parser(3pm)
+
+# Does not handle multi-line strings and nested elements.
+
+use XML::Parser;
+
+sub handle_char
+{
+  my ($expat, $element) = @_;
+  $gelement = $element;
+  $gelement =~ s/\'/\'\\\'\'/ ;
+}
+
+sub handle_end
+{
+  my ($expat, $element) = @_;
+  $element =~ s/-/_/ ;
+  print "local xml_$element='$gelement'\n";
+}
+
+$p1 = new XML::Parser();
+$p1->setHandlers(Char => \&handle_char, End => \&handle_end);
+$p1->parsefile($ARGV[0]);

@@ -1,0 +1,101 @@
+#! /bin/bash
+
+case $1 in
+    desc )
+	echo "freshmeat.net support functions"
+	return
+	;;
+    longdesc )
+	echo "This module provides freshmeat.net project page parsing."
+	return
+	;;
+    init )
+	pwiz_module_needs package
+	pwiz_module_uses http
+	package_home_page_provider
+	package_search_uri_provider
+	;;
+    version )
+	echo "0.1"
+	return
+	;;
+    * )
+	return
+	;;
+esac
+
+#@ freshmeat_package_home_page
+#
+# Searches probable home pages on Freshmeat site. (internal)
+function freshmeat_package_home_page {
+    local PWD_save
+    PWD_save=$PWD
+    cd $PWIZ_TMPDIR
+    if uri_get "http://freshmeat.net/projects-xml/${package_basename//+}/${package_basename//+}.xml" freshmeat_package_home_page.xml ; then
+	if ! fgrep -q "Error: project not found." freshmeat_package_home_page.xml ; then
+	    eval "$(@PW_HELPERDIR@/freshmeat_xml_parse freshmeat_package_home_page.xml)"
+	    if ! test -z "$xml_url_homepage" ; then
+		http_get_redir "$xml_url_homepage"
+		package_home_page_guess "$pwiz_result" 12
+	    fi
+	fi
+	rm freshmeat_package_home_page.xml
+    fi
+    cd "$PWD_save"
+}
+
+#@ freshmeat_package_search_uri
+#
+# Searches probable search_uri on Freshmeat site. (internal)
+function freshmeat_package_search_uri {
+    local PWD_save
+    PWD_save=$PWD
+    cd $PWIZ_TMPDIR
+    # FIXME: Is there better way to prevent double fetching of XML? (caching)
+    if uri_get "http://freshmeat.net/projects-xml/${package_basename//+}/${package_basename//+}.xml" freshmeat_package_home_page.xml ; then
+	if ! fgrep -q "Error: project not found." freshmeat_package_home_page.xml ; then
+	    eval "$(@PW_HELPERDIR@/freshmeat_xml_parse freshmeat_package_home_page.xml)"
+	    if ! test -z "$xml_url_bz2" ; then
+		http_get_redir "$xml_url_bz2"
+		# If download URI has trailing slash, it's probably directory.
+		# Otherwise strip last path element and try again.
+		if test "$pwiz_result" = "${pwiz_result%/*}/" ; then
+		    package_search_uri_guess "$pwiz_result" 10
+		else
+		    if uri_exists "${pwiz_result%/*}/" ; then
+			http_get_redir "${pwiz_result%/*}/"
+			package_search_uri_guess "$pwiz_result" 10
+		    fi
+		fi
+	    fi
+	    if ! test -z "$xml_url_tgz" ; then
+		http_get_redir "$xml_url_tgz"
+		# If download URI has trailing slash, it's probably directory.
+		# Otherwise strip last path element and try again.
+		if test "$pwiz_result" = "${pwiz_result%/*}/" ; then
+		    package_search_uri_guess "$pwiz_result" 10
+		else
+		    if uri_exists "${pwiz_result%/*}/" ; then
+			http_get_redir "${pwiz_result%/*}/"
+			package_search_uri_guess "$pwiz_result" 10
+		    fi
+		fi
+	    fi
+	    if ! test -z "$xml_url_zip" ; then
+		http_get_redir "$xml_url_zip"
+		# If download URI has trailing slash, it's probably directory.
+		# Otherwise strip last path element and try again.
+		if test "$pwiz_result" = "${pwiz_result%/*}/" ; then
+		    package_search_uri_guess "$pwiz_result" 10
+		else
+		    if uri_exists "${pwiz_result%/*}/" ; then
+			http_get_redir "${pwiz_result%/*}/"
+			package_search_uri_guess "$pwiz_result" 10
+		    fi
+		fi
+	    fi
+	fi
+	rm freshmeat_package_home_page.xml
+    fi
+    cd "$PWD_save"
+}

@@ -75,6 +75,7 @@ function rpm_doc_configure {
     # FIXME: don't hardwire SuSE defaults
     local p="/usr/share/doc/packages/$pwiz_project_project-$pwiz_project_version"
     local d="/usr/share/doc/packages"
+    pwiz_guess_local_decl
     pwiz_cache_load q=rpm_doc_wants_docdir default=false
     if $pwiz_guess_best_value ; then
 	# FIXME: something can be guessed by configure --help

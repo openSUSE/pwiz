@@ -6,13 +6,15 @@ case $1 in
 	return
 	;;
     longdesc )
-	echo "This module provides basic dialog for package selection."
+	echo "This module support for sourceforge.net lookup and file download and sourceforge:// as URL provider."
 	return
 	;;
     init )
-	pwiz_module_needs package
-	pwiz_module_uses html
+	pwiz_module_needs uri package
+	pwiz_module_uses http
+	uri_provider
 	package_home_page_provider
+	package_search_uri_provider
 	;;
     version )
 	echo "0.1"
@@ -27,12 +29,19 @@ esac
 #
 # Searches probable home pages on Sourceforge site. (internal)
 function sourceforge_package_home_page {
-    if html_http_exists "http://$package_basename.sourceforge.net/" ; then
-	package_home_page_guess "http://$package_basename.sourceforge.net/" 12
+    local PWD_save
+    if uri_exists "http://${package_basename//+}.sourceforge.net/" ; then
+	package_home_page_guess "http://${package_basename//+}.sourceforge.net/" 12
     fi
-    if html_http_exists "http://sourceforge.net/projects/$package_basename/" ; then
-	package_home_page_guess "http://sourceforge.net/projects/$package_basename/" 11
+    PWD_save=$PWD
+    cd $PWIZ_TMPDIR
+    if uri_get "http://sourceforge.net/projects/${package_basename//+}/" sourceforge_package_home_page_test ; then
+	if ! fgrep -q -v "Invalid Project" sourceforge_package_home_page_test ; then
+	    package_home_page_guess "http://sourceforge.net/projects/${package_basename//+}/" 11
+	fi
+	rm sourceforge_package_home_page_test
     fi
+    cd "$PWD_save"
 }
 
 #@ sourceforge_package_search_uri
@@ -40,14 +49,88 @@ function sourceforge_package_home_page {
 # Searches probable download area on Sourceforge site. (internal)
 # NOTE: sourceforge:// is special URI provider, which needs further processing.
 function sourceforge_package_search_uri {
-    if html_http_exists "http://prdownloads.sourceforge.net/$package_basename/" ; then
-	package_search_uri_guess "sourceforge://$package_basename" 50
+    if uri_exists "sourceforge://${package_basename//+}/" ; then
+	package_search_uri_guess "sourceforge://${package_basename//+}/" 10
     fi
 }
 
-# BIG FIXME: not yet finished
-# FIXME: Make difference: project name, package basename, tarball basename
+#@ sourceforge_exists uri provider domain path
+# uri: URI in form sourceforge://project/
+# provider: "sourceforge"
+# domain: project name
+# path: empty
+#
+# Check, whether download adrea of Sourceforge.net project exists.
+function sourceforge_exists {
+    uri_exists "http://prdownloads.sourceforge.net/$3/"
+}
+
+#@ sourceforge_get uri provider domain path file
+# uri: URI in form sourceforge://project/file_name
+# provider: "sourceforge"
+# domain: project name
+# path: file name
+# file: file name to be downloaded to
+#
+# Get a file from Sourceforge.net.
 function sourceforge_get {
-    local mirror filename
-    uri=http://$mirror.dl.sourceforge.net/sourceforge/$package_basename/$filename
+    local -a mirror mirror_location a1 a2 a3 i uri PWD_save
+    mkdir -p $PWIZ_TMPDIR/sourceforge_get
+    PWD_save=$PWD
+    cd $PWIZ_TMPDIR/sourceforge_get
+    uri_get "http://prdownloads.sourceforge.net/$3/$4"
+
+    # mirror list
+    sed -n $'s/<\\/*[Tt][Rr]/\\\n/gp' <"$4" | sed -n 's/^.*use_mirror="*\([a-zA-Z0-9_-]*\).*$/\1/gp' >mirrorlist
+    exec 3<mirrorlist
+    while read -u3 ; do
+	pwiz_array_add mirror "$REPLY"
+    done
+    exec 3<&-
+
+    # mirror names
+    sed -n $'s/<\\/*[Tt][Rr]/\\\n/gp' <"$4" | sed ';s/^[^>]*>//;s/<[^>]*>/%/g' | sed -n 's/%%%%%%//p' | sed 's/%%*/%/g' >mirrornames
+    exec 3<mirrornames
+    while IFS='%' read -u3 a1 a2 a3 ; do
+	pwiz_array_add mirror_location "$a1 ($a2)"
+    done
+    exec 3<&-
+
+    for (( i=0 ; i < ${#mirror[@]} ; i++ )) ; do
+	pwiz_guess_add "" "${mirror[i]}" 0 "${mirror[i]}: ${mirror_location[i]}"
+    done
+    cd "$PWD_save"
+    rm -rf $PWIZ_TMPDIR/sourceforge_get
+
+    pwiz_ask_string "Select Sourceforge.net mirror." \
+	"Sourceforge.net stores each file on mirrors. You have to select one of following mirrors, where requested file is currently available." \
+	allow_new=false
+    uri_get "http://$pwiz_answer.dl.sourceforge.net/sourceforge/$3/$5" "$5"
+    pwiz_guess_clean
+}
+
+#@ sourceforge_list uri provider domain path callback
+# uri: URI in form sourceforge://project/
+# provider: "sourceforge"
+# domain: project name
+# path: empty
+# callback: callback for found items
+#
+# List downloadable files of Sourceforge.net project.
+function sourceforge_list {
+    local sourceforge_list_callback_save="$5"
+    uri_list "http://prdownloads.sourceforge.net/$3/" sourceforge_list_callback
+}
+
+alias sourceforge_list_recursive=sourceforge_list
+
+# sourceforge_list_callback (internal)
+#
+# Catch callback and convert http:// address to sourceforge://.
+function sourceforge_list_callback {
+    local uri
+    uri=${1#http://prdownloads.sourceforge.net/}
+    if test "$1" != "$uri" ; then
+	$sourceforge_list_callback_save sourceforge://$uri
+    fi
 }

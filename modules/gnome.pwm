@@ -26,6 +26,8 @@ case $1 in
 	;;
 esac
 
+# FIXME: GNOME 2.4, GNOME 2.4, GNOME 2.8 version ruleset
+
 #@ gnome_prefix
 #
 # Ask, if package will use GNOME global prefix. (internal)
@@ -45,7 +47,7 @@ function gnome_prefix {
 #
 # Provides an URI guess for searching packages in GNOME FTP. (internal)
 function gnome_package_search_uri {
-    ftp_list ftp://ftp.gnome.org/pub/GNOME/sources gnome_check_uri
+    uri_list ftp://ftp.gnome.org/pub/GNOME/sources/ gnome_check_uri
 }
 
 #@ gnome_PREPARE_CHECK
@@ -112,7 +114,7 @@ function gnome_default_prefix {
 function gnome_check_uri {
     if test "${1##*/}" = "$package_basename" ; then
 # Setting low credit, because many foreign packages are outdated there.
-	package_search_uri_guess "$1" 10
+	package_search_uri_guess "$1/" 10
     fi
 }
 

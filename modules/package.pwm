@@ -18,7 +18,7 @@ case $1 in
 	pwiz_phase_new_3_guess package_basename after package_project_set
 	pwiz_phase_new_3_guess package_home_page after package_basename_set
 	pwiz_phase_new_3_guess package_search_uri after package_home_page_set
-	pwiz_guess_add package_search_uri "" 0 "I will enter directly manually download URI."
+	pwiz_guess_add package_search_uri "" 0 "I will enter directly download URI."
 # FIXME: finish splitting
 	pwiz_phase_new_call package_download after package_search_uri_set
 	pwiz_debug_feature uri "URI search progress" "This feature turns on verbose displaying of searching of URI."
@@ -59,6 +59,7 @@ function package_basename_set {
 
 function package_home_page_prepare {
     local defaults credit
+    pwiz_guess_local_decl
     unset package_home_page
     # If there is any previous answer, default to no, otherwise yes.
     # Look at validity ranges: For first it is global, for second it
@@ -82,12 +83,14 @@ function package_home_page_prepare {
 
 function package_home_page_set {
     pwiz_ask_string "Enter package home page." \
-	"Package home page is URI, where home WWW (or FTP) page resides." \
+	"Package home page is URI, where home WWW (or FTP) page resides.
+Supported URI types: ${uri_providers[*]}" \
 	q=package_home_page valid=project default="" string=unknown
 }
 
 function package_search_uri_prepare {
     local defaults credit
+    pwiz_guess_local_decl
     unset package_search_uri
     # If there is any previous answer, default to no, otherwise yes.
     # Look at validity ranges: For first it is global, for second it
@@ -103,7 +106,7 @@ function package_search_uri_prepare {
 	let credit=1+pwiz_guess_best_credit
 	defaults="default=false c=$credit valid=project"
     fi
-    pwiz_ask_yesno "Do automatic Internet lookup for search URI now?" \
+    pwiz_ask_yesno "Do automatic Internet lookup for download search URI now?" \
 	"Now you can lookup for home page. It can take some time. If you know exact URI, answer no." \
 	q=package_search_uri_condition $defaults importance=10 knowledge=none force_overwrite=true
     true
@@ -112,23 +115,15 @@ function package_search_uri_prepare {
 }
 
 function package_search_uri_set {
-    pwiz_ask_string "Enter package search URI." \
-	"Package search URI is top-level URI, where sources are searched. Can be space separated list. Note that it works for FTP only now." \
+    pwiz_ask_string "Enter package download search URI." \
+	"Package search URI is top-level URI, where sources are searched for download. Can be space separated list.
+Supported URI types: ${uri_providers[*]}" \
 	q=package_search_uri valid=project
 }
 
 # FIXME: finish splitting
 function package_download {
-# FIXME: ugly temporary solution:
-    if test -d "$PWIZ_CACHEDIR/ftp/${package_search_uri#ftp://}" ; then
-	package_default=false
-    else
-	package_default=true
-    fi
-#    if pwiz_ask_yesno "Do FTP lookup now?" \
-#	"Now you can lookup for FTP. Stored version will be used otherwise." \
-#	default=$package_default importance=5 ; then
-    ftp_list_recursive $package_search_uri package_collect_uri
+    uri_list_recursive $package_search_uri package_collect_uri
     pwiz_guess_add package_version latest 5 "latest conforming policy"
     pwiz_ask_string "Enter required version." \
 	"Now you can specify required version. Default is most probably the latest conforming policy. In this case you will be asked for policy to identify latest version. If you are entering version manually, use version string for forced version and \"latest\" for current latest version." \
@@ -156,24 +151,26 @@ function package_download {
 	pwiz_project_version=$package_version
     fi
     pwiz_ask_string "Enter required version URI." \
-	"Now you can specify URI of required version. Default is most probably the latest URI." \
+	"Now you can specify URI of required version. Default is most probably the latest URI.
+Supported URI types: ${uri_providers[*]}" \
 	q=package_uri_${pwiz_project_version//[.-]/_} valid=product
 # FIXME: Use default answer variable
     package_uri=$pwiz_answer
     pwiz_projectdirs_init
 # FIXME: ugly, use storage engine
 # FIXME: guess type by contents, not URI. Report conflicts.
+    cd $PWIZ_CACHEDIR
     if test -f "$PWIZ_CACHEDIR/${package_uri##*/}" ; then
 	if pwiz_ask_yesno "Download file now?" \
 	    "Now you can dowload file." \
 	    default=false c=1 importance=10 ; then
-	    ftp_get "$package_uri"
+	    uri_get "$package_uri"
 	fi
     else
 	if pwiz_ask_yesno "Download file now?" \
 	    "Now you can dowload file." \
 	    default=true c=20 importance=10 ; then
-	    ftp_get "$package_uri"
+	    uri_get "$package_uri"
 	fi
     fi
 }

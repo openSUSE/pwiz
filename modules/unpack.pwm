@@ -62,6 +62,7 @@ function unpack_search_dirname {
 
 # FIXME: is ugly, has no callback
 # FIXME: modifyable priority
+# FIXME: Find directory name and optionally fill it.
 function unpack_check_extension {
     local ext
     case "$1" in

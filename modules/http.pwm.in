@@ -1,0 +1,123 @@
+#! /bin/bash
+
+case $1 in
+    desc )
+	echo "HMML file listing"
+	return
+	;;
+    longdesc )
+	echo "This module provides HTML file parsing to search for package download."
+	return
+	;;
+    init )
+	pwiz_module_needs uri
+	pwiz_module_uses ftp # for wget verbosity levels
+	uri_provider
+	;;
+    version )
+	echo "0.1"
+	return
+	;;
+    * )
+	return
+	;;
+esac
+
+#@ http_exists URI
+# URI: URI to be checked
+# returns: 0: URI exists, 1: URI does not exist
+#
+# Check, whether specified URI exists.
+alias http_exists=ftp_exists
+
+#@ http_get uri provider domain path file
+# uri: complete URI
+# provider: provider part of URI
+# domain: domain part of URI
+# path: path part of URI
+# file: file name to be downloaded to
+# 
+# Download a file using FTP protocol.
+function http_get {
+    local rc PWD_save
+    PWD_save=$PWD
+    cd $PWIZ_CACHEDIR
+    $ftp_WGET -N "$1"
+    rc=$?
+    cd "$PWD_save"
+
+# maybe FIXME: This mv can complain xxx and yyy are the same file!
+# FIXME? is it PWIZ_CACHEDIR stuff?
+    if test -z "${4##*/}" ; then
+	mv "$PWIZ_CACHEDIR/index.html" "$5"
+    else
+	mv "$PWIZ_CACHEDIR/${4##*/}" "$5"
+    fi
+    return $rc
+}
+
+#@ http_list uri provider domain path uri_list_callback
+# uri: complete URI
+# provider: provider part of URI
+# domain: domain part of URI
+# path: path part of URI
+# uri_list_callback: callback for found items
+#
+# Call callback for all found html objects.
+function http_list {
+    local real_location=$1
+    mkdir -p $PWIZ_TMPDIR/html_list/uri
+    wget -P $PWIZ_TMPDIR/html_list/uri -S -o $PWIZ_TMPDIR/html_list/printurls.log "$1"
+    exec 3<$PWIZ_TMPDIR/html_list/printurls.log
+    while read -u3 a1 a2 ; do
+	if test "$a1" = "Location:" ; then
+	    real_location=$a2
+	fi
+    done
+    exec 3<&-
+
+    local real_name="${real_location##*/}"
+    : "${real_name:=index.html}"
+
+    @PW_HELPERDIR@/http_html_printurls "$PWIZ_TMPDIR/html_list/uri/$real_name" >$PWIZ_TMPDIR/html_list/html_urls
+
+    exec 3<$PWIZ_TMPDIR/html_list/html_urls
+    # stdin holds html_urls inode until it's closed
+    rm -rf $PWIZ_TMPDIR/html_list
+    local tmp
+    while read -u3 REPLY ; do
+	if test "${REPLY/:\/\/}" = "$REPLY" ; then
+	    if test "${REPLY:0:1}" = / ; then
+		tmp=${real_location#*://}
+		"$5" "${real_location%%://*}://${tmp%%/*}$REPLY"
+	    else
+		"$5" "${real_location%/*}/$REPLY"
+	    fi
+	else
+	    "$5" "$REPLY"
+	fi
+    done
+    exec 3<&-
+}
+
+# FIXME: implement it
+alias http_list_recursive=http_list
+
+
+#@ http_get_redir uri
+# uri: complete URI
+# returns $pwiz_result: real URI
+#
+# Special function for http protocol. Get real address of URL after redirection.
+function http_get_redir {
+    mkdir -p $PWIZ_TMPDIR/http_get_redir
+    wget -P $PWIZ_TMPDIR/http_get_redir --spider -S -o $PWIZ_TMPDIR/http_get_redir/printurls.log "$1"
+    exec 3<$PWIZ_TMPDIR/http_get_redir/printurls.log
+    while read -u3 a1 a2 ; do
+	if test "$a1" = "Location:" ; then
+	    pwiz_result=$a2
+	fi
+    done
+    exec 3<&-
+    rm -rf $PWIZ_TMPDIR/http_get_redir
+}

@@ -10,6 +10,8 @@ case $1 in
 	return
 	;;
     init )
+	pwiz_module_needs uri
+	uri_provider
 	case $OPTCNT_VERBOSE in
 	    0 )
 		ftp_WGET="wget -q"
@@ -31,13 +33,46 @@ case $1 in
 	;;
 esac
 
-#@ ftp_list URI callback
-# URI: URI to be listed
-# callback: callback for found items
+#@ ftp_exists URI
+# URI: URI to be checked
+# returns: 0: URI exists, 1: URI does not exist
+#
+# Check, whether specified URI exists.
+function ftp_exists {
+    $ftp_WGET --spider "$1"
+}
+
+#@ ftp_get uri provider domain path file
+# uri: complete URI
+# provider: provider part of URI
+# domain: domain part of URI
+# path: path part of URI
+# file: file name to be downloaded to
+# 
+# Download a file using FTP protocol.
+function ftp_get {
+    local rc PWD_save
+    PWD_save=$PWD
+    cd $PWIZ_CACHEDIR
+    $ftp_WGET -N "$1"
+    rc=$?
+    cd "$PWD_save"
+    if test -z "${4##*/}" ; then
+	mv "$PWIZ_CACHEDIR/.listing" "$5"
+    else
+	mv "$PWIZ_CACHEDIR/${4##*/}" "$5"
+    fi
+    return $rc
+}
+
+#@ ftp_list uri provider domain path uri_list_callback
+# uri: complete URI
+# provider: provider part of URI
+# domain: domain part of URI
+# path: path part of URI
+# uri_list_callback: callback for found items
 #
 # Call callback for all found FTP objects.
-# Callback argument: URI
-# NOTE: If @$2 == "", then $pwiz_callback is used (probably echo).
 function ftp_list {
     mkdir -p $PWIZ_CACHEDIR/ftp
     $ftp_WGET -P $PWIZ_CACHEDIR/ftp -N  --no-remove-listing -r -l 1 "$1/"
@@ -45,21 +80,22 @@ function ftp_list {
 	echo "*** $1 not found"
 	return 1
     fi
-    ftp_list_callback "${1#ftp://}/.listing" "${2:-$pwiz_callback}"
+    ftp_list_callback "${1#ftp://}/.listing" "$5"
 }
 
-#@ ftp_list_recursive URI callback
-# URI: URI to be listed
-# callback: callback for found items
+#@ ftp_list_recursive uri provider domain path uri_list_callback
+# uri: complete URI
+# provider: provider part of URI
+# domain: domain part of URI
+# path: path part of URI
+# uri_list_callback: callback for found items
 #
 # Call callback for all recursivelly found FTP objects.
-# Callback argument: URI
-# NOTE: If @$2 == "", then $pwiz_callback is used (probably echo).
 
 # FIXME: Check, whether works for atypical characters in URI
 # FIXME: replace echo by debug commands
 function ftp_list_recursive {
-    local pwiz_callback_save pwiz_callback_sub
+    local callback_save callback_sub
     mkdir -p $PWIZ_CACHEDIR/ftp
     $ftp_WGET -P $PWIZ_CACHEDIR/ftp -N  --no-remove-listing -r -R '*' "$1/"
     if ! test -f "$PWIZ_CACHEDIR/ftp/${1#ftp://}/.listing" ; then
@@ -67,11 +103,11 @@ function ftp_list_recursive {
 	return 1
     fi
     shopt -s dotglob
-    pwiz_callback_save=$pwiz_callback
-    pwiz_callback_sub=${2:-$pwiz_callback}
+    callback_save=$pwiz_callback
+    callback_sub=$5
     pwiz_callback=ftp_list_callback
-    pwiz_find "${1#ftp://}" $PWIZ_CACHEDIR/ftp/ "$pwiz_callback_sub"
-    pwiz_callback=$pwiz_callback_save
+    pwiz_find "${1#ftp://}" $PWIZ_CACHEDIR/ftp/ "$callback_sub"
+    pwiz_callback=$callback_save
     shopt -u dotglob
 }
 
@@ -89,19 +125,4 @@ function ftp_list_callback {
 	done
 	exec 3<&-
     fi
-}
-
-#@ ftp_get URI
-# URI: URI of file to get
-# 
-# Download a file using FTP protocol.
-
-# FIXME: storage location and storage engine
-function ftp_get {
-    local rc
-    cd $PWIZ_CACHEDIR
-    $ftp_WGET -N "$1"
-    rc=$?
-    cd -
-    return $rc
 }

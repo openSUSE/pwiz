@@ -1,0 +1,38 @@
+#! /bin/bash
+
+case $1 in
+    desc )
+	echo "top level domain home page search"
+	return
+	;;
+    longdesc )
+	echo "This module searches for home page in common top level domains."
+	return
+	;;
+    init )
+	pwiz_module_needs package
+	pwiz_module_uses uri http
+	package_home_page_provider
+	;;
+    version )
+	echo "0.1"
+	return
+	;;
+    * )
+	return
+	;;
+esac
+
+#@ tld_package_home_page
+#
+# Searches possible home pages in common top level domains. (internal)
+function tld_package_home_page {
+    local tldname tld
+    tldname=${package_basename//_/-}
+    tldname=${package_basename//+}
+    for tld in org net com ; do
+	if uri_exists "http://www.$tldname.$tld/" ; then
+	    package_home_page_guess "http://www.$tldname.$tld/" 1
+	fi
+    done
+}

@@ -797,6 +797,9 @@ pwiz_default_vtags
 alias pwiz_cache_validity_apply='local pwiz_cache_validity=pwiz_cache_validity_"$pwiz_tag_valid" ; if test "$(type -t "$pwiz_cache_validity")" != function ; then pwiz_fatal "invalid validitity range $pwiz_tag_valid (tag \"valid\")" ; fi ; $pwiz_cache_validity'
 alias pwiz_keys_set='local pwiz_key ; for pwiz_key in $pwiz_key_list ; do local $pwiz_key ; eval $pwiz_key\=\$pwiz_project_$pwiz_key ; done'
 
+# Local variables for use in guess and question engines:
+alias pwiz_guess_local_decl='local -a pwiz_guesses pwiz_credits pwiz_strings pwiz_hotkeys ; local pwiz_guess_best'
+unset pwiz_guesses pwiz_credits pwiz_strings pwiz_hotkeys pwiz_guess_best
 
 #@@@ PWIZ engines
 
@@ -1030,9 +1033,12 @@ function pwiz_cache_remove {
 # Fuction for reading value from cache. Uses the same tag naming style
 #as ask interface uses, including guessing and answer credit. You have
 #to specify q tag.
-# WARNING: In difference to ask interface and @pwiz_cache_save, value
-#is not cached in local variable. It is because you can want read best
-#guess or exact guess.
+# WARNING: Each function, which wants to use pwiz_guess, must
+#declare @pwiz_guess_local_decl, which defines needed variables as
+#local! It is because you can want read best guess or exact guess, but
+#don't pollute global variables. If you want this function more times
+#in the same function or its sub-functions, you need to
+#call @pwiz_guess_local_decl before each call (it clears previous value).
 function pwiz_cache_load {
     pwiz_reset_tags
     pwiz_read_tags
@@ -1089,6 +1095,7 @@ function pwiz_cache_load {
 function pwiz_cache_delay {
     local phase=$1
     shift
+# BIG FIXME: Causes error BUILD_COMPILE_LAST: command not found
     eval "pwiz_cache_delay_item___${phase}___$pwiz_cache_delay_item_count=(\"\$@\")"
     let pwiz_cache_delay_item_count++
 }
@@ -1416,7 +1423,15 @@ function pwiz_guess_credit {
 #
 # This function collects all available guesses. Function is used
 #internally by @pwiz_ask_core and @pwiz_cache_load.
+# WARNING: Each function, which wants to use pwiz_guess, must
+#declare @pwiz_guess_local_decl, which defines needed variables as local!
 # NOTE: Tags must be already read before calling this function.
+
+#@pwiz_guess_local_decl
+#
+# Declare needed guess variables as local to not pollute global
+#variables. Must be used with @pwiz_guess and @pwiz_cache_load.
+
 function pwiz_guess {
     local key_found is_new tags count v_total v_default v_c v_string v_hotkey callback
 
@@ -1443,19 +1458,19 @@ function pwiz_guess {
 	    "${pwiz_tag_string[count]}" "${pwiz_tag_hotkey[count]}"
     done
 
-    if ! test -z "$pwiz_tag_q" ; then
+    # parse guesses in environment variables pwiz_guess_default_{q}, pwiz_guess_string_{q} pwiz_guess_hotkey_{q}
+    # WARNING: Those quesses does not recomputed p
+    eval v_total\=\${#pwiz_guess_default_$pwiz_tag_q\[@\]}
+    for (( count=0 ; count < v_total ; count++ )) ; do
+	eval v_default\=\"\${pwiz_guess_default_$pwiz_tag_q\[count\]}\"
+	eval v_c\=\${pwiz_guess_c_$pwiz_tag_q\[count\]}
+	eval v_string\=\"\${pwiz_guess_string_$pwiz_tag_q\[count\]}\"
+	eval v_hotkey\=\"\${pwiz_guess_hotkey_$pwiz_tag_q\[count\]}\"
+	decho_guess "guess in variable: $v_default (${v_c:-0}c)"
+	pwiz_guess_eval "$v_default" "$v_c" "$v_string" "$v_hotkey"
+    done
 
-	# parse guesses in environment variables pwiz_guess_default_{q}, pwiz_guess_string_{q} pwiz_guess_hotkey_{q}
-	# WARNING: Those quesses does not recomputed p
-	eval v_total\=\${#pwiz_guess_default_$pwiz_tag_q\[@\]}
-	for (( count=0 ; count < v_total ; count++ )) ; do
-	    eval v_default\=\"\${pwiz_guess_default_$pwiz_tag_q\[count\]}\"
-	    eval v_c\=\${pwiz_guess_c_$pwiz_tag_q\[count\]}
-	    eval v_string\=\"\${pwiz_guess_string_$pwiz_tag_q\[count\]}\"
-	    eval v_hotkey\=\"\${pwiz_guess_hotkey_$pwiz_tag_q\[count\]}\"
-	    decho_guess "guess in variable: $v_default (${v_c:-0}c)"
-	    pwiz_guess_eval "$v_default" "$v_c" "$v_string" "$v_hotkey"
-	done
+    if ! test -z "$pwiz_tag_q" ; then
 
 	# parse cached guesses
 	pwiz_cache_key_value=@@PWIZ_UNDEFINED@@
@@ -1553,8 +1568,8 @@ function pwiz_guess_eval {
     fi
 }
 
-#@ pwiz_guess_add id guess credit string hotkey
-# q: question ID (corresponds to tag q)
+#@ pwiz_guess_add q guess credit string hotkey
+# q: question ID (corresponds to tag q, can be empty string)
 # guess: value of guess
 # credit: credit of guess (can be empty string)
 # string: string value for guess (can be empty string)
@@ -1565,6 +1580,8 @@ function pwiz_guess_eval {
 #${pwiz_guess_string_{q}}. Later @pwiz_guess can take it in account.
 # NOTE: Credit is considered as absolute. No user credibility is
 #evaluated.
+# WARNING: If id is empty, guess applies for all uncached questions.
+#Such guess must be cleaned after use by @pwiz_guess_clean.
 function pwiz_guess_add {
     eval local count\=\${#pwiz_guess_default_$1\[@\]}
     eval pwiz_guess_default_$1\[count\]\=\"\$2\"
@@ -1576,6 +1593,15 @@ function pwiz_guess_add {
 	eval pwiz_guess_hotkey_$1\[count\]\=\"\$5\"
     fi
 }
+
+#@ pwiz_guess_clean q
+# q: question ID (corresponds to tag q)
+#
+# Clean guesses in environment variables ${pwiz_guess_default_{q}},
+function pwiz_guess_clean {
+    unset pwiz_guess_default_$1 pwiz_guess_c_$1 pwiz_guess_string_$1 pwiz_guess_hotkey_$1
+}
+pwiz_guess_clean
 
 #@ pwiz_key_parse key
 # key: cache key to parse
@@ -2070,9 +2096,7 @@ function pwiz_ask_radio_f {
 #@pwiz_ask_{function}. Uses @pwiz_guess.
 function pwiz_ask_core {
     local question_function desc longdesc rc count hotkey credit_threshold answer_credit guesslevel knowledge pwiz_answer_save nocred_string nocred_help nocred_no credit_string
-
-    # Local variables for use in guess and question engines:
-    local -a pwiz_guesses pwiz_credits pwiz_strings pwiz_hotkeys
+    pwiz_guess_local_decl
 
     question_function=$1
     desc="$2"
@@ -2140,6 +2164,8 @@ function pwiz_ask_core {
 	guesslevel=0
     else
 	local is_default
+	# FIXME: Implement no_default (user must respond) and no default for small credit.
+	# FIXME: Implement ambivalence "2nd best guess minimal difference" (if it is small, don't allow auto-selection of default)
 	pwiz_askmenu_reset
 	if $pwiz_tag_allow_new ; then
 	    # FIXME: Implement tag quick_enter (any unknown reply is considered as string for "enter manually").

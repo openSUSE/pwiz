@@ -6,12 +6,13 @@ pwizmodules_DATA=\
 	filelist.pwm\
 	filelist_simplify.pwm\
 	find_lang.pwm\
+	freshmeat.pwm\
 	ftp.pwm\
 	gnome.pwm\
 	gnu_configure.pwm\
 	gnu_make.pwm\
 	gtkdoc_split_doc.pwm\
-	html.pwm\
+	http.pwm\
 	installwatch.pwm\
 	ldconfig.pwm\
 	license.pwm\
@@ -22,20 +23,27 @@ pwizmodules_DATA=\
 	rpm.pwm\
 	sourceforge.pwm\
 	split_devel.pwm\
+	tld.pwm\
 	unpack.pwm\
+	uri.pwm\
 	version.pwm
 
-html.pwm: html.pwm.in Makefile.am
-	sed "s%@PW_WRAPPERDIR@%@libdir@/pwiz%g;s%@PW_HELPERDIR@%@libexecdir@/pwiz%g" <$(srcdir)/html.pwm.in >html.pwm
+freshmeat.pwm: freshmeat.pwm.in Makefile.am
+	sed "s%@PW_WRAPPERDIR@%@libdir@/pwiz%g;s%@PW_HELPERDIR@%@libexecdir@/pwiz%g" <$(srcdir)/freshmeat.pwm.in >freshmeat.pwm
+
+http.pwm: http.pwm.in Makefile.am
+	sed "s%@PW_WRAPPERDIR@%@libdir@/pwiz%g;s%@PW_HELPERDIR@%@libexecdir@/pwiz%g" <$(srcdir)/http.pwm.in >http.pwm
 
 installwatch.pwm: installwatch.pwm.in Makefile.am
 	sed "s%@PW_WRAPPERDIR@%@libdir@/pwiz%g;s%@PW_HELPERDIR@%@libexecdir@/pwiz%g" <$(srcdir)/installwatch.pwm.in >installwatch.pwm
 
 distclean-local:
-	rm -f installwatch.pwm html.pwm
+	rm -f freshmeat.pwm installwatch.pwm http.pwm
 
 pwizhelperdir=$(libexecdir)/pwiz
-pwizhelper_SCRIPTS=html_printurls
+pwizhelper_SCRIPTS=\
+	freshmeat_xml_parse
+	http_html_printurls
 
 installwatch_cleandir=$(libexecdir)/pwiz
 installwatch_clean_PROGRAMS=installwatch_clean
@@ -47,13 +55,15 @@ EXTRA_DIST=\
 	filelist.pwm\
 	filelist_simplify.pwm.in\
 	find_lang.pwm\
+	freshmeat.pwm.in\
+	freshmeat_xml_parse\
 	ftp.pwm\
 	gnome.pwm\
 	gnu_configure.pwm\
 	gnu_make.pwm\
 	gtkdoc_split_doc.pwm\
-	html.pwm.in\
-	html_printurls\
+	http.pwm.in\
+	http_html_printurls\
 	installwatch.pwm.in\
 	ldconfig.pwm\
 	license.pwm\
@@ -64,5 +74,7 @@ EXTRA_DIST=\
 	rpm.pwm\
 	sourceforge.pwm\
 	split_devel.pwm\
+	tld.pwm\
 	unpack.pwm\
+	uri.pwm\
 	version.pwm

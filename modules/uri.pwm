@@ -1,0 +1,165 @@
+#! /bin/bash
+
+case $1 in
+    desc )
+	echo "support for URI providers"
+	return
+	;;
+    longdesc )
+	echo "This module provides support for more URI providers."
+	return
+	;;
+    init )
+	;;
+    version )
+	echo "0.1"
+	return
+	;;
+    * )
+	return
+	;;
+esac
+
+#@ uri_provider [ uri ]
+# uri: URI provider name (optional, default=module name)
+#
+# Function for init of modules providing URI functions. Module must
+#define functions @{uri}_list and @{uri}_get.
+# NOTE: Any ocurrence of "-" in URI provider part is converted to "_".
+
+#@ ${uri_providers[@@]}
+# Array, which contains all registered URI providers.
+
+function uri_provider {
+    local uri
+    if test -z "$1" ; then
+	if test "$pwiz_module_current" = "ERROR" ; then
+	    pwiz_fatal "uri_provider called without argument outside init"
+	fi
+	uri=$pwiz_module_current
+    else
+	uri=$1
+    fi
+    pwiz_array_add uri_providers "$uri"
+}
+declare -a uri_providers
+
+alias uri_parse='
+    local provider domain path
+    domain=${1#*://}
+    path=$domain
+    provider=$domain
+    domain=${domain%%/*}
+    if test "$provider" = "$domain" ; then
+	path=
+    else
+	path=${path#*/}
+    fi
+    provider=${1%%://*}
+'
+
+#@ uri_exists uri
+# uri: URI
+# returns: 0: URI exists, 1: URI does not exist
+#
+# Check, whether specified URI exists.
+function uri_exists {
+    uri_parse
+    eval ${provider//-/_}_exists '"$1" "$provider" "$domain" "$path"'
+}
+
+#@ uri_get uri file
+# uri: URI
+# file: file name to be downloaded to (in case of empty string,
+#backend will choose one, probably last element of path, if last
+#element of path is empty, too, then "uri_index" is used)
+#
+# Download specified URI to current directory as file.
+function uri_get {
+    uri_parse
+    local file
+    if test -z "$2" ; then
+	if test -z "${path##*/}" ; then
+	    file=uri_index
+	else
+	    file="${path##*/}"
+	fi
+    else
+	file="$2"
+    fi
+    eval ${provider//-/_}_get '"$1" "$provider" "$domain" "$path" "$file"'
+}
+
+#@ uri_list uri uri_list_callback
+# uri: complete URI
+# uri_list_callback: callback for found items (can be
+#empty - $pwiz_callback is used instead - probably echo)
+#
+# Call callback for all available hyperlinks in specified URI.
+
+#@ {uri_list_callback}
+# uri: URI of found hyperlink
+#
+# Callback function for uri_list.
+
+function uri_list {
+    uri_parse
+    eval ${provider//-/_}_list '"$1" "$provider" "$domain" "$path" "${2:-$pwiz_callback}"'
+}
+
+#@ uri_list_recursive uri uri_list_callback
+# uri: complete URI
+# uri_list_callback: callback for found items (can be
+#empty - $pwiz_callback is used instead - probably echo)
+#
+# Recursivelly call callback for all available hyperlinks in specified URI.
+
+#@ {uri_list_callback}
+# uri: URI of found hyperlink
+#
+# Callback function for uri_list.
+
+function uri_list_recursive {
+    uri_parse
+    eval ${provider//-/_}_list_recursive '"$1" "$provider" "$domain" "$path" "${2:-$pwiz_callback}"'
+}
+
+#@ {uri}_exists uri provider domain path
+# uri: complete URI
+# provider: provider part of URI
+# domain: domain part of URI
+# path: path part of URI
+# returns: 0: URI exists, 1: URI does not exist
+#
+# Back-end function for URI provider. Check, whether specified URI
+#exists.
+
+#@ {uri}_get uri provider domain path file
+# uri: complete URI
+# provider: provider part of URI
+# domain: domain part of URI
+# path: path part of URI
+# file: file name to be downloaded to
+#
+# Back-end function for URI provider. Download specified URI to
+#current directory as file.
+
+#@ {uri}_list uri provider domain path uri_list_callback
+# uri: complete URI
+# provider: provider part of URI
+# domain: domain part of URI
+# path: path part of URI
+# uri_list_callback: callback for found items
+#
+# Back-end function for URI provider. Call callback for all available
+#hyperlinks in specified URI.
+
+#@ {uri}_recursive_list uri provider domain path uri_list_callback
+# uri: complete URI
+# provider: provider part of URI
+# domain: domain part of URI
+# path: path part of URI
+# uri_list_callback: callback for found items
+#
+# Back-end function for URI provider. Recursivelly call callback for
+#all available hyperlinks in specified URI.

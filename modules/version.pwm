@@ -46,7 +46,10 @@ function version_parse {
     shopt -u extglob
 }
 
-# FIXME: comparison and strings of alpha/beta
+# FIXME: comparison and strings of alpha/beta -pre etc.
+# FIXME: Include/exclude -pre and -rc from version models
+# FIXME: Parse 05Aug03 versions
+# FIXME: add even midnumber rule with 0.x.x exclusion (good default).
 
 #@ version_compare p1 p2
 # p1: name of array with first parsed version
