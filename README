@@ -14,7 +14,9 @@ INSTALL
 
 Before installation, please install a package installwatch.
 
-copy pwiz and all related files into ~/pwiz.
+Copy pwiz and all related files into ~/pwiz.
+
+Run ./build.sh.
 
 Then do:
 
