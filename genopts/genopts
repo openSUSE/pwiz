@@ -6,7 +6,7 @@
 #  Added @code_style, @options_only.
 #  Bash code improvements.
 #  Fixed backlash disappearing problem.
-#  Typo fix for default variable.
+#  Typo fixes.
 #
 # Version 1.0, Stanislav Brabec <utx@penguin.cz>, 2002:
 #  Initial version.
@@ -201,7 +201,7 @@ usehelpi()
 {
     OPTSTRING="$1$SPACES"
     OPTSTRING="${OPTSTRING:0:$HELPSIZE}"
-    if [[ ${#1} -gt $HELPSIZE ]]
+    if [[ ${#1} -gt HELPSIZE-1 ]]
     then
 	OPTSTRING="$1 "
     fi
