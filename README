@@ -31,6 +31,7 @@ Current implementation has following limitations. I am working on its
 fixing:
 
 - No support for manual actions/patches available.
+- Only FTP parsing support. No support for build from local files.
 - No error processing.
 - No support for neededforbuild, Requires etc.
 - No support for %pre, %post, %postun, %preun phase splitting to
