@@ -120,9 +120,9 @@ Do you want any additional options?" \
 
 function gnu_configure_configure {
 # FIXME: write generic pwiz_shell_fmt and fix multi_line commands in core
-    local string="$(echo $./configure$gnu_configure_prefix_args$gnu_configure_args$gnu_configure_extra_args | fmt | sed 's/$/\\/;$s/\\\\$//' )"
+#    local string="$(echo $./configure$gnu_configure_prefix_args$gnu_configure_args$gnu_configure_extra_args | fmt | sed 's/$/\\/;$s/\\\\$//' )"
 #    pwiz_phase_add_run configure "$string"
-#    pwiz_phase_add_run configure "./configure$gnu_configure_prefix_args$gnu_configure_args$gnu_configure_extra_args"
+    pwiz_phase_add_run configure "./configure$gnu_configure_prefix_args$gnu_configure_args$gnu_configure_extra_args"
 
 # FIXME: will be obsoleted by fallback checks
     pwiz_phase_add configure 'gnu_configure_rc=$pwiz_run_rc'
