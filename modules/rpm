@@ -1,0 +1,53 @@
+#! /bin/sh
+
+case $1 in
+    desc )
+	echo "RPM support for PWIZ"
+	return
+	;;
+    longdesc )
+	echo "This module is adds support for RPM and overwrites some default definitions."
+	return
+	;;
+    init )
+	pwiz_module_needs package version
+	pwiz_module_uses installwatch unpack
+	pwiz_phase_new rpmsetup after package
+	pwiz_phase_add_callme rpmsetup
+	pwiz_phase_new rpmheader after rpmsetup
+	pwiz_phase_add_rem prep     ""
+	pwiz_phase_add_rem prep     "%prep"
+	pwiz_phase_add_rem_eval unpack '%define buildsubdir $unpack_dirname'
+	pwiz_phase_add_rem build    ""
+	pwiz_phase_add_rem build    "%build"
+	pwiz_phase_add_rem install  ""
+	pwiz_phase_add_rem install  "%install"
+	pwiz_phase_add_rem finish   ""
+	pwiz_phase_add_rem finish   "%files"
+	pwiz_phase_add_callme finish finish
+	;;
+    rpmsetup )
+	pwiz_phase_add_rem rpmheader "Name:         $pwiz_project_project"
+	pwiz_phase_add_rem rpmheader "Version:      $pwiz_project_version"
+	pwiz_phase_add_rem rpmheader "Group:        FIXME"
+	pwiz_phase_add_rem rpmheader "License:      FIXME"
+	pwiz_phase_add_rem rpmheader "Release:      0"
+	pwiz_phase_add_rem rpmheader "Source:       $package_uri"
+	pwiz_phase_add_rem rpmheader "BuildRoot:    %{_tmppath}/%{name}-%{version}-build"
+	pwiz_phase_add_rem rpmheader "Summary:      FIXME"
+	pwiz_phase_add_rem rpmheader "%description"
+	pwiz_phase_add_rem rpmheader "FIXME"
+	return
+	;;
+    finish )
+	pwiz_phase_add_rem finish "$(<$installwatch_file)"
+	return
+	;;
+    version )
+	echo "0.1"
+	return
+	;;
+    * )
+	return
+	;;
+esac
