@@ -16,32 +16,18 @@ case $1 in
     filelist_simplify )
 set -x
 	unset filelist_simplify_files
+	unset filelist_simplify_types
 	unset filelist_simplify_taglines
-	unset filelist_simplify_ofiles
-	unset filelist_simplify_otaglines
-	unset filelist_simplify_globs
-	unset filelist_simplify_globtaglines
 
 # Read file list to memory.
 	filelist_simplify_count=0
-	filelist_simplify_ocount=0
 	exec 3<$filelist_file
 	while read -u3 filelist_simplify_line ; do
 	    filelist_read_item "$filelist_simplify_line"
-	    case "$filelist_tag_type" in
-		file* | dir* )
-		    # Create a list of object.
-		    filelist_simplify_files[filelist_simplify_count]="$filelist_tag_name"
-		    filelist_simplify_type[filelist_simplify_count]="$filelist_tag_type"
-		    filelist_simplify_taglines[filelist_simplify_count++]="$filelist_tagline"
-		    ;;
-		ofile* | odir* )
-		    # Create a list of unowned object.
-		    filelist_simplify_ofiles[filelist_simplify_ocount]="$filelist_tag_name"
-		    filelist_simplify_otype[filelist_simplify_ocount]="$filelist_tag_type"
-		    filelist_simplify_otaglines[filelist_simplify_ocount++]="$filelist_tagline"
-		    ;;
-	    esac
+	    # Create a list of object.
+	    filelist_simplify_files[filelist_simplify_count]="$filelist_tag_name"
+	    filelist_simplify_types[filelist_simplify_count]="$filelist_tag_type"
+	    filelist_simplify_taglines[filelist_simplify_count++]="$filelist_tagline"
 	done
 	exec 3<&-
 
@@ -51,8 +37,20 @@ set -x
 	# Make a simplification.
 	for (( filelist_simplify_count=0 ; filelist_simplify_count < ${#filelist_simplify_files[@]} ; filelist_simplify_count++ )) ; do
 	    filelist_simplify_file="${filelist_simplify_files[filelist_simplify_count]}"
-	    filelist_simplify_type="${filelist_simplify_type[filelist_simplify_count]}"
+	    filelist_simplify_type="${filelist_simplify_types[filelist_simplify_count]}"
 	    filelist_simplify_tagline="${filelist_simplify_taglines[filelist_simplify_count]}"
+# FIXME: Here we use non-standard access to fields.
+	    filelist_simplify_tagext="${filelist_simplify_tagline#*@}"
+	    if test "$filelist_simplify_tagext" = "$filelist_simplify_tagline" ; then
+		filelist_simplify_tagext=
+	    fi
+
+	    # Is object owned?
+	    # FIXME: maybe add attribute owned/unowned
+	    if test "$filelist_simplify_type" = odir -o  "$filelist_simplify_type" = ofile ; then
+		continue
+	    fi
+
 	    # Is object covered by previous simplification?
 	    if test -z "$filelist_simplify_file" ; then
 		continue
@@ -81,41 +79,40 @@ set -x
 		for filelist_simplify_pattern in "$filelist_simplify_path/*" ; do
 		    filelist_simplify_usable=true
 		    echo "*** simplify pattern: $filelist_simplify_pattern"
-		    # Now check for all unowned objects
-		    for filelist_simplify_ofile in "${filelist_simplify_ofiles[@]}" ; do
-			echo "*** compares with simplify path: $filelist_simplify_ofile"
-			# If any unowned object match, the simplicifation is invalid.
-			case "$filelist_simplify_ofile" in
-			    $filelist_simplify_pattern )
-				echo "*** $filelist_simplify_ofile breaks this simplification"
-				filelist_simplify_usable=false
-				break
-				;;
-			esac
-		    done
-
-		    if $filelist_simplify_usable ; then
-# Check for all owned objects with different attributes, too.
-			for (( filelist_simplify_count2=0 ; filelist_simplify_count2 < ${#filelist_simplify_files[@]} ; filelist_simplify_count2++ )) ; do
-			case "$filelist_simplify_file2" in
-			    # If any owned object with different attributes match, the simplicifation is invalid.
-			    $filelist_simplify_pattern )
-				filelist_simplify_file2="${filelist_simplify_files[filelist_simplify_count2]}"
-				filelist_simplify_tagline2="${filelist_simplify_taglines[filelist_simplify_count2]}"
-				filelist_simplify_tagext2="${filelist_simplify_tagline2#*@}"
-				if test "$filelist_simplify_tagext2" = "$filelist_simplify_tagline2" ; then
-				    filelist_simplify_tagext2=
-				fi
-				echo "*** compares attributes with simplify path: $filelist_simplify_file2"
-				if test "$filelist_simplify_tagext" != "$filelist_simplify_tagext2" ; then
-				    echo "*** $filelist_simplify_file2 attributes breaks this simplification"
+		    for (( filelist_simplify_count2=0 ; filelist_simplify_count2 < ${#filelist_simplify_files[@]} ; filelist_simplify_count2++ )) ; do
+			filelist_simplify_file2="${filelist_simplify_files[filelist_simplify_count2]}"
+			filelist_simplify_type2="${filelist_simplify_types[filelist_simplify_count2]}"
+			echo "*** compares with: $filelist_simplify_file2"
+			if test "$filelist_simplify_type2" = odir -o  "$filelist_simplify_type2" = ofile ; then
+			    echo "*** (unowned)"
+			    # If any unowned object match, the simplicifation is invalid.
+			    case "$filelist_simplify_file2" in
+				$filelist_simplify_pattern )
+				    echo "*** $filelist_simplify_file2 breaks this simplification"
 				    filelist_simplify_usable=false
 				    break
-				fi
-				;;
+				    ;;
 			    esac
-			done
-		    fi
+			else
+			    echo "*** (owned)"
+			    # If any owned object with different attributes match, the simplicifation is invalid.
+			    case "$filelist_simplify_file2" in
+				$filelist_simplify_pattern )
+# FIXME: Write filelist_simplify_make_tagext
+				    filelist_simplify_tagline2="${filelist_simplify_taglines[filelist_simplify_count2]}"
+				    filelist_simplify_tagext2="${filelist_simplify_tagline2#*@}"
+				    if test "$filelist_simplify_tagext2" = "$filelist_simplify_tagline2" ; then
+					filelist_simplify_tagext2=
+				    fi
+				    if test "$filelist_simplify_tagext" != "$filelist_simplify_tagext2" ; then
+					echo "*** $filelist_simplify_file2 attributes breaks this simplification"
+					filelist_simplify_usable=false
+					break
+				    fi
+				    ;;
+			    esac
+			fi
+		    done
 
 		    # Usable pattern found. Let's break a pattern loop.
 		    if $filelist_simplify_usable ; then
@@ -154,18 +151,12 @@ set -x
 		echo "*** no valid simplification"
 	    else
 
-# FIXME: Here we use non-standard access to fields.
 		# Keep all attributes except type, set type to "glob".
-		filelist_simplify_tagext="${filelist_simplify_tagline#*@}"
-		if test "$filelist_simplify_tagext" = "$filelist_simplify_tagline" ; then
-		    filelist_simplify_tagext=
+		if test "$filelist_simplify_tagext" = "" ; then
 		    filelist_simplify_tagline=glob
 		else
 		    filelist_simplify_tagline="glob@$filelist_simplify_tagext"
 		fi
-		# Insert pattern to glob list.
-		filelist_simplify_globtaglines[${#filelist_simplify_globs[@]}]="$filelist_simplify_tagline"
-		filelist_simplify_globs[${#filelist_simplify_globs[@]}]="$filelist_simplify_valid_pattern"
 
 		# Remove all matches from list.
 # FIXME: Note: Matches cannot contain unowned object.
@@ -174,13 +165,18 @@ set -x
 		for (( filelist_simplify_count2=0 ; filelist_simplify_count2 < ${#filelist_simplify_files[@]} ; filelist_simplify_count2++ )) ; do
 		    case "${filelist_simplify_files[filelist_simplify_count2]}" in
 			# Check against "/*" ending version of string, not against glob string.
-			# (Directory itself contents is cleaned separately.)
+			# (Directory itself contents is by glob itself.)
 			$filelist_simplify_valid_glob_pattern )
 			    echo "*** removing globbed ${filelist_simplify_files[filelist_simplify_count2]}"
 			    filelist_simplify_files[filelist_simplify_count2]=
 			    ;;
 		    esac
 		done
+
+		# Replace object with glob list.
+		filelist_simplify_files[filelist_simplify_count]="$filelist_simplify_valid_pattern"
+		filelist_simplify_taglines[filelist_simplify_count]="$filelist_simplify_tagline"
+
 	    fi
 	# Go to next object in list.
 	done
@@ -194,18 +190,9 @@ set >$filelist_file_tmp.set
 		echo "${filelist_simplify_files[filelist_simplify_count]} ${filelist_simplify_taglines[filelist_simplify_count]}"
 	    fi
 	done
-	for (( filelist_simplify_count=0 ; filelist_simplify_count < ${#filelist_simplify_ofiles[@]} ; filelist_simplify_count++ )) ; do
-	    echo "${filelist_simplify_ofiles[filelist_simplify_count]} ${filelist_simplify_otaglines[filelist_simplify_count]}"
-	done
-	for (( filelist_simplify_count=0 ; filelist_simplify_count < ${#filelist_simplify_globs[@]} ; filelist_simplify_count++ )) ; do
-	    echo "${filelist_simplify_globs[filelist_simplify_count]} ${filelist_simplify_globtaglines[filelist_simplify_count]}"
-	done
 	unset filelist_simplify_files
+	unset filelist_simplify_types
 	unset filelist_simplify_taglines
-	unset filelist_simplify_ofiles
-	unset filelist_simplify_otaglines
-	unset filelist_simplify_globs
-	unset filelist_simplify_globtaglines
 	pwiz_redirect_stdout_close
 set +x
 # FIXME:
