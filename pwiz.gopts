@@ -13,6 +13,8 @@ shopt -s nullglob
 
 @code_style line_up function_keyword casetab
 
+@options_only
+
 @program pwiz
 
 @version 0.01
@@ -25,7 +27,7 @@ shopt -s nullglob
 
 @free_copy
 
-@usage [OPTION]... [PROJECT]...
+@usage [OPTION]...
 
 @short
 Packaging Wizard provides a framework for simplification of packaging process.
