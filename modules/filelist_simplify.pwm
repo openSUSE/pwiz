@@ -226,6 +226,7 @@ cp -a $filelist_file_tmp $filelist_file_tmp.sim2
 #@ filelist_simplify_add_callback function ...
 #@ callback format: function file
 # Add Callback for pre-creating pattern guesses.
+# NOTE: Callback is called in extglob mode!
 function filelist_simplify_add_callback {
     local func
     for func in "$@" ; do
@@ -323,14 +324,22 @@ function filelist_simplify_PREPARE {
 # FIXME: Maybe nice to have name-* name-name2-* *.ext1.ext2 etc.
 
 # Add a callback pattern *.ext for any extension
+shopt -s extglob
 function filelist_simplify_dotsep_callback {
     local basename="${1##*/}"
     local ext="${basename##*.}"
-    if test "$ext" = "$basename" ; then
-	filelist_simplify_dotsep_pattern=
-    else
-	filelist_simplify_dotsep_pattern="*.$ext"
+    filelist_simplify_dotsep_pattern=
+    if ! test "$ext" = "$basename" ; then
+	case "$ext" in
+	    # Set of numbers probably is not a suffix.
+	    +([0-9]) )
+		;;
+	    * )
+		filelist_simplify_dotsep_pattern="*.$ext"
+		;;
+	esac
     fi
 }
+shopt -u extglob
 filelist_simplify_add_callback filelist_simplify_dotsep_callback
 filelist_simplify_add_fallback_pattern '$filelist_simplify_dotsep_pattern'
