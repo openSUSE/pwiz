@@ -1,0 +1,44 @@
+#! /bin/bash
+
+case $1 in
+    desc )
+	echo "most common license checker"
+	return
+	;;
+    longdesc )
+	echo "This module checks for most common license files and checks them."
+	return
+	;;
+    init )
+	pwiz_module_needs check_unpacked
+	check_unpacked_provider
+	return
+	;;
+    version )
+	echo "0.1"
+	return
+	;;
+    check_unpacked )
+# FIXME: license_found as array to be able to search more files.
+# As last in resort: sort -u
+	license_found=
+	for license_file in COPYING COPYING.LIB ; do
+	    license_md5sum="$(md5sum "$license_file")"
+	    license_md5sum=${license_md5sum%% *}
+	    case $license_md5sum in
+# GNU General Public License Version 2, June 1991
+		94d55d512a9ba36caa9b7df079bae19f )
+		    license_found="$license_found GPL"
+		    ;;
+# GNU Library General Public License Version 2, June 1991
+		55ca817ccb7d5b5b66355690e9abc605 )
+		    license_found="$license_found LGPL"
+		    ;;
+	    esac
+	done
+	return
+	;;
+    * )
+	return
+	;;
+esac
