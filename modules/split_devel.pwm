@@ -25,10 +25,18 @@ case $1 in
 esac
 
 # FIXME: package_version instead of pwiz_project_version
+
+#@ split_devel_SETUP
+#
+# Prepares split_devel. (internal)
 function split_devel_SETUP {
     filelist_split_candidate_requires devel "$package_basename = $pwiz_project_version"
 }
 
+#@ split_devel_filelist_inspect
+#
+# File list inspector splitting devel files. I case of doubt it asks
+#user. (internal)
 shopt -s extglob
 function split_devel_filelist_inspect {
     local cache_name cache_record file_name
@@ -116,8 +124,12 @@ function split_devel_filelist_inspect {
 shopt -u extglob
 
 # FIXME: to platform dependent part:
+
 #@ split_devel_get_soname file
-#@ returns in $pwiz_result
+# file: file with library
+# returns $pwiz_result: soname of file
+#
+# Reads shared object name of shared library.
 function split_devel_get_soname {
     pwiz_result="$(objdump -p "$1" | sed -n $'s/[ \t]*SONAME[ \t]*\(.*\)/\\1/p')"
 }

@@ -1,0 +1,241 @@
+#! /bin/bash
+
+t1_begin="<h2>"
+t1_end="</h2>
+
+"
+t2_begin="<h3>"
+t2_end="</h3>
+
+"
+pre_begin="<pre>
+"
+pre_end="</pre>
+
+"
+arg_begin="<i>"
+arg_end="</i>"
+line_begin="<p>"
+line_end="</p>
+
+"
+func_begin="<h4>"
+func_end="</h4>
+
+"
+
+ref_begin="<i>"
+ref_end="</i>"
+
+separator="<hr />
+
+"
+
+function eecho {
+    if $inpar ; then
+	echo -n "$line_end"
+    fi
+    inpar=false
+}
+
+function xecho {
+    eecho
+    echo -n "$1"
+    rdmode=true
+}
+
+function fecho {
+    local fname=$1
+    shift
+    eecho
+    if test $# -gt 0 ; then
+	echo -n "$func_begin$fname $arg_begin$*$arg_end$func_end"
+    else
+	echo -n "$func_begin$fname$func_end"
+    fi
+    rdmode=true
+    if test "${fname:0:1}" != '$' ; then
+	rfmode=true
+    fi
+}
+
+function oecho {
+    eecho
+    if $rfmode ; then
+	rfecho "$1"
+    else
+	echo -n "$line_begin$1"
+    fi
+    inpar=true
+    rdmode=true
+}
+
+function rfecho {
+    local arg1=${1%%:*}
+    local arg2=${1#*:}
+    if test "$arg1" = "$1" ; then
+	echo >&2 "Bad formatting at line $lineno, only arguments allowed on lines between \"#@\" (not describing variable) and standalone \"#\"!"
+    fi
+    shift
+    echo -n "$line_begin$arg_begin$arg1:$arg_end$arg2"
+}
+
+function docfile {
+lineno=0
+
+echo "<html>"
+echo "<h1>$2</h1>"
+echo "<p>$3</p>"
+echo
+
+rdmode=false
+rfmode=false
+inpar=false
+vbmode=false
+while read line ; do
+    let lineno++
+    if test "${line:0:1}" = "#" ; then
+	if $vbmode ; then
+	    if test "${line:0:3}" = "#@>" ; then
+		vbmode=false
+# FIXME: depends on EOL in pre commands
+		echo -n "%%%%PRE_END%%%%$pre_end"
+	    else
+		echo "${line:1}"
+	    fi
+	else
+	    if test "${line:0:5}" = "#%%%% " ; then
+		xecho "$t1_begin${line:5}$t1_end"
+	    else
+		if test "${line:0:4}" = "#@@ " ; then
+		    xecho "$t2_begin${line:4}$t2_end"
+		else
+		    if test "${line:0:3}" = "#@ " ; then
+			fecho ${line:3}
+		    else
+			if test "${line:0:4}" = "##@ " ; then
+			    oecho "${line:4}"
+			else
+			    if $rdmode ; then
+				if test "${line:0:2}" = "# " ; then
+				    oecho "${line:2}"
+				else
+				    if test "${line:0:3}" = "#@<" ; then
+					eecho
+					vbmode=true
+					echo -n "${pre_begin}%%%%PRE_BEGIN%%%%"
+				    else
+					if test "$line" = "#" ; then
+					    if $rfmode ; then
+						rfmode=false
+					    else
+						eecho
+						echo -n "$separator"
+					    fi
+					else
+					    echo -n " ${line:1}"
+					fi
+				    fi
+				fi
+			    fi
+			fi
+		    fi
+		fi
+	    fi
+	fi
+    else
+	if test "${1##*.}" = pwm ; then
+	    line=${line%%#*}
+	    line=${line//	/ }
+	    line=${line//  / }
+	    nline=${line/pwiz_module_needs/}
+	    if test "$nline" != "$line" ; then
+		echo "${line_begin}Module requires for init: $nline$line_end"
+	    else
+	    nline=${line/pwiz_module_uses/}
+	    if test "$nline" != "$line" ; then
+		echo "${line_begin}Module requires for running: $nline$line_end"
+	    else
+	    nline=${line/pwiz_phase_new_callme/}
+	    if test "$nline" != "$line" ; then
+		echo "${line_begin}Module defines phase: $nline$line_end"
+		echo "${line_begin}Module uses phase: $nline$line_end"
+	    else
+# FIXME: bad
+	    nline=${line/pwiz_phase_new_call/}
+	    if test "$nline" != "$line" ; then
+		echo "${line_begin}Module defines phase: $nline$line_end"
+		echo "${line_begin}Module uses phase: $nline$line_end"
+	    else
+	    nline=${line/pwiz_phase_new_3_guess/}
+	    if test "$nline" != "$line" ; then
+		echo "${line_begin}Module defines three phase with guess: $nline$line_end"
+	    else
+	    nline=${line/pwiz_phase_new_3/}
+	    if test "$nline" != "$line" ; then
+		echo "${line_begin}Module defines three phase: $nline$line_end"
+	    else
+	    nline=${line/pwiz_phase_new/}
+	    if test "$nline" != "$line" ; then
+		echo "${line_begin}Module defines phase: $nline$line_end"
+	    else
+	    nline=${line/pwiz_phase_add_callme/}
+	    if test "$nline" != "$line" ; then
+		echo "${line_begin}Module uses phase: $nline$line_end"
+	    else
+# BAD
+	    nline=${line/pwiz_phase_add_run/}
+	    if test "$nline" != "$line" ; then
+		echo "${line_begin}Module uses phase: $nline$line_end"
+	    else
+# BAD
+	    nline=${line/pwiz_phase_add/}
+	    if test "$nline" != "$line" ; then
+		echo "${line_begin}Module uses phase: $nline$line_end"
+	    else
+	    nline=${line/_provider/}
+	    if test "$nline" != "$line" ; then
+		echo "${line_begin}Module provides function for: $nline$line_end"
+	    fi
+	    fi
+	    fi
+	    fi
+	    fi
+	    fi
+	    fi
+	    fi
+	    fi
+	    fi
+	    fi
+	fi
+	eecho
+	rdmode=false
+	rfmode=false
+	vbmode=false
+    fi
+done |
+sed '
+/%%%%PRE_BEGIN%%%%/,/%%%%PRE_END%%%%/! {
+    s%\([^@]\)\(\$[][#{@*}a-zA-Z0-9_]*\)%\1'"$ref_begin"'\2'"$ref_end"'%g
+    s%@\$%$%g
+    s%\([^@]\)@"\([^"]*\)"%\1'"$ref_begin"'\2'"$ref_end"'%g
+    s%\([^@]\)@\([][#{@*}a-zA-Z0-9_]*\)%\1'"$ref_begin"'\2'"$ref_end"'%g
+    s%@@%@%g
+}
+s/%%%%PRE_BEGIN%%%%//g
+s/%%%%PRE_END%%%%//g
+'
+
+echo
+echo "</html>"
+
+}
+
+mkdir -p doc/modules
+docfile "pwiz.gopts" "PWIZ Core" "PWIZ core contains functions for core functionality. No guesses and knowledges are here, only engine skeleton, initialization and main loop." <pwiz.gopts >doc/pwiz.html
+
+# FIXME: call it from PWIZ, implement such query to PWIZ
+cd modules
+for file in *.pwm ; do
+    docfile "$file" "Module ${file%.pwm}: $(bash $file desc)" "$(bash $file longdesc)" <$file >../doc/modules/${file%.pwm}.html
+done

@@ -2,7 +2,7 @@
 
 case $1 in
     desc )
-	echo "split gtkdoc sub-package"
+	echo "split doc sub-package created by gtkdoc"
 	return
 	;;
     longdesc )
@@ -24,6 +24,9 @@ case $1 in
 	;;
 esac
 
+#@ gtkdoc_split_doc_filelist_inspect
+#
+# Inspects file list and tags files for doc subpackage. (internal) 
 function gtkdoc_split_doc_filelist_inspect {
     filelist_read_open
     pwiz_redirect_stdout $filelist_file_tmp

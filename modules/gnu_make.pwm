@@ -2,7 +2,7 @@
 
 case $1 in
     desc )
-	echo "check for makefile"
+	echo "check for makefile (incomplete)"
 	return
 	;;
     longdesc )

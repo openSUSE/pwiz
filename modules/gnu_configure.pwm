@@ -2,7 +2,7 @@
 
 case $1 in
     desc )
-	echo "check for GNU configure"
+	echo "checks for GNU configure"
 	return
 	;;
     longdesc )
@@ -36,13 +36,20 @@ case $1 in
 	;;
 esac
 
-#@ gnu_configure_add [ options ]
-# Add options for configure script.
+#@ gnu_configure_add_arg [ arg ]
+# arg: argument to be added to configure arguments
+#
+# Add argument for configure script.
+# NOTE: If your arguments needs quotes and special characters, you
+#have to escape them to prevent double bash expansion.
 function gnu_configure_add_arg {
     gnu_configure_args="$gnu_configure_args\\
 	$1"
 }
 
+#@ gnu_configure_configure_check
+#
+# Check for GNU configure script. (internal)
 function gnu_configure_configure_check {
     local c=0
     local default=false
@@ -78,14 +85,19 @@ function gnu_configure_configure_check {
     fi
 }
 
-#@ gnu_configure_add_path_arg_opt_add arg_name default_dir (internal)
-# If selected path is used in some file, it is added into configure args.
-# We provide an argument, if:
-# - It is not fall back to default.
+#@ gnu_configure_add_path_arg_opt_add arg_name default_dir
+# arg_name: name of path argument
+# default_dir: default directory
+#
+# If selected path is used in some file, it is added into configure
+#args. (internal function)
+# It provides an argument, if:
+# - it is not fall back to default
 # and
-# - If it is cited in any *.in file except Makefile.in
+# - it is cited in any *.in file except Makefile.in
 # or
-# - If it is used cited in any Makefile.in (it is used there nearly all times)
+# - it is used cited in any Makefile.in (it is used there nearly all times)
+
 # FIXME: Better we should parse generated file list in configure.{ac,in}
 function gnu_configure_add_path_arg_opt_add {
     local arg_name=--${1/-/_}
@@ -98,15 +110,23 @@ function gnu_configure_add_path_arg_opt_add {
 }
 
 #@ gnu_configure_add_path_is_used arg_name
-# - Is it is cited in any *.in file except Makefile.in
+# arg_name: name of path argument
+# returns: 0: is used, 1: is not used
+#
+# Checks, whether named argument:
+# - is cited in any *.in file except Makefile.in
 # or
-# - Is it is used cited in any Makefile.in (it is used there nearly all times)
+# - is used cited in any Makefile.in (it is used there nearly all times)
+# (internal function)
 function gnu_configure_path_is_used {
 	if ! find -type f -name 'Makefile*.in' -print0 | xargs --null fgrep -ql '$('$1')' ; then
 	    find -type f -name '*.in' -a \! -name Makefile*.in -print0 | xargs --null fgrep -ql '@'$1'@'
 	fi
 }
 
+#@ gnu_configure_args
+#
+# Complete arguments for configure. (internal)
 function gnu_configure_args {
 # FIXME: dependent on $ac_default_prefix in $CONFIG_SITE (to be sure on defaults, we should resource $CONFIG_SITE).
 	gnu_configure_add_path_arg_opt_add prefix /usr/local
@@ -143,6 +163,9 @@ Do you want any additional options?" \
     fi
 }
 
+#@ gnu_configure_configure
+#
+# Add a new stage and run configure. (internal)
 function gnu_configure_configure {
 # FIXME: write generic pwiz_shell_fmt and fix multi_line commands in core
 #    local string="$(echo $./configure$gnu_configure_args$gnu_configure_extra_args | fmt | sed 's/$/\\/;$s/\\\\$//' )"
@@ -153,10 +176,16 @@ function gnu_configure_configure {
     pwiz_phase_add configure 'gnu_configure_rc=$pwiz_run_rc'
 }
 
+#@ gnu_configure_make
+#
+# Add a new stage and run configure-wise make. (internal)
 function gnu_configure_make {
     pwiz_phase_add_run configure_make "make$gnu_make_vars"
 }
 
+#@ gnu_configure_install
+#
+# Add a new stage and run configure-wise installation. (internal)
 function gnu_configure_install {
     pwiz_phase_add_run configure_install "make$gnu_make_vars DESTDIR=\$RPM_BUILD_ROOT install"
 }

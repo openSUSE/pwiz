@@ -21,8 +21,11 @@ case $1 in
 esac
 
 #@ version_parse version_string dest
-# Returns: ${pwiz_result[@]}
+# version_string: string with version
+# returns ${pwiz_result[@@]}: array with version components
 #
+# Parses version string to its component separated by one of known
+#version element separators.
 function version_parse {
     local vstr substr count=0
     unset pwiz_result
@@ -44,12 +47,15 @@ function version_parse {
 }
 
 # FIXME: comparison and strings of alpha/beta
+
 #@ version_compare p1 p2
-# WARNING: p1 and p2 are used without $
-# Returns: 0: p1 newer than p2
-# Returns: 1: p1 older than p2
-# Returns: 2: p1 equal to p2
+# p1: name of array with first parsed version
+# p2: name of array with second parsed version
+# returns: 0: p1 newer than p2, 1: p1 older than p2, 2: p1 equal to p2
+#
+# Compares two versions parsed by @version_parse into arrays.
 # NOTE: p2 can be an empty array
+# WARNING: p1 and p2 are used without leading '$'.
 function version_compare {
     local -a p1 p2 count
     eval p1='( "${'$1'[@]}" )'
@@ -71,10 +77,13 @@ function version_compare {
     return 2
 }
 
-#@ version_policy_register name string
-# name is function name without leading version_policy_
-# Register version policy to version policy registry.
-# version_policy_register function value [ string hotkey ]
+#@ version_policy_register name string hotkey
+# name: function name without leading "version_policy_"
+# string: text description of version policy (can be empty string)
+# hotkey: version policy hotkey (can be empty string)
+#
+# Registers version policy to version policy registry.
+
 # FIXME: set default
 function version_policy_register {
     local id=$1
@@ -85,9 +94,12 @@ version_policy_register_string=""
 version_policy_register_counter=0
 
 #@ version_policy_{type} version_array
-# WARNING: version_array is used without $
-# Returns: 0: is considered stable
-# Returns: 1: is considered unstable
+# version_array: version array from @version_parse
+# returns: 0: is considered stable, 1: is considered unstable
+#
+# Version policy gets release type from version string.
+# WARNING: version_array is used without leading '$'
+
 # FIXME: higher return codes should be available.
 
 function version_policy_even_subversion_is_stable {
@@ -107,6 +119,8 @@ function version_policy_any_version_is_stable {
 version_policy_register any_version_is_stable "all versions are stable versions"
 
 #@ version_ask_policy
+#
+# Ask for policy. (internal)
 # WARNING: Call it after setting $pwiz_project_project!
 function version_ask_policy {
 	eval pwiz_ask_string '"Select package version policy." \
@@ -118,6 +132,10 @@ function version_ask_policy {
 # FIXME: Use default answer variable
 	version_project_policy=$pwiz_answer
 }
+
+#@ version_ask_product_policy
+#
+# Ask for product version policy. (internal)
 
 # FIXME: higher return codes should be available.
 function version_ask_product_policy {
@@ -131,6 +149,11 @@ function version_ask_product_policy {
 	version_policy_product_threshold=$pwiz_answer
 }
 
+#@ version_policy_check
+# returns: 0: version complies product version policy, 1: version does
+#not comply product version policy
+#
+# Check version using actual version policy.
 function version_policy_check {
     version_policy_$version_project_policy "$@"
     test $? -le $version_policy_product_threshold

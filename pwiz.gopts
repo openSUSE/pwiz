@@ -75,7 +75,15 @@ Ask for all questions. Equivalent of --credit=101.
 
 # This quote make editor's quote checker happy.
 
-#@ Verbose messages.
+
+#@@@ General functions
+
+#@@ Debugging
+
+#@ eecho string
+# string: string to be echoed
+#
+# Alias for echo to stderr.
 alias eecho='echo >&2'
 
 if $OPTARG_FAST ; then
@@ -88,39 +96,42 @@ if $OPTARG_ASK_ALL ; then
     OPTVAL_CREDIT=101
 fi
 
+#@ vecho string
+# string: string to be echoed
+#
+# Alias for verbose echo. Echo only in verbose mode.
 if test $OPTCNT_VERBOSE -ge 1 ; then
     alias vecho='echo >&2'
 else
     alias vecho=:
 fi
 
+#@ vvecho string
+# string: string to be echoed
+#
+# Alias for more verbose echo. Echo only in more verbose mode.
 if test $OPTCNT_VERBOSE -ge 2 ; then
     alias vvecho='echo >&2'
 else
     alias vvecho=:
 fi
 
+#@ vvvecho string
+# string: string to be echoed
+#
+# Alias for very verbose echo. Echo only in very verbose mode.
 if test $OPTCNT_VERBOSE -ge 3 ; then
     alias vvvecho='echo >&2'
 else
     alias vvvecho=:
 fi
 
-#@ Unverbose messages.
-if test $OPTCNT_QUIET -ge 1 ; then
-    alias qecho=:
-else
-    alias qecho='echo >&2'
-fi
-
-if test $OPTCNT_QUIET -ge 2 ; then
-    alias qqecho=:
-else
-    alias qqecho='echo >&2'
-fi
-
 #@ pwiz_debug_feature name desc longdesc
-#@ Debug features.
+# name: Feature name.
+# desc: short description of feature
+# longdesc: long description of feature
+#
+# Define debug features (class of debug messages for --enable-debug).
 function pwiz_debug_feature {
     pwiz_array_add pwiz_debug_features "$1"
     eval "pwiz_debug_desc_$1="'"$2"'
@@ -133,7 +144,7 @@ declare -a pwiz_debug_features
 trap "echo \"PWIZ must be error-less\" ; exit 1" ERR
 
 # FIXME: declare most functions readonly (declare -f -r or -F -r, readonly -f)
-# FIXME: declare integers, where appropriate
+# FIXME: declare and check integers, where appropriate
 
 # These will be variables in future, not constants.
 # FIXME: All those should be queried:
@@ -142,12 +153,10 @@ trap "echo \"PWIZ must be error-less\" ; exit 1" ERR
 pwiz_project_subproject=-
 #pwiz_project_version=2.4.0
 pwiz_project_patchlevel=0
-pwiz_project_vendor=SuSE-Linux-9.0
+pwiz_project_vendor=SuSE-Linux-9.1
 pwiz_project_build=0
 
-#@@ general
-
-#@ Debug prompt
+# Debug prompt.
 function pwiz_prompt {
     local REPLY
     local HISTFILE=~/.pwiz_history
@@ -171,132 +180,94 @@ pwiz@$PWD> " ; do
     echo
 }
 
-#@ fast redirection
-# channels 5-7 are reserved for saving original redirection
+#@@ Fast redirection
+
+##@ To simplify coding and make code faster, do a redirection of
+#standard streams instead of redirection for particular commands. When
+#using these functions, channels 5-7 are reserved for saving original
+#redirection.
 
 #@ pwiz_redirect_stdin file
+# file: File from which redirect.
+#
+# Redirect standard input from file. Close by @pwiz_redirect_stdin_close.
 function pwiz_redirect_stdin {
     exec 5<&0
     exec <"$1"
 }
 #@ pwiz_redirect_stdout file
+# file: File to which redirect.
+#
+# Redirect standard output to file. Close by @pwiz_redirect_stdout_close.
 function pwiz_redirect_stdout {
     exec 6>&1
     exec >"$1"
 }
-#@ pwiz_redirect_stdout file
+#@ pwiz_redirect_stderr file
+# file: File to which redirect stderr. Close by @pwiz_redirect_stderr_close.
+#
+# Redirect error output to file.
 function pwiz_redirect_stderr {
     exec 7>&2
     exec 2>"$1"
 }
 #@ pwiz_redirect_stdout_append file
+# file: File to which redirect.
+#
+# Appending redirect standard output to file with. Close by @pwiz_redirect_stdout_close.
 function pwiz_redirect_stdout_append {
     exec 6>&1
     exec >>"$1"
 }
 #@ pwiz_redirect_stderr_append file
+# file: File to which redirect stderr.
+#
+# Appending redirect error output to file with. Close by @pwiz_redirect_stderr_close.
 function pwiz_redirect_stderr_append {
     exec 7>&2
     exec 2>>"$1"
 }
 #@ pwiz_redirect_stdin_close
+#
+# Revert redirection created by by @pwiz_redirect_stdin and close file.
 function pwiz_redirect_stdin_close {
     exec <&-
     exec <&5-
 }
 #@ pwiz_redirect_stdout_close
+#
+# Revert redirection created by by @pwiz_redirect_stdout and close file.
 function pwiz_redirect_stdout_close {
     exec >&-
     exec >&6-
 }
 #@ pwiz_redirect_stdout_suspend
+#
+# Revert redirection created by by @pwiz_redirect_stdout, but don't close file.
 function pwiz_redirect_stdout_suspend {
     exec 8>&1
     exec >&6
 }
 #@ pwiz_redirect_stdout_restore
+#
+# Restore redirection created by by @pwiz_redirect_stdout and suspended by @pwiz_redirect_stdout_suspend.
 function pwiz_redirect_stdout_restore {
     exec >&8-
 }
-#@ pwiz_redirect_stdout
+#@ pwiz_redirect_stderr_close
+#
+# Revert redirection created by by @pwiz_redirect_stderr and close file.
 function pwiz_redirect_stderr_close {
     exec 2>&-
     exec 2>&7-
 }
 
-# pwiz_projectdirs_init
-# initialize work directories for project.
-# Call it every time you change $pwiz_project_* variables
-function pwiz_projectdirs_init {
-    local dir callback
-    if test "$pwiz_project_project" = "" ; then
-	dir=
-    else
-	dir="/$pwiz_project_project"
-    fi
-#@ Temporary directory for PWIZ modules, which is not cleaned after termination: $PWIZ_TMPDIR
-#@ But can be cleaned in any time.
-# WARNING: PWIZ_CACHEDIR is common for all projects!
-# WARNING: Do not access here from pwiz_run
-# NOTE: Use module name as prefix for all file names there.
-    PWIZ_CACHEDIR=~/pwiz/tmpcache
-#@ Temporary directory for PWIZ modules: $PWIZ_TMPDIR
-# WARNING: Do not access here from pwiz_run
-# NOTE: Use module name as prefix for all file names there.
-    PWIZ_TMPDIR=~/pwiz/tmp$dir
-#@ Temporary directory for PWIZ source codes: $PWIZ_SOURCESDIR
-# WARNING: Do not write here from pwiz_run
-    PWIZ_SOURCESDIR=~/pwiz/src$dir
-#@ Temporary directory for PWIZ unpacked sources: $PWIZ_SRCDIR
-# WARNING: Do not use this before SOURCE stage
-# WARNING: In separate build dir mode do not write here after unpack stage
-# WARNING: Do not write here from outside pwiz_run
-    PWIZ_SRCDIR=~/pwiz/unpack$dir
-#@ Temporary directory for PWIZ build: $PWIZ_BUILDDIR
-# WARNING: Do not use this before PREPARE stage
-# WARNING: Do not write here from outside pwiz_run
-    PWIZ_BUILDDIR=~/pwiz/build$dir
-#@ Temporary directory for PWIZ installation root: $PWIZ_INSTALLROOT
-# WARNING: Do not use this before INSTALL stage
-# WARNING: Do not write here before INSTALL stage
-# WARNING: Do not write here from outside pwiz_run
-    PWIZ_INSTALLROOT=~/pwiz/install$dir
-#@ Directory for PWIZ results: $PWIZ_RESULTDIR
-    PWIZ_RESULTDIR=~/pwiz/results$dir
-    for callback in ${pwiz_projectdirs_init_callback[@]} ; do
-	$callback "$dir"
-    done
-    mkdir -p $PWIZ_CACHEDIR
-    rm -rf $PWIZ_TMPDIR/*
-    mkdir -p $PWIZ_TMPDIR
-    rm -rf $PWIZ_SOURCESDIR/*
-    if test "$pwiz_project_project" != "" ; then
-	mkdir -p $PWIZ_SOURCESDIR
-	rm -rf $PWIZ_SRCDIR/*
-	mkdir -p $PWIZ_SRCDIR
-	rm -rf $PWIZ_BUILDDIR/*
-	mkdir -p $PWIZ_BUILDDIR
-	rm -rf $PWIZ_INSTALLROOT/*
-	mkdir -p $PWIZ_INSTALLROOT
-	mkdir -p $PWIZ_RESULTDIR
-    fi
-}
-
-# pwiz_projectdirs_init_callback
-# initialize work directories for project callback hook.
-# Can redefine following variables: $PWIZ_SOURCESDIR, $PWIZ_SRCDIR, $PWIZ_BUILDDIR, $PWIZ_INSTALLROOT
-
-#@ pwiz_array_add array_name item
-# Add an item as last element of array.
-# This is only simplification of array[${#array[@]}]=item
-# NOTE: array_name is without leading $.
-function pwiz_array_add {
-    eval $1'[${#'$1'[@]}]="$2"'
-}
+#@@ General helpers
 
 #@ pwiz_set_rc return_code
-#@ Helper, which only sets return code.
-#@ Returns: return code
+# returns: return_code
+#
+# Helper, which only sets return code.
 function pwiz_set_rc {
     return $1
 }
@@ -318,43 +289,14 @@ function pwiz_check_p {
     :
 }
 
-#@ pwiz_find path [ path_prefix ] [ callback_argument_2 ]
-#@ Input: $pwiz_callback: callback function (default is echo)
-#@ A Bash alternative to simple recursive find for all files and links.
-#@ $path_prefix mast have training slash, if used
-#@ WARNING: If you want really all files, you must turn on dot globbing (shopt -s dotglob).
-function pwiz_find {
-    local item
-    if test -d "$2$1" ; then
-	for item in "$2$1/"* ; do
-	    pwiz_find "${item#$2}" "$2" "$3"
-	done
-    else
-	$pwiz_callback "${1#$2}" "$3"
-    fi
-}
-pwiz_callback=echo
-
-#@ pwiz_find_d path [ path_prefix ] [ callback_argument_3 ]
-#@ Input: $pwiz_callback: callback function callback_argument_2 is file/dir (default is echo)
-#@ A Bash alternative to simple recursive find for all dirs, files and links.
-#@ $path_prefix mast have training slash, if used
-#@ WARNING: If you want really all files, you must turn on dot globbing (shopt -s dotglob).
-function pwiz_find_d {
-    local item
-    if test -d "$2$1" ; then
-	$pwiz_callback "${1#$2}" dir "$3"
-	for item in "$2$1/"* ; do
-	    pwiz_find_d "${item#$2}" "$2" "$3"
-	done
-    else
-	$pwiz_callback "${1#$2}" file "$3"
-    fi
-}
-
-#@ pwiz_canonize
-# Returns: Canonical form of file name in $pwiz_result
+#@ pwiz_canonize filename
+# filename: Name of file in arbitrary form.
+# returns $pwiz_result: Canonical form of file name.
+#
+# Converts file names to canonical form, i. e. no "//", "/../", "/./".
 # NOTE: Does not canonize relative paths.
+# NOTE: Function is relatively slow. Use C alternative for large
+#amount of file names.
 function pwiz_canonize {
     local old_name
     pwiz_result="$1"
@@ -380,25 +322,182 @@ function pwiz_canonize {
     shopt -u extglob
 }
 
-#@ pwiz_run
-# FIXME: Does it work with multi-line strings?
-# Run in protected build environment.
-# Order of evaluation:
-# pwiz_run_prepare - one function defined by build environment system (rpm, ebuild)
-# pwiz_run_wrappers - chain of run wrappers defining environment protection (install watchers, sandboxing, run trace)
-# pwiz_run_core - one function defined by build environment system, which does execution and sets pwiz_rc.
+#@@ File searching
+
+#@ pwiz_find path [ path_prefix ] [ callback_argument_2 ]
+# path: Directory, where tu start searching.
+# path_prefix: Path prepended to all searched directories, but not to
+#output values. Must have trailing slash, if used.
+# callback_argument_2: Arbitrary argument to callback function.
+# uses: $pwiz_callback path callback_argument_2: callback function.
+#Default is echo.
+#
+# A Bash alternative to simple recursive find for all files and links.
+# WARNING: If you want really all files, you must turn on dot globbing
+#(shopt -s dotglob).
+function pwiz_find {
+    local item
+    if test -d "$2$1" ; then
+	for item in "$2$1/"* ; do
+	    pwiz_find "${item#$2}" "$2" "$3"
+	done
+    else
+	$pwiz_callback "${1#$2}" "$3"
+    fi
+}
+pwiz_callback=echo
+
+#@ pwiz_find path [ path_prefix ] [ callback_argument_3 ]
+# path: Directory, where tu start searching.
+# path_prefix: Path prepended to all searched directories, but not to
+#output values. Must have trailing slash, if used.
+# callback_argument_3: Arbitrary argument to callback function.
+# uses: $pwiz_callback path type callback_argument_3: callback
+#function. Default is echo, type is either 'file' or 'dir'.
+#
+# A Bash alternative to simple recursive find for all dirs, files and
+#links.
+# WARNING: If you want really all files, you must turn on dot globbing
+#(shopt -s dotglob).
+function pwiz_find_d {
+    local item
+    if test -d "$2$1" ; then
+	$pwiz_callback "${1#$2}" dir "$3"
+	for item in "$2$1/"* ; do
+	    pwiz_find_d "${item#$2}" "$2" "$3"
+	done
+    else
+	$pwiz_callback "${1#$2}" file "$3"
+    fi
+}
+
+
+#@@@ Project directories
+
+#@ pwiz_projectdirs_init
+#
+# initialize work directories for project.
+# Call it every time you change $pwiz_project_* variables
+#@@ Work directories for project.
+##@ If not stated anything else, separate directory is created for
+#each project. Can be redefined by callback from packaging engine (see
+#lower).
+function pwiz_projectdirs_init {
+    local dir callback
+    if test "$pwiz_project_project" = "" ; then
+	dir=
+    else
+	dir="/$pwiz_project_project"
+    fi
+#@ $PWIZ_CACHEDIR
+# Temporary directory for PWIZ modules, which is not cleaned after termination.
+#It can be cleaned by user. Mostly for storing downloaded files.
+# WARNING: $PWIZ_CACHEDIR is common for all projects!
+# WARNING: Do not access here from pwiz_run
+# NOTE: Use module name as prefix for all file names here.
+    PWIZ_CACHEDIR=~/pwiz/tmpcache
+#@ $PWIZ_TMPDIR
+# Temporary directory for PWIZ modules.
+# WARNING: Do not access here from @pwiz_run.
+# NOTE: To prevent name clashes, use module name as prefix for all file names here.
+    PWIZ_TMPDIR=~/pwiz/tmp$dir
+#@ $PWIZ_SOURCESDIR
+# Temporary directory for PWIZ source codes.
+# WARNING: Do not write here from @pwiz_run.
+    PWIZ_SOURCESDIR=~/pwiz/src$dir
+#@ $PWIZ_SRCDIR
+# Temporary directory for unpacked sources.
+# WARNING: Do not use this before SOURCE stage.
+# WARNING: In separate build dir mode do not write here after unpack stage.
+# WARNING: Do not write here from outside @pwiz_run.
+    PWIZ_SRCDIR=~/pwiz/unpack$dir
+#@ $PWIZ_BUILDDIR
+# Temporary directory for PWIZ build.
+# WARNING: Do not use this before PREPARE stage.
+# WARNING: Do not write here from outside @pwiz_run.
+    PWIZ_BUILDDIR=~/pwiz/build$dir
+#@ $PWIZ_INSTALLROOT
+# Temporary directory for PWIZ installation root.
+# WARNING: Do not use this before INSTALL stage.
+# WARNING: Do not write here before INSTALL stage.
+# WARNING: Do not write here from outside @pwiz_run.
+    PWIZ_INSTALLROOT=~/pwiz/install$dir
+#@ $PWIZ_RESULTDIR
+# Directory for PWIZ results.
+    PWIZ_RESULTDIR=~/pwiz/results$dir
+#@ pwiz_projectdirs_init_callback path
+# path: path to be appended to directory itself (project subdirecttory)
+#
+# Initialize work directories for project - array of callback functions.
+# Callback can redefine following variables: $PWIZ_SOURCESDIR,
+#$PWIZ_SRCDIR, $PWIZ_BUILDDIR, $PWIZ_INSTALLROOT.
+# Use @pwiz_array_add to add item to this array.
+    for callback in ${pwiz_projectdirs_init_callback[@]} ; do
+	$callback "$dir"
+    done
+    mkdir -p $PWIZ_CACHEDIR
+    rm -rf $PWIZ_TMPDIR/*
+    mkdir -p $PWIZ_TMPDIR
+    rm -rf $PWIZ_SOURCESDIR/*
+    if test "$pwiz_project_project" != "" ; then
+	mkdir -p $PWIZ_SOURCESDIR
+	rm -rf $PWIZ_SRCDIR/*
+	mkdir -p $PWIZ_SRCDIR
+	rm -rf $PWIZ_BUILDDIR/*
+	mkdir -p $PWIZ_BUILDDIR
+	rm -rf $PWIZ_INSTALLROOT/*
+	mkdir -p $PWIZ_INSTALLROOT
+	mkdir -p $PWIZ_RESULTDIR
+    fi
+}
+
+#@ pwiz_array_add array_name item
+# item: value to be added to the array
+#
+# Add an item as last element of non-sparse array.
+# This is only simplification of array[@${#array[@@]}]=item
+# NOTE: array_name is without leading '@$' sign.
+function pwiz_array_add {
+    eval $1'[${#'$1'[@]}]="$2"'
+}
+
+
+#@@@ Run wrappers for protected commands
+# Main purposes of run wrappers are:
+# - Create environment identical to packaging program and allow to
+#execute instructions in steps.
+# - Track changed or accessed files, eventually protect system from
+#unwanted changes.
+# You can use more wrappers in a chain - for example one wrapper
+#traces accesses to files in system, another sets special environment
+#variables etc.
+
+#@@ Order of pwiz_run execution
+# @pwiz_run: Command called by user to start protected command.
+# @pwiz_run_prepare: One function defined by build environment system
+#(rpm).
+# @pwiz_run_wrappers: Chain of run wrappers defining environment
+#protection (install watchers, sandboxing, run trace).
+# @pwiz_run_core: One function defined by build environment system,
+#which does execution and sets $pwiz_run_rc.
+
+# FIXME: [ arguments ... ] should be: command save_command full_revert_command safe_revert_commans standard_revert_command fast_revert_command
 
 #@ pwiz_run_wrapper_register function
-# Register wrapper for pwiz_run
-# wrapper uses pwiz_run_wrap for subsequent call
-#@ example:
+# function: Function to be registered.
+#
+# Register wrapper for @pwiz_run. Wrapper uses pwiz_run_wrap for subsequent call.
+# Wrapper function skeleton:
+#@<
 #function mywrapper {
-#    do_anything
-#    operate_on "@" # returns ${result[]}
-#    pwiz_run_wrap "${result[@]}"
+#    do_something_here
+##   you can for example delete or modify some arguments there
+#    operate_on "@" # returns ${result[@]}
+#    pwiz_run_wrap "${result[@]}" # or simply: pwiz_run_wrap "$@"
 #    do_the_rest
 #}
 #pwiz_run_wrapper_register mywrapper
+#@>
 function pwiz_run_wrapper_register {
     pwiz_run_function=$1
     eval 'function pwiz_run_wrap_'$pwiz_run_wrapper_count' {
@@ -411,39 +510,59 @@ function pwiz_run_wrapper_register {
 pwiz_run_wrapper_count=1
 pwiz_run_function=pwiz_run_core
 
+#@ pwiz_run_wrap [ arguments ... ]
+#
+# Call next registered wrapper. Functions is used inside run wrapper
+#function.
 function pwiz_run_wrap {
     $pwiz_run_wrap_function "$@"
 }
 
-#@ pwiz_run_wrap_0 (internal)
-# Calls pwiz_run_core.
+# pwiz_run_wrap_0 [ arguments ... ] (internal)
+#
+# Lowest wrapper in chain. Calls directly pwiz_run_core.
 function pwiz_run_wrap_0 {
     pwiz_run_core "$@"
 }
 pwiz_run_rc=0
 
-#@ pwiz_run_core args
-# Immediatelly calls run args.
-# Can be redefined by modules.
+#@ pwiz_run_core [ arguments ... ]
+#
+# Immediatelly calls its arguments.
+# This function can be redefined by packaging engine to to something
+#else.
 function pwiz_run_core {
     pwiz_set_rc $pwiz_run_rc
     "$@"
     pwiz_run_rc=$?
 }
 
-# pwiz_run_prepare
+#@ pwiz_run_prepare [ arguments ... ]
+#
 # Top level wrapper.
-# After preparation calls $pwiz_run_function "$@"
-# Can be redefined by modules.
+# After preparation calls $pwiz_run_function "@$@@"
+# Immediatelly calls its arguments.
+# This function can be redefined by packaging engine to to something
+#else.
+# Run prepare function skeleton:
+#@<
+#function myprepare {
+#    do_something
+#    $pwiz_run_function "$@"
+#}
+#@>
 function pwiz_run_prepare {
     $pwiz_run_function "$@"
 }
 
-#@ pwiz_run args
-#@ Returns: Undefined!
-#@ Returns: Return code of executed stage is also stored in $pwiz_run_rc.
-#@ $pwiz_run_rc is restored before next pwiz_run.
-#@ WARNING: Do not alter pwiz_run_rc!
+#@ pwiz_run [ arguments ... ]
+# returns $pwiz_run_rc: Return code of executed stage command.
+# returns: Don't use return code. Use $pwiz_run_rc to get return code
+#of protected command.
+#
+# Run command in protected build environment.
+# $pwiz_run_rc is restored before next pwiz_run.
+# WARNING: Do not alter pwiz_run_rc!
 function pwiz_run {
 # FIXME: for debugging only:
 # FIXME: Adopt other parts of run stuff to 1 arg
@@ -454,88 +573,133 @@ function pwiz_run {
     pwiz_run_prepare "$@"
 }
 
-#@ pwiz_run_eval args
-# Expand variables, save them and then call pwiz_run
 # FIXME: deprecated: replace by special phase with two stages
-function pwiz_run_eval {
-    pwiz_warning "deprecated: pwiz_run_eval $*"
-    eval PWIZ_STAGE_EVAL_$PWIZ_PHASE_CURRENT\[$PWIZ_STAGE_CURRENT\]\=\"\$@\"
-    eval pwiz_run "$@"
-}
+# pwiz_run_eval args
+# Expand variables, save them and then call pwiz_run
+#function pwiz_run_eval {
+#    pwiz_warning "deprecated: pwiz_run_eval $*"
+#    eval PWIZ_STAGE_EVAL_$PWIZ_PHASE_CURRENT\[$PWIZ_STAGE_CURRENT\]\=\"\$@\"
+#    eval pwiz_run "$@"
+#}
+
+# FIXME: now probably obsolete as command. Keep only comment:
 
 #@ pwiz_rem string
-#@ Remark function. Action will appear in stage, but is not executed.
-#@ Primarily intended for exporting comments to final build script.
-# FIXME: now probably obsolete
-function pwiz_rem {
-    :
-}
+# string: arbitrary string
+#
+# Remark function. Action will appear in stage list, but is not executed.
+# Primarily intended for exporting comments to final build script.
 
-#@ pwiz_rem_eval args
+#function pwiz_rem {
+#    :
+#}
+
+# FIXME: deprecated.
+# pwiz_rem_eval args
 # Expand variables, save them and then call pwiz_rem
-function pwiz_rem_eval {
-    pwiz_warning "deprecated: pwiz_rem_eval $*"
-    eval PWIZ_STAGE_EVAL_$PWIZ_PHASE_CURRENT\[$PWIZ_STAGE_CURRENT\]\=\"\$@\"
-    eval pwiz_rem "$@"
-}
+#function pwiz_rem_eval {
+#    pwiz_warning "deprecated: pwiz_rem_eval $*"
+#    eval PWIZ_STAGE_EVAL_$PWIZ_PHASE_CURRENT\[$PWIZ_STAGE_CURRENT\]\=\"\$@\"
+#    eval pwiz_rem "$@"
+#}
 
-#@ pwiz_debug level message
-function pwiz_debug {
-    echo "pwiz: $2"
-}
+# FIXME: deprecated.
+# pwiz_debug level message
+#function pwiz_debug {
+#    echo "pwiz: $2"
+#}
 
-#@ pwiz_fatal error
+# FIXME: nearly unused. Remove?
+# pwiz_fatal error
 function pwiz_warning {
     eecho "Packaging wizard warning: $pwiz_module_current: $1"
 }
 
-#@ pwiz_fatal error
+#@ pwiz_fatal string rc
+# string: string to be echoed
+# rc: return code
+#
+# Abort PWIZ after fatal error.
 function pwiz_fatal {
     eecho "Packaging wizard fatal: $pwiz_module_current: $1"
     pwiz_exit 2
 }
 
 #@ pwiz_add_exit function
+# function: function to be executed on exit
+#
+# Register function to be executed on PWIZ exit.
 function pwiz_add_exit {
-    PWIZ_EXIT="$PWIZ_EXIT
-$1"
+    pwiz_array_add PWIZ_EXIT "$1"
 }
-PWIZ_EXIT=
+declare -a PWIZ_EXIT
 
-#@ pwiz_add_exit function
+#@ pwiz_exit rc
+# rc: PWIZ return code
+#
+# Exit PWIZ.
 function pwiz_exit {
-    eval $PWIZ_EXIT
+    local func
+    for func in "${PWIZ_EXIT[@]}" ; do
+	eval "$func"
+    done
     exit "$@"
 }
 
-#@ Error code for not implemented functions.
+
+#@@@ PWIZ engines
+
+#@ $not_implemented
+# PWIZ error code for not implemented functions (6).
 not_implemented=6
 
-#@@ pwiz engines
+#@@ Engine description
+# Engine is a piece of bash code, sourced from PWIZ core. It typically
+#implements an independent interface for communication with outer
+#world.
 
-# Engine description:
-# Engine is a piece of bash code, inlined to main code.
-# It typically implements an independent interface for communication with outer world.
-# Arguments: module_name command
-# Commands:
-# desc: Shows description and return
-# longdesc: Shows long description and return
-# It must define all class specific functions:
-# pwiz_engine_{engine_class}_{engine_name}_command
-# Commands defined in pwiz_engine_interface, init, quit
-# Module functions are called: pwiz_{engine_class}_command [ optional arguments ]
+#@ {engine_class}/{engine_name}.pwe [ command ]
+# command: Command for engine.
+#
+# Run engine with command.
+# Available commands:
+# @"no command": Load engine.
+# @desc: show description and return
+# @longdesc: show long description and return
 
-#@ pwiz_engine_desc class name
+#@ pwiz_engine_{engine_class}_{engine_name}_{command} [ optional arguments ]
+# engine_class: class of engine (only one in each class can be active)
+# engine_name: name of engine (implementation of engine class)
+#
+# Engine must define all class specific functions defined by
+#@pwiz_engine_interface plus @init and @quit.
+# Engine functions are not called directly, but using
+#@"pwiz_{engine_class}_{command} [ optional arguments ]".
+
+#@ pwiz_engine_desc engine_class engine_name
+# engine_class: class of engine (only one in each class can be active)
+# engine_name: name of engine (implementation of engine class)
+#
+# Show description of engine implementation.
 function pwiz_engine_desc {
     . ~/pwiz/engines/$1/$2.pwe desc
 }
 
-#@ pwiz_engine_longdesc class name
+#@ pwiz_engine_longdesc engine_class engine_name
+# engine_class: class of engine (only one in each class can be active)
+# engine_name: name of engine (implementation of engine class)
+#
+# Show long description of engine implementation.
 function pwiz_engine_longdesc {
     . ~/pwiz/engines/$1/$2.pwe longdesc
 }
 
-#@ pwiz_engine_load class name
+#@ pwiz_engine_load engine_class engine_name
+# engine_class: class of engine (only one in each class can be active)
+# engine_name: name of engine (implementation of engine class)
+#
+# Source engine (load function definitions to PWIZ) and define calling
+#functions to use this engine.
 function pwiz_engine_load {
     local interface i
     . ~/pwiz/engines/$1/$2.pwe
@@ -550,16 +714,34 @@ function pwiz_engine_load {
     done
 }
 
-#@ pwiz_engine_list class
+#@ pwiz_engine_load engine_class engine_name
+# engine_class: class of engine (only one in each class can be active)
+# engine_name: name of engine (implementation of engine class)
+#
+# Source engine (load function definitions to PWIZ) and define calling
+#functions to use this engine.
+
+#@ pwiz_engine_list engine_class
+# engine_class: class of engine (only one in each class can be active)
+# returns: list of engines to stdout (FIXME will change to
+#$pwiz_result in future versions)
+#
+# List all available engines of defined class.
 function pwiz_engine_list {
     (
 	cd ~/pwiz/engines/$1
-# FIXME not set, use pwiz_result instead of redirection
+# FIXME not sed, use pwiz_result instead of redirection
 	ls -1 | sed 's/\.pwe$//'
     )
 }
 
-#@ pwiz_engine_interface class function1 function2 ...
+#@ pwiz_engine_interface engine_class function1 [ function2 ... ]
+# engine_class: class of engine (only one in each class can be active)
+# function...: Required functions in defined engine_class.
+#
+# While defining new engine class, using @pwiz_engine_interface you
+#define a list of function, which shall be provided by each engine of
+#this class.
 function pwiz_engine_interface {
     local class
     class=$1
@@ -567,60 +749,113 @@ function pwiz_engine_interface {
     eval PWIZ_ENGINE_INTERFACE_$class\=\"\$\*\"
 }
 
-#@@ cache engine
-
-# Cache engine is designed for writing and and reading answers and
-# other useful information in per-package, version, product basis.
-# Address space is defined by keys. Keys are similar to filesystem
-# paths.
-# Returns result in $pwiz_result.
+#@@ Cache engine
+# Cache engine is designed for writing and reading answers and other
+#useful information (tags) in per-package/version/product etc. basis.
+#Address space is defined by keys. Keys are similar to filesystem
+#paths. All functions returns result in $pwiz_result, if any
 
 # FIXME: cache engine should test, whether all key items are non empty
 
 #@ pwiz_cache_read key
+# key: key for data you want to read from cache
+#
+# Read data associated with key from cache.
+
 #@ pwiz_cache_read_tags key
-# FIXME: WARNING: pwiz_cache_read_tags reads all tags in single string. To get particular tags, it must be further expanded by eval.
-#@ pwiz_cache_write key value [tags]
+# key: key for data you want to read from cache
+#
+# Read tags associated with key from cache.
+
+# WARNING: pwiz_cache_read_tags reads all tags in single string. To
+#get particular tags, it must be further expanded by @eval or
+#@pwiz_read_tags.
+
+#@ pwiz_cache_write key value [ tags ]
+# key: key for data you want to write to cache
+# value: data to be written
+# tags: tags to be written
+#
+# Write data and tags to cache (associate data and tags with key).
+
 #@ pwiz_cache_delete key
+# key: key for data you delete from cache
+#
+# Delete data and tags from cache (unassociate data and tags with key).
+
 #@ pwiz_cache_list pattern
-# NOTE: Patterns are standard path-element patterns.
-# FIXME: Is this needed?:
-# WARNING: at least for q element, subpatterns for question name must be accepted.
+# pattern: pattern for keys you want to query
+# returns ${pwiz_result[@@]}: array of keys found (can be empty)
+#
+# Find all keys in cache which corresponds to defined pattern.
+# NOTE: Patterns are standard path-element patterns (for globbing over
+#more key elements you need to use more askerisks).
+# WARNING: Implementation must support subpatterns at least for q
+#element (i. e. not only "/*/", but also "/subkey*/".
+
 pwiz_engine_interface cache read read_tags write delete list
 
-#@@ pkgdb engine
+#@@ Pkgdb engine
+# This engine provides interface with package database on destination
+#system.
 
-#@@ question engine
+#@ pwiz_pkgdb_what_owns file [ ... ]
+# file: queried file
+# returns: 0: OK, 1: problem
+# returns ${pwiz_result[@@]}: array of owning packages
+#
+# Ask package database, which of installed packages owns file.
 
-#@ pwiz_pkgdb_what_owns file [ files ]
-# Returns: 0: OK
-# Returns: 1: Problem.
-# Returns: ${pwiz_result[@]}
-
-#@ pwiz_pkgdb_package_to_project package
-# Returns: $pwiz_result
+# FIXME: Does it need implementation?
+# pwiz_pkgdb_package_to_project package
+# returns $pwiz_result: list of packages owning file or directory
+#
+# (can be more items at once)
 
 pwiz_engine_interface pkgdb what_owns
 
-# Question engine is iterface for communication with users. Engine
-# asks user and waits for response.
+#@@ Question engine
+# Question engine is interface for communication with users. Engine
+#asks user and waits for response.
+# Any question can contain callback functions (which can be
+#implementation alternative interface for "enter manually").
+# WARNING: This is an internal class of engines and programmers should
+#not use these functions directly. Use @pwiz_ask_{function} instead.
+#Those functions do additional answer caching and guess evaluation.
 
-# FIXME: question callback implementation:
-# Any question will contain callbacked functions (it can be implementation background for "enter manually" and "help").
-
-# FIXME: obsolete #@ pwiz_question_yesno desc longdesc [ tags ... ]
-#@ Returns: 0: yes
-#@ Returns: 1: false
-#@ pwiz_question_radio desc longdesc [ tags ... ]
-#@ Returns: $pwiz_answer with selection.
-#@ pwiz_question_selection desc longdesc [ tags ... ]
-#@ Returns: FIXME
 #@ pwiz_question_string desc longdesc [ tags ... ]
-#@ Returns: $pwiz_answer answer.
-#@ pwiz_question_list desc longdesc [ tags ... ]
-#@ Returns: FIXME
+# returns $pwiz_answer: user's answer
+# returns $pwiz_fallback_answer: user selected default answer (default false)
+# uses tag yesno: tag for boolean questions (default false)
+# uses tag allow_new: if set to false, "enter manually" is disabled
+#(default true)
+# uses tag callback: callback function for "enter manually" (returns
+#$pwiz_answer) (default string)
+# can use tag multiline: allow multiple-line strings (default false)
+#
+# Interface to ask user for string. Alternating this interface, you
+#can also obtain radio: @allow_new=false, yes/no: @yesno=true.
 
-#@ Returns: $pwiz_fallback_answer defines whether user responded or if default was used.
+#@ pwiz_question_list desc longdesc [ tags ... ]
+# returns $pwiz_answer: user's answer
+# returns $pwiz_fallback_answer: user selected default answer (default false)
+# uses tag allow_new: if set to false, "enter manually" is disabled
+#(default true)
+# uses tag callback: callback function for "enter manually" (returns
+#$pwiz_answer) (default string)
+# uses tag item_type: type of item for asking "new item" (default
+#string)
+#
+# Interface to ask user for a selection from list.
+
+# FIXME: those are probably obsolete
+# pwiz_question_yesno desc longdesc [ tags ... ]
+# Returns: 0: yes
+# Returns: 1: false
+# pwiz_question_radio desc longdesc [ tags ... ]
+# Returns: $pwiz_answer with selection.
+# pwiz_question_selection desc longdesc [ tags ... ]
+# Returns: FIXME
 
 # FIXME: obsolete yesno
 # FIXME: pwiz_ask_radio is obsolete use ask_string with allow_new=false
@@ -631,34 +866,63 @@ pwiz_engine_interface question yesno radio selection string list auto_answer
 # accomplishes question, caching answer and querying for reasonable
 # guesses.
 
-#@@ asking interface
+#@@ Tags
+# Tags are used to simplify calls of functions with many optional
+#arguments. Idea is simple: Instead of positional arguments you are
+#using format tag=value or tag[number]=value. To protect second format
+#from expansion, functions using tags sets shell option noglob before
+#parsing arguments.
 
-#@ Read tags to variables.
-# Tags are values entered as an argument of some functions in form: tag='value' other_tag[1]='other value'
-# The alias defines local variables pwiz_tag_tag='value' pwiz_tag_other_tag[1]='other value'
-# It uses special Bash tricks to prevent expansion or splitting of tags.
-# If you want to prevent expansion at all, use set -o noglob in function alias.
+#@ pwiz_read_tags
 #
-# Note: Local variables in Bash are inherited to all functions called
-# from inside functions, where variable is local, unless you define
-# your own instance. There is no chance to reset it back to global
-# ones. If we want to recurse without inheritance, there is no chance
-# to use local variables.
+# Read tags to variables.
+# Tags are values entered as an argument of some functions in form:
+#tag='value' other_tag[1]='other value' This alias reads them to
+#variables pwiz_tag_tag='value' pwiz_tag_other_tag[1]='other value' It
+#uses special Bash tricks to prevent expansion or word splitting of
+#tags. To use it, you probably need to prevent expansion at all,
+#expecially in nullglob mode (otherwise tag[number] is expanded to
+#empty string) use set -o noglob in function alias.
+# WARNING: This function uses global variables, not local! Local
+#variables in Bash are inherited to all functions called from inside
+#functions, where variable is visible, unless you define your own
+#instance. There is no chance to reset it back to global ones. If we
+#want to recurse without variable inheritance, there is no chance to
+#use local variables, so this function uses global ones.
+# Example of function with globbing prevention:
+#@<
+#alias my_function="set -o noglob ; my_function_f"
+#function my_function_f {
+#    set +o noglob
+#    pwiz_read_tags
+#    ...
+#}
+#@>
 alias pwiz_read_tags='local pwiz_tag ; for pwiz_tag in "$@" ; do pwiz_tag=${pwiz_tag//\'\''/\'\''\\\'\''\'\''}\'\'' ; pwiz_tag=${pwiz_tag/=/=\'\''} ; eval pwiz_tag_"$pwiz_tag" ; done'
-# For better readability use '\'' -> '
-# Asking interface is used for querying users, saving and re-using results.
 
-#@ Register default tag value.
+#@ pwiz_reset_tags
+#
+# Alias for unsetting all tag variables. Prevent inheritance of tags
+#to functions called from inside other function, where tag is defined.
+# WARNING: This function reset all variables named pwiz_tag_*!
+alias pwiz_reset_tags='unset ${!pwiz_tag_*} ; pwiz_default_tags'
+
+#@ pwiz_register_tag_default pwiz_tag_tag=value
+# pwiz_tag_tag=value: command to reset tags
+#
+# Because @pwiz_read_tags use global variables and functions need to
+#recurse, there is no chance for simple predefining default value for
+#tag as global variable. You have to use this function.
+Register default tag value.
 function pwiz_register_tag_default {
     pwiz_array_add pwiz_tagreset "$1"
 }
 unset pwiz_tagreset
 
-#@ Reset tags.
-# Prevent inheritance of tags to functions called from inside
-# functions, where tags are used.
-alias pwiz_reset_tags='unset ${!pwiz_tag_*} ; pwiz_default_tags'
-
+#@ pwiz_default_tags
+#
+# After calling @pwiz_reset_tags, no tags are defined. To define
+#default values, use this function.
 function pwiz_default_tags {
     # Default version inheritance of answers.
     pwiz_tag_inherit=80
@@ -681,35 +945,100 @@ function pwiz_default_tags {
 unset pwiz_tag_default
 pwiz_default_tags
 
-#@ keys for question id
+
+#@@@ Asking interface and guesses
+# Asking interface is used for querying users, saving and re-using
+#results. It is based on question interface and is intended for use by
+#programmers.
+# Guessing uses cached answers for searching answers to new questions.
+
+#@@ Cache keys
+# Cache keys are used for addressing entries in cache.
+
+#@ $pwiz_key_list
+# List of keys for question id (in order). Currently "project
+#subproject version patchlevel vendor build".
+# NOTE: For cache queries, first path item is question id.
 pwiz_key_list="project subproject version patchlevel vendor build"
 
-#@ Set local key variables from global ones.
-#alias pwiz_keys_set='local project subproject version patchlevel vendor build ; project=$pwiz_project_project subproject=$pwiz_project_subproject version=$pwiz_project_version patchlevel=$pwiz_project_patchlevel vendor=$pwiz_project_vendor build=$pwiz_project_build'
+#@ project
+#
+# Name of project (package).
+
+#@ subproject
+#
+# Name of subproject. Normally unused ("-"), but can contain
+#subpackage or partial project name.
+
+#@ version
+#
+# Version of source codes.
+
+#@ patchlevel
+#
+# Patch level. Additional resolution above source version.
+
+#@ vendor
+#
+# Vendor+product string. Needed to discriminate between different
+#packaging solutions for different vendors and products.
+
+#@ build
+#
+# Build number. Needed to discriminate exact environment used for
+#build (other package was updated, change in package is needed).
+
+#@ pwiz_keys_set
+#
+# Alias for cloning global variables $pwiz_project_{key} to local
+#variables ${key}. It is used by functions, which need to alter these
+#values internally.
 alias pwiz_keys_set='local pwiz_key ; for pwiz_key in $pwiz_key_list ; do local $pwiz_key ; eval $pwiz_key\=\$pwiz_project_$pwiz_key ; done'
 
-#@ cache validities
+#@@ Cache validities
+# When searching guess for question, PWIZ needs to run through all
+#similar answers. Question has its validity range. If asked again, and
+#valid keys are identical, answer is considered as valid.
 
-# Cache validities removes values unappropriate for defined validity range.
-# Other types can be defined in modules.
-# In ask engine are used without leading pwiz_cache_validity_.
+#@ pwiz_cache_validity_{name}
+# returns: "@@" in key variables considered invalid for range
+# 
+# Validity ranges can be defined by programmers of modules. To define
+#validity range name (used in tags as "valid={name}"), you should
+#define function pwiz_cache_validity_{name}.
 
-#@ Apply validity restrictions.
+#@ pwiz_cache_validity_apply
+#
+# Remove cahe keys, where exact match will be required. Removes values
+#unappropriate for defined validity range - if there is no function to
+#compare similarity, key is removed and exact key match will be
+#required.
 alias pwiz_cache_validity_apply='local pwiz_cache_validity=pwiz_cache_validity_"$pwiz_tag_valid" ; if test "$(type -t "$pwiz_cache_validity")" != function ; then pwiz_fatal "invalid validitity range $pwiz_tag_valid (tag \"valid\")" ; fi ; $pwiz_cache_validity'
 
-# All entries are valid.
+#@ pwiz_cache_validity_exact
+#
+# Exact match in query is required. Use "valid=exact" in question to
+#use this validity range (this is the default).
 function pwiz_cache_validity_exact {
     :
 }
 
-# Checking of unpacked sources.
+#@ pwiz_cache_validity_source
+#
+# Match for all keys using the same source codes. Valid are all keys
+#except @patchlevel, @vendor and @build. Useful for checking of
+#unpacked sources. Use "valid=source" in question to use this validity
+#range.
 function pwiz_cache_validity_source {
     patchlevel=@
     vendor=@
     build=@
 }
 
-# PWIZ setup. No dependence on package or anything else. Used for PWIZ preferences.
+#@ pwiz_cache_validity_setup
+#
+# Value for PWIZ setup. No keys are valid. Used for PWIZ preferences.
+#Use "valid=setup" in question to use this validity range.
 function pwiz_cache_validity_setup {
     project=@
     subproject=@
@@ -719,7 +1048,10 @@ function pwiz_cache_validity_setup {
     build=@
 }
 
-# Per-project information, independent on vendor.
+#@ pwiz_cache_validity_project
+#
+# Per-project information, independent on vendor. Only key @project is
+#valid. Use "valid=project" in question to use this validity range.
 function pwiz_cache_validity_project {
     subproject=@
     version=@
@@ -728,7 +1060,10 @@ function pwiz_cache_validity_project {
     build=@
 }
 
-# Vendor's policy, independent on package.
+#@ pwiz_cache_validity_vendor
+#
+# Vendor's policy, independent on project (package). Only key @vendor
+#is valid. Use "valid=vendor" in question to use this validity range.
 function pwiz_cache_validity_vendor {
     project=@
     subproject=@
@@ -737,7 +1072,11 @@ function pwiz_cache_validity_vendor {
     build=@
 }
 
-# Vendor's policy for project.
+#@ pwiz_cache_validity_product
+#
+# Vendor's policy for project (package). Valid keys are @project
+#and @vendor. Use "valid=product" in question to use this validity
+#range.
 function pwiz_cache_validity_product {
     subproject=@
     version=@
@@ -745,22 +1084,40 @@ function pwiz_cache_validity_product {
     build=@
 }
 
-#@@ guess interface
-
-# Guess interface uses cached answer to guess answer for new question.
-
-#@ Guess credit levels
-
-# Guess credit levels are functions defining ability to trust answers,
-# based on comparison of particular key. Credit level function has
-# access to other values, which can be used for guess.
+#@@ Inherited credibility
+# Outside validity range, answer cannot be considered as fully
+#credible. But not taking such answer in account means repeated
+#answering the same question for all version. That's why there is
+#credit inheritance. Answer is accepted, but its credit is decreased.
+# Guess credit level functions are functions define ability to trust
+#answers, which based on comparison of particular keys of both
+#questions.
 
 pwiz_debug_feature guess "internals of guessing" "This feature turns on displaying of single steps in making a guess."
 
 #@ pwiz_guess_credit_{key}
-# Function compares keys and returns
+# returns $pwiz_credit: inherited credibility
+# uses $pwiz_project_{key}: key for current project
+# uses $pwiz_item_{key}: key for cached project
+#
+# Iherited credibility functions can be defined by programmers of
+#modules. To define own guess credit level function, you need to
+#define function pwiz_guess_credit_{key}. Credit level function has
+#access to other key values, which can be used for guess, too.
+# Function compares keys in variables $pwiz_project_{key} and
+#$pwiz_item_{key}.
 # Returns value 0-100 in $pwiz_credit.
-#@tags inherit: Credit inheritance level between versions.
+
+#@ $pwiz_credit
+# Return value for inherited credibility value.
+
+#@ pwiz_guess_credit_version
+# returns $pwiz_credit: inherited credibility
+# uses tag inherit: inheritance between versions (default 80)
+#
+# Credit inheritance level between versions. Using tag inherit you can
+#increase or decrease default credibility of answer done in other
+#version.
 function pwiz_guess_credit_version {
 #%#    pwiz_read_tags
     if test "$pwiz_project_version" = "$pwiz_item_version" ; then
@@ -770,14 +1127,10 @@ function pwiz_guess_credit_version {
     fi
 }
 
-#@ pwiz_guess_credit [tags] (internal function)
-# Computes credit value for key found
-#@tags credit: Credit level of cache source.
-#%#alias pwiz_guess_cp="set -o noglob ; pwiz_guess_cp_f"
-function pwiz_guess_cp {
-#%#    set +o noglob
-#%#    pwiz_read_tags
-
+# pwiz_guess_credit (internal function)
+#
+# Computes credit value based on inherited credibility.
+function pwiz_guess_credit {
     local pwiz_key subcredit=$pwiz_tag_credit
     for pwiz_key in $pwiz_key_list ; do
 	if test "$(type -t "pwiz_guess_credit_$pwiz_key")" = function ; then
@@ -791,12 +1144,34 @@ function pwiz_guess_cp {
 }
 
 #@ pwiz_guess [ tags ]
-# Returns array of ${pwiz_guesses[]}, ${pwiz_strings[]} (optional), ${pwiz_hotkeys[]} (optional), ${pwiz_credits[]} for possible answers and $pwiz_guess_best
-# with index of best guess and $pwiz_guess_best_value.
-#@tags default, p, c, string, hotkey: Array tags of guess descriptions.
-#@tags q: Question ID.
-#@tags valid: Validity range.
-#@tags id, after, before: Tags for ordered lists.
+# returns ${pwiz_guesses[@@]}: array of all acceptablee guesses found
+# returns ${pwiz_credits[@@]}: array of credits of guesses
+# returns $pwiz_guess_best: index of most credible guess
+# returns $pwiz_guess_best_value: value of most credible guess
+# returns ${pwiz_p[@@]}: probability of possible answers and $pwiz_guess_best
+# returns $pwiz_p_other: probability of unlisted answer
+# returns ${pwiz_strings[@@]}: array of string values of guesses (optional - array can be sparse)
+# returns ${pwiz_hotkeys[@@]}: array of guess hotkeys (optional - array can be sparse)
+# uses tag q: Question ID.
+# uses tag default[@@]: predefined defaults
+# uses tag c[@@]: credits of predefined defaults (optional - array can be sparse)
+# uses tag p[@@]: probabilities for predefined defaults (optional - array can be sparse)
+# uses tag string[@@]: string value for predefined defaults (optional - array can be sparse)
+# uses tag hotkey[@@]: guess hotkey for predefined defaults (optional - array can be sparse)
+# uses tag valid: validity range (see @pwiz_cache_validity_{name}) (default exact)
+# uses tag yesno: tag for boolean questions (default false)
+# uses ${pwiz_guess_default_{tag q}[@@]}: predefined defaults in variables
+# uses ${pwiz_guess_c_{tag q}[@@]}: credits of predefined defaults in
+#variables (optional - array can be sparse)
+# uses ${pwiz_guess_p_{tag q}[@@]}: probabilities for predefined
+#defaults in variables (optional - array can be sparse)
+# uses ${pwiz_guess_string_{tag q}[@@}]: string value for predefined
+#defaults in variables (optional - array can be sparse)
+# uses ${pwiz_guess_hotkey_{tag q}[@@]}: guess hotkey for predefined
+#defaults in variables (optional - array can be sparse)
+#
+# This function collects all available guesses. Function is used
+#internally by @pwiz_ask_core.
 function pwiz_guess {
     local key_found is_new tags count v_total v_default v_c v_p v_string v_hotkey callback
 
@@ -849,8 +1224,8 @@ function pwiz_guess {
 	eval v_total\=\${#pwiz_guess_default_$pwiz_tag_q\[@\]}
 	for (( count=0 ; count < v_total ; count++ )) ; do
 	    eval v_default\=\"\${pwiz_guess_default_$pwiz_tag_q\[count\]}\"
-	    eval v_p\=\${pwiz_guess_p_$pwiz_tag_q\[count\]}
 	    eval v_c\=\${pwiz_guess_c_$pwiz_tag_q\[count\]}
+	    eval v_p\=\${pwiz_guess_p_$pwiz_tag_q\[count\]}
 	    eval v_string\=\"\${pwiz_guess_string_$pwiz_tag_q\[count\]}\"
 	    eval v_hotkey\=\"\${pwiz_guess_hotkey_$pwiz_tag_q\[count\]}\"
 	    decho_guess "guess in variable: $v_default (${v_c:-0}c, ${v_p:-?}%)"
@@ -920,9 +1295,15 @@ function pwiz_guess {
     decho_guess "best guess credit: $pwiz_guess_best_credit"
 }
 
-#@ pwiz_guess_eval guess credit string hotkey
-#@ Evaluate guess for guess array in pwiz_guess (internal) or in callback.
-#@ pwiz_guess_eval q c p string hotkey
+#@ pwiz_guess_eval guess credit probability string hotkey
+# guess: value of guess
+# credit: credit of guess (can be empty string)
+# probability: probability of guess (can be empty string)
+# string: string value for guess (can be empty string)
+# hotkey: guess hotkey (can be empty string)
+#
+# This internal function evaluates guess and optionally adds it to
+#guess array in @pwiz_guess.
 function pwiz_guess_eval {
     local count
     local size=${#pwiz_guesses[@]}
@@ -970,7 +1351,10 @@ function pwiz_guess_eval {
     let pwiz_pp_other-=${3:-0}
 }
 
-
+#@ pwiz_other_eval
+#
+# This internal function evaluates probability of unlisted value. Used
+#by @pwiz_guess.
 function pwiz_other_eval {
     if test $pwiz_pp_other -lt 100 ; then
 	decho_guess "rest for other values: $pwiz_pp_other%"
@@ -979,9 +1363,20 @@ function pwiz_other_eval {
     fi
 }
 
-#@ pwiz_guess_add q value c p [ string hotkey ]
-#@ Add predefined guess to environment variables pwiz_guess_default_{q} pwiz_guess_p_{q} and pwiz_guess_string_{q}
-# WARNING: Those quesses does not recomputed p
+#@ pwiz_guess_add id guess credit probability string hotkey
+# q: question ID (corresponds to tag q)
+# guess: value of guess
+# credit: credit of guess (can be empty string)
+# probability: probability of guess (can be empty string)
+# string: string value for guess (can be empty string)
+# hotkey: guess hotkey (can be empty string)
+#
+# Add a guess to environment variables ${pwiz_guess_default_{q}},
+#${pwiz_guess_c_{q}}, ${pwiz_guess_p_{q}}, ${pwiz_guess_string_{q}}
+#and ${pwiz_guess_string_{q}}. Later @pwiz_guess can take it in
+#account.
+# NOTE: Credit is considered as absolute. No user credibility is
+#evaluated.
 function pwiz_guess_add {
     eval local count\=\${#pwiz_guess_default_$1\[@\]}
     eval pwiz_guess_default_$1\[count\]\=\"\$2\"
@@ -996,7 +1391,11 @@ function pwiz_guess_add {
 }
 
 #@ pwiz_key_parse key
-# Returns variables pwiz_item_{key}
+# key: cache key to parse
+# returns pwiz_item_{key}: particular keys
+#
+# Parses cache key to its elements and assigns it to variables
+#$pwiz_item_q and $pwiz_item_{key}, where key is from $pwiz_key_list.
 function pwiz_key_parse {
     local keys pwiz_key
     keys=$1
@@ -1006,13 +1405,18 @@ function pwiz_key_parse {
     done
 }
 
-#@ pwiz_ask_{function}
-# Functions for programmers.
-# Special note: For parsing arguments of pwiz_ask_{function}, globbing is temporarilly turned off.
-# It's because, for example default[1]=* can be expanded to file name
-# "default3=dummy", if such file exists.
+#@@ Asking user
 
-# FIXME: The backend can use two ways: special yesno function or use it via string input.
+#@ pwiz_ask_{function} desc longdesc [ tags ]
+# desc: short description of feature
+# longdesc: long description of feature
+# tags: optional tags
+#
+# Functions for asking user. These function are intended for module
+#programmers.
+# NOTE: During parsing of arguments of pwiz_ask_{function}, globbing
+#is temporarilly turned off. It prevents accidental expansion of
+#"tag[number]=*", especially in nullglob mode.
 
 # dummy function for list tag item_type=none
 # FIXME: Should disappear in future.
@@ -1020,11 +1424,25 @@ function pwiz_ask_none {
     :
 }
 
+# FIXME: The backend can use two ways: special yesno function or use it via string input.
+
+
+#@ pwiz_ask_yesno desc longdesc [ tags ]
+# desc: short description of feature
+# longdesc: long description of feature
+# tags: optional tags
+# returns: 0: yes, 1: no
+#
+# Functions boolean question. This function is intended for module
+#programmers.
+# NOTE: During parsing of arguments of @pwiz_ask_yesno, globbing is
+#temporarilly turned off. It prevents accidental expansion of
+#"tag[number]=*", especially in nullglob mode.
 alias pwiz_ask_yesno="set -o noglob ; pwiz_ask_yesno_f"
 function pwiz_ask_yesno_f {
     set +o noglob
     local rc
-#    pwiz_ask_core pwiz_question_yesno "$@"
+#FIXME: remove:    pwiz_ask_core pwiz_question_yesno "$@"
     local desc="$1"
     local longdesc="$2"
     shift 2
@@ -1036,8 +1454,20 @@ function pwiz_ask_yesno_f {
     fi
 }
 
-#@tags callback: Callback function for "enter manually" (returns $pwiz_answer).
-#@tags allow_new: if set to false, "enter manually" is disabled (default: true).
+#@ pwiz_ask_string desc longdesc [ tags ]
+# desc: short description of feature
+# longdesc: long description of feature
+# tags: optional tags
+# uses tag callback: callback function for "enter manually" (returns
+#$pwiz_answer) (default string)
+# uses tag allow_new: if set to false, "enter manually" is disabled
+#(default true)
+#
+# String prompt. This function is intended for module programmers.
+#With tag allow_new=false, it can be used as radio switch.
+# NOTE: During parsing of arguments of @pwiz_ask_string, globbing is
+#temporarilly turned off. It prevents accidental expansion of
+#"tag[number]=*", especially in nullglob mode.
 alias pwiz_ask_string="set -o noglob ; pwiz_ask_string_f"
 function pwiz_ask_string_f {
     set +o noglob
@@ -1055,178 +1485,32 @@ function pwiz_ask_radio_f {
     pwiz_ask_core pwiz_question_string "$desc" "$longdesc" allow_new=false "$@"
 }
 
-# FIXME: implement pwiz_ask_selection === unordered list
-
-#@tags callback: Callback function for "new item" (returns $pwiz_answer).
-#@tags item_type: List item type (default: string).
-#@FIXME: complete it: tags item[], itemstring[]: Addition to list item.
-#@ Prepares for backend: {pwiz_list_all[@]} - list of active entries in cache (in form q=${q}_${list_item}) (with leading and trailing space)
-#@ FIXME: Maybe {key}_{tag} can be reduced to {tag} while calling subsequent questions
-#@ FIXME: Tag default is not implemented
-#@ FIXME: Implement text representation support
-#@ FIXME: Implement block tag (if block tag is in best guess, item will not be included in pwiz_list_all).
-#@ NOTE: defaults different from best guess are ignored. There can be only one default preset for now.
-#@ FIXME: Implement presets.
-# FIXME: implement list in list feature (when any item list is ask list).
-# It requires cache renaming:
-# mylist1 + mylist1_item_1 + mylist_item_2 + mylist_item_2_sub_item_1 => problem
-# mylist1 + mylist1__item_1 + mylist__item_2 + mylist__item_2__subitem1 - cut the second @.
-# FIXME: Maybe result should have space before and after it (before parsing).
-# FIXME: Implement ordered list with repeating and unordered list (set)
-alias pwiz_ask_list="set -o noglob ; pwiz_ask_list_f"
-function pwiz_ask_list_f {
-    set +o noglob
-
-    local desc longdesc key
-
-    desc="$1"
-    longdesc="$2"
-    shift 2
-    pwiz_reset_tags
-    pwiz_read_tags
-    pwiz_keys_set
-    # Add '*' to pattern for keys, where credit inheritance function exists.
-    # This is really needed in pwiz_guess, but it's simpler to set it here.
-    for pwiz_key in $pwiz_key_list ; do
-	if test "$(type -t "pwiz_guess_credit_$pwiz_key")" = function ; then
-	    eval $pwiz_key\=\'\*\'
-	fi
-    done
-    pwiz_cache_validity_apply
-
-# FIXME: Is it still true? Probably not.
-    if test -z "$pwiz_tag_q" ; then
-	pwiz_fatal "pwiz_ask_list must contain tag q"
-    fi
-
-    local -a pwiz_list_all pwiz_list_c pwiz_list_p pwiz_list_strings pwiz_list_hotkeys v_item v_c v_p v_string v_hotkey
-
-#    if ! test -z "$pwiz_tag_q" ; then
-
-	# parse items in environment variables pwiz_list_item_{q} pwiz_list_c_{q} pwiz_list_p_{q} pwiz_list_string_{q} pwiz_list_hotkey_{q}
-	# WARNING: Those quesses does not recomputed p
-	eval v_total\=\${#pwiz_list_item_$pwiz_tag_q\[@\]}
-	for (( count=0 ; count < v_total ; count++ )) ; do
-	    eval v_item\=\"\${pwiz_list_item_$pwiz_tag_q\[count\]}\"
-	    eval v_c\=\${pwiz_list_c_$pwiz_tag_q\[count\]}
-	    eval v_p\=\${pwiz_list_p_$pwiz_tag_q\[count\]}
-	    eval v_string\=\"\${pwiz_list_string_$pwiz_tag_q\[count\]}\"
-	    eval v_hotkey\=\"\${pwiz_list_hotkey_$pwiz_tag_q\[count\]}\"
-	    decho_guess "list item in variable: $v_item"
-	    pwiz_list_eval "$v_item" "$v_c" "$v_p" "$v_string" "$v_hotkey"
-	done
-
-	# callback of pwiz_list_callback_{q}[*]
-	eval 'for callback in ${pwiz_list_callback_'"$pwiz_tag_q"'[@]} ; do
-	    $callback
-	done'
-
-#    fi
-
-    # parse items in tags
-    for (( count=0 ; count < ${#pwiz_tag_item[@]} ; count++ )) ; do
-	decho_guess "list item in tags: ${pwiz_tag_item[count]}"
-# FIXME: read itemstring tag and probability...
-	pwiz_list_eval "${pwiz_tag_item[count]}" 0
-    done
-
-    # parse items in cache
-    decho_guess "list query: $pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$build"
-    pwiz_cache_list "${pwiz_tag_q}_*/$project/$subproject/$version/$patchlevel/$vendor/$build"
-    for key_found in $pwiz_result ; do
-        pwiz_key_parse $key_found
-	eval 'key="${pwiz_item_q#'$pwiz_tag_q'_}"'
-	decho_guess "list key in cache: $key"
-# FIXME: try to read string tag
-	pwiz_list_eval "$key" 0
-    done
-
-    for (( count=0 ; count < ${#pwiz_list_all[*]} ; count++ )) ; do
-	# Compute average probablility and probability for other values.
-	if test ${pwiz_list_pc[count]} -gt 0 ; then
-	    pwiz_list_p[count]=$(( pwiz_list_p[count] / pwiz_list_pc[count] ))
-	    # Adapt credits a bit from average probability, if available.
-	    # Maximum probability credit: 100% = 10c. FIXME: Maybe parametrizable.
-	    pwiz_list_c[count]=$(( pwiz_list_c[count] + pwiz_list_p[count] / 10 ))
-	fi
-    done
-
-    pwiz_ask_core pwiz_question_list "$desc" "$longdesc" "$@"
-
-# FIXME: Return usable result in array.
-}
-
-#@ pwiz_list_eval value credit string hotkey
-#@ Evaluate guess for guess array in pwiz_guess (internal) or in callback.
-# FIXME: pwiz_list_p has not yet any meaning.
-function pwiz_list_eval {
-    local count
-    local size=${#pwiz_list_all[@]}
-    local is_new=true
-    for (( count=0 ; count < size ; count++ )) ; do
-	if test "${pwiz_list_all[count]}" = "$1" ; then
-	    # If current credit is higher than previous, use current one.
-	    # If guess does not provide credit, assume 0.
-	    if test ${2:-0} -gt ${pwiz_list_c[count]} ; then
-		pwiz_list_c[count]=${2:-0}
-	    fi
-	    # If guess provides probability, create a sum.
-	    if test "$3" != "" ; then
-		pwiz_list_p[count]=$(( pwiz_list_p[count] + $3 ))
-		pwiz_list_pc[count]=$(( pwiz_list_pc[count] + 1 ))
-	    fi
-	    is_new=false
-	    break
-	fi
-    done
-# FIXME: Maybe test -z is not required.
-    if $is_new ; then
-	pwiz_list_c[size]=${2:-0}
-	if test "$3" != "" ; then
-	    pwiz_list_p[size]=$3
-	    pwiz_list_pc[size]=1
-	else
-	    pwiz_list_pc[size]=0
-	fi
-	if ! test -z "$4" ; then
-	    pwiz_list_strings[size]="$4"
-	fi
-	if ! test -z "$5" ; then
-	    pwiz_list_hotkeys[size]="$5"
-	fi
-	pwiz_array_add pwiz_list_all "$1"
-    else
-	if test -z "${pwiz_list_strings[count]}" -a ! -z "$4" ; then
-	    pwiz_list_strings[count]="$4"
-	fi
-	if test -z "${pwiz_list_hotkeys[count]}" -a ! -z "$5" ; then
-	    pwiz_list_hotkeys[count]="$5"
-	fi
-    fi
-}
-
-#@ pwiz_list_add q item c p [ string hotkey ]
-#@ Add predefined list item to environment variables pwiz_list_item_{q} pwiz_list_string_p_{q} and pwiz_list_hotkey_{q}
-# FIXME: p has not yet any meaning.
-function pwiz_list_add {
-    eval local count\=\${#pwiz_list_item_$1\[@\]}
-    eval pwiz_list_item_$1\[count\]\=\"\$2\"
-    eval pwiz_list_c_$1\[count\]\=\"\$3\"
-    eval pwiz_list_p_$1\[count\]\=\"\$4\"
-    if ! test -z "$5" ; then
-	eval pwiz_list_string_$1\[count\]\=\"\$5\"
-    fi
-    if ! test -z "$6" ; then
-	eval pwiz_list_hotkey_$1\[count\]\=\"\$6\"
-    fi
-}
-
-#@ pwiz_ask_core question_function desc longdesc [ tags ... ]
-# Generic asking interface function.
-# Returns in variable $pwiz_answer and ${q tag}
-#@tags knowledge: Knowledge type required for answer.
-#@tags q: Question ID.
-# FIXME: implement callbacks for defaut for all questions pwiz_ask_callback_{question}
+#@ pwiz_ask_core question_function desc longdesc [ tags ]
+# question_function: function from question engine
+# desc: short description of feature
+# longdesc: long description of feature
+# tags: optional tags
+# returns $pwiz_answer: question result
+# returns ${q tag}: answer is also stored to environment variable
+#named as q tag
+# uses tag q: Question ID.
+# uses tag default[@@]: predefined defaults
+# uses tag c[@@]: credits of predefined defaults (optional - array can be sparse)
+# uses tag p[@@]: probabilities for predefined defaults (optional - array can be sparse)
+# uses tag string[@@]: string value for predefined defaults (optional - array can be sparse)
+# uses tag hotkey[@@]: guess hotkey for predefined defaults (optional - array can be sparse)
+# uses tag valid: validity range (see @pwiz_cache_validity_{name}) (default=exact)
+# uses tag yesno: tag for boolean questions (default false)
+# uses tag callback: callback function for "enter manually" (returns
+#$pwiz_answer) (default string)
+# uses tag allow_new: if set to false, "enter manually" is disabled
+#(default true)
+# uses tags knowledge: knowledge type required for answer (default
+#general)
+# uses tag guesslevel: guess level of user's answer (default ask user)
+#
+# Internal core function for making a guess and asking user. Used by
+#@pwiz_ask_{function}. Uses @pwiz_guess.
 function pwiz_ask_core {
     local question_function desc longdesc rc count hotkey answer_credit guesslevel knowledge pwiz_answer_save
 
@@ -1330,7 +1614,13 @@ function pwiz_ask_core {
 }
 
 #@ pwiz_knowledge_feature name desc longdesc
-#@ Knowledge features description. The same feature can be defined more times.
+# name: name of knowledge type
+# desc: short description knowledge type
+# longdesc: long description of knowledge type
+#
+# Knowledge features description. This function is used to add new
+#type of knownedge. It can be later used in tag knowledge. The same
+#feature can be defined more times.
 function pwiz_knowledge_feature {
     eval "pwiz_knowledge_feature_desc_$1="'"$2"'
     eval "pwiz_knowledge_feature_longdesc_$1="'"$3"'
@@ -1338,8 +1628,13 @@ function pwiz_knowledge_feature {
 pwiz_knowledge_feature general "general packaging" "General knowledge of packaging process without exact specification (this is a default knowledge type)."
 
 #@ pwiz_get_knowledge knowledge_tag
-# Get knowledge for specific knowledge tag. If required, asks user for response.
-#@returns: $pwiz_answer
+# knowledge_tag: knowledge tag
+# returns $pwiz_answer: knowledge value
+#
+# Internal function to get knowledge credibility for specific
+#knowledge type. If required, asks user for response. Special value
+#knowledge=total prevents asking user and consider answer as fully
+#credible.
 function pwiz_get_knowledge {
     # FIXME: check for undefined knowledge.
     eval 'local desc="$pwiz_knowledge_feature_desc_'$1'"'
@@ -1358,8 +1653,10 @@ function pwiz_get_knowledge {
 pwiz_knowledge_total=100
 
 #@ pwiz_get_guesslevel
-# Get guesslevel for just answered question.
-#@returns: $pwiz_answer
+# returns $pwiz_answer: guess level value
+#
+# Internal function to get guess level for just answered question. If
+#required, asks user for response.
 function pwiz_get_guesslevel {
     local p0 p25 p50 p75 p100
     if $pwiz_fallback_answer ; then
@@ -1378,13 +1675,244 @@ function pwiz_get_guesslevel {
 	guesslevel=100
 }
 
-#@ callback [ tags ]
-# Returns $pwiz_answer with result.
+#@@ Asking for selection from list
 
-#@@ stages / phases / steps
+# FIXME: implement pwiz_ask_selection === unordered list
 
-#@ pwiz_phase_new phase_id { "after" | "before" } phase_id [ ok ]
-# ok means: "Ignore, if phase already exists."
+#@ pwiz_ask_list question_function desc longdesc [ tags ]
+# question_function: function from question engine
+# desc: short description of feature
+# longdesc: long description of feature
+# tags: optional tags
+# returns ${pwiz_list_all[@@]}: string with list of available items
+#(used by backend (in form ${q}_${list_item})
+# returns ${pwiz_list_c_{tag q}[@@]}: credits of selectable items in
+#variables (optional - array can be sparse)
+# returns ${pwiz_list_p_{tag q}[@@]}: probabilities of selectable
+#items in variables (optional - array can be sparse)
+# returns ${pwiz_list_string_{tag q}[@@]}: strings value of selectable
+#items in variables (optional - array can be sparse)
+# returns ${pwiz_list_c_{tag q}[@@]}: guess hotkey of selectable items
+#in variables (optional - array can be sparse)
+# returns $pwiz_answer: question result
+# uses ${pwiz_list_item_{tag q}[@@]}: predefined selectable items in
+#variables
+# uses ${pwiz_list_item_c_{tag q}[@@]}: credits of selectable items in
+#variables (optional - array can be sparse)
+# uses ${pwiz_list_item_p_{tag q}[@@]}: probabilities for selectable
+#items in variables (optional - array can be sparse)
+# uses ${pwiz_list_item_string_{tag q}[@@}]: string value for
+#selectable items in variables (optional - array can be sparse)
+# uses ${pwiz_list_item_hotkey_{tag q}[@@]}: guess hotkey for
+#selectable items in variables (optional - array can be sparse)
+# uses tag item[@@]: available selectable items
+#
+# Function for asking user for unordered selection from list. This
+#function is intended for module programmers.
+# For more available variables and tags see @pwiz_ask_core.
+# NOTE: During parsing of arguments of @pwiz_ask_list, globbing is
+#temporarilly turned off. It prevents accidental expansion of
+#"tag[number]=*", especially in nullglob mode.
+# NOTE: defaults different from best guess are ignored. There can be
+#only one default preset is available.
+
+# FIXME: Maybe {key}_{tag} can be reduced to {tag} while calling subsequent questions
+# FIXME: Tag default is not implemented
+# FIXME: Implement text representation support
+# FIXME: Implement block tag (if block tag is in best guess, item will not be included in pwiz_list_all).
+# FIXME: Implement presets.
+# FIXME: implement list in list feature (when any item list is ask list).
+# It requires cache renaming:
+# mylist1 + mylist1_item_1 + mylist_item_2 + mylist_item_2_sub_item_1 => problem
+# mylist1 + mylist1__item_1 + mylist__item_2 + mylist__item_2__subitem1 - cut the second @.
+# FIXME: Maybe result should have space before and after it (before parsing).
+# FIXME: Implement ordered list with repeating and unordered list (set)
+alias pwiz_ask_list="set -o noglob ; pwiz_ask_list_f"
+function pwiz_ask_list_f {
+    set +o noglob
+
+    local desc longdesc key
+
+    desc="$1"
+    longdesc="$2"
+    shift 2
+    pwiz_reset_tags
+    pwiz_read_tags
+    pwiz_keys_set
+    # Add '*' to pattern for keys, where credit inheritance function exists.
+    # This is really needed in pwiz_guess, but it's simpler to set it here.
+    for pwiz_key in $pwiz_key_list ; do
+	if test "$(type -t "pwiz_guess_credit_$pwiz_key")" = function ; then
+	    eval $pwiz_key\=\'\*\'
+	fi
+    done
+    pwiz_cache_validity_apply
+
+# FIXME: Is it still true? Probably not.
+    if test -z "$pwiz_tag_q" ; then
+	pwiz_fatal "pwiz_ask_list must contain tag q"
+    fi
+
+    local -a pwiz_list_all pwiz_list_c pwiz_list_p pwiz_list_strings pwiz_list_hotkeys v_item v_c v_p v_string v_hotkey
+
+#    if ! test -z "$pwiz_tag_q" ; then
+
+	# parse items in environment variables pwiz_list_item_{q} pwiz_list_c_{q} pwiz_list_p_{q} pwiz_list_string_{q} pwiz_list_hotkey_{q}
+	# WARNING: Those quesses does not recomputed p
+	eval v_total\=\${#pwiz_list_item_$pwiz_tag_q\[@\]}
+	for (( count=0 ; count < v_total ; count++ )) ; do
+	    eval v_item\=\"\${pwiz_list_item_$pwiz_tag_q\[count\]}\"
+	    eval v_c\=\${pwiz_list_item_c_$pwiz_tag_q\[count\]}
+	    eval v_p\=\${pwiz_list_item_p_$pwiz_tag_q\[count\]}
+	    eval v_string\=\"\${pwiz_list_item_string_$pwiz_tag_q\[count\]}\"
+	    eval v_hotkey\=\"\${pwiz_list_item_hotkey_$pwiz_tag_q\[count\]}\"
+	    decho_guess "list item in variable: $v_item"
+	    pwiz_list_eval "$v_item" "$v_c" "$v_p" "$v_string" "$v_hotkey"
+	done
+
+	# callback of pwiz_list_callback_{q}[*]
+	eval 'for callback in ${pwiz_list_callback_'"$pwiz_tag_q"'[@]} ; do
+	    $callback
+	done'
+
+#    fi
+
+    # parse items in tags
+    for (( count=0 ; count < ${#pwiz_tag_item[@]} ; count++ )) ; do
+	decho_guess "list item in tags: ${pwiz_tag_item[count]}"
+# FIXME: read itemstring tag and probability...
+	pwiz_list_eval "${pwiz_tag_item[count]}" 0
+    done
+
+    # parse items in cache
+    decho_guess "list query: $pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$build"
+    pwiz_cache_list "${pwiz_tag_q}_*/$project/$subproject/$version/$patchlevel/$vendor/$build"
+    for key_found in $pwiz_result ; do
+        pwiz_key_parse $key_found
+	eval 'key="${pwiz_item_q#'$pwiz_tag_q'_}"'
+	decho_guess "list key in cache: $key"
+# FIXME: try to read string tag
+	pwiz_list_eval "$key" 0
+    done
+
+    for (( count=0 ; count < ${#pwiz_list_all[*]} ; count++ )) ; do
+	# Compute average probablility and probability for other values.
+	if test ${pwiz_list_pc[count]} -gt 0 ; then
+	    pwiz_list_p[count]=$(( pwiz_list_p[count] / pwiz_list_pc[count] ))
+	    # Adapt credits a bit from average probability, if available.
+	    # Maximum probability credit: 100% = 10c. FIXME: Maybe parametrizable.
+	    pwiz_list_c[count]=$(( pwiz_list_c[count] + pwiz_list_p[count] / 10 ))
+	fi
+    done
+
+    pwiz_ask_core pwiz_question_list "$desc" "$longdesc" "$@"
+
+# FIXME: Return usable result in array.
+}
+
+#@ pwiz_list_eval item credit probability string hotkey
+# item: list item
+# credit: credit of guess (can be empty string)
+# probability: probability of guess (can be empty string)
+# string: string value for guess (can be empty string)
+# hotkey: guess hotkey (can be empty string)
+#
+# This internal function evaluates list item and optionally adds it to
+#list item array. Used by @pwiz_ask_list.
+
+# FIXME: pwiz_list_p has not yet any meaning.
+function pwiz_list_eval {
+    local count
+    local size=${#pwiz_list_all[@]}
+    local is_new=true
+    for (( count=0 ; count < size ; count++ )) ; do
+	if test "${pwiz_list_all[count]}" = "$1" ; then
+	    # If current credit is higher than previous, use current one.
+	    # If guess does not provide credit, assume 0.
+	    if test ${2:-0} -gt ${pwiz_list_c[count]} ; then
+		pwiz_list_c[count]=${2:-0}
+	    fi
+	    # If guess provides probability, create a sum.
+	    if test "$3" != "" ; then
+		pwiz_list_p[count]=$(( pwiz_list_p[count] + $3 ))
+		pwiz_list_pc[count]=$(( pwiz_list_pc[count] + 1 ))
+	    fi
+	    is_new=false
+	    break
+	fi
+    done
+# FIXME: Maybe test -z is not required.
+    if $is_new ; then
+	pwiz_list_c[size]=${2:-0}
+	if test "$3" != "" ; then
+	    pwiz_list_p[size]=$3
+	    pwiz_list_pc[size]=1
+	else
+	    pwiz_list_pc[size]=0
+	fi
+	if ! test -z "$4" ; then
+	    pwiz_list_strings[size]="$4"
+	fi
+	if ! test -z "$5" ; then
+	    pwiz_list_hotkeys[size]="$5"
+	fi
+	pwiz_array_add pwiz_list_all "$1"
+    else
+	if test -z "${pwiz_list_strings[count]}" -a ! -z "$4" ; then
+	    pwiz_list_strings[count]="$4"
+	fi
+	if test -z "${pwiz_list_hotkeys[count]}" -a ! -z "$5" ; then
+	    pwiz_list_hotkeys[count]="$5"
+	fi
+    fi
+}
+
+#@ pwiz_list_add id item credit probability string hotkey
+# id: list question ID (corresponds to tag q)
+# credit: credit of item (can be empty string)
+# probability: probability of item (can be empty string)
+# string: string value for item (can be empty string)
+# hotkey: item hotkey (can be empty string)
+#
+# Add predefined list item to environment variables
+#${pwiz_list_item_{q}}, ${pwiz_list_item_c_{q}},
+#${pwiz_list_item_p_{q}}, ${pwiz_list_item_string_{q}} and
+#${pwiz_list_item_string_{q}}. Later @pwiz_ask_list can take it in
+#account and offer it to user.
+# NOTE: Credit is considered as absolute. No user credibility is
+#evaluated.
+
+# FIXME: p has not yet any meaning.
+function pwiz_list_add {
+    eval local count\=\${#pwiz_list_item_$1\[@\]}
+    eval pwiz_list_item_$1\[count\]\=\"\$2\"
+    eval pwiz_list_item_c_$1\[count\]\=\"\$3\"
+    eval pwiz_list_item_p_$1\[count\]\=\"\$4\"
+    if ! test -z "$5" ; then
+	eval pwiz_list_item_string_$1\[count\]\=\"\$5\"
+    fi
+    if ! test -z "$6" ; then
+	eval pwiz_list_item_hotkey_$1\[count\]\=\"\$6\"
+    fi
+}
+
+#@ {callback} [ tags ]
+# tags: optional tags
+# returns $pwiz_answer: result of question
+#
+# Callback function, which is called, if tag callback is set.
+
+
+#@@@ Phase engine: stages, phases, steps
+
+#@ pwiz_phase_new phase_id { "after" | "before" } existing_phase [ "ok" ]
+# phase_id: id of new phase
+# { "after" | "before" } existing_phase: position of phase
+# "ok": return ok, if phase already exists
+#
+# Adds new phase to phase engine. You have to specify, after or before
+#which phase to add new one. If phase already exists, PWIZ aborts,
+#unless 4th arguments is "ok".
 function pwiz_phase_new {
     local tmp_phase
     eval tmp_phase\=\$PWIZ_PHASE_AFTER_$3
@@ -1423,6 +1951,12 @@ PWIZ_PHASE_AFTER_BEGIN=END
 PWIZ_PHASE_BEFORE_END=BEGIN
 
 #@ pwiz_phase_list
+# returns: lists all existing phases (FIXME will change to
+#$pwiz_result in future versions)
+#
+# List of all existing phases.
+
+# FIXME: return output to $pwiz_result.
 function pwiz_phase_list {
     eval local phase\=\$PWIZ_PHASE_AFTER_BEGIN
     while [ $phase != END ] ; do
@@ -1432,6 +1966,14 @@ function pwiz_phase_list {
 }
 
 #@ pwiz_phase_add phase contents
+# phase: existing phase
+# contents: contents of action to be added
+#
+# Adds an action as a last action of a phase.
+# NOTE: If your command needs quotes and special characters, you have
+#to escape them to prevent double bash expansion.
+
+# FIXME: undo actions
 function pwiz_phase_add {
 # FIXME: for debugging only:
     if test "$3" != "" ; then
@@ -1446,9 +1988,21 @@ function pwiz_phase_add {
 }
 
 #@ pwiz_phase_add_callme phase [ arg ]
-# phase===argument
-#@ similar to pwiz_phase_add_exec phase contents
+# phase: existing phase
+# arg: argument to function
+#
+# Add call to function module_phase with arguments arg to phase to be
+#used in module initialization.
+# It is the simplification of:
+#@<
+#pwiz_phase_add {phase} "{module}_{phase} {arg}"
+#@>
+# NOTE: If your arguments needs quotes and special characters, you
+#have to escape them to prevent double bash expansion.
+# WARNING: This function cannot be called outside module init.
+
 # FIXME with pwiz_module_exec: In future, argumentless version will call function named as module
+# FIXME: undo actions
 function pwiz_phase_add_callme {
 # FIXME: for debugging only:
     if test "$3" != "" ; then
@@ -1460,9 +2014,24 @@ function pwiz_phase_add_callme {
     pwiz_phase_add "$1" "${pwiz_module_current}_$1${2:+ $2}"
 }
 
-#@ pwiz_phase_new_callme phase [ after | before ] phase_id contents
-# phase===argument
-#@ similar to pwiz_phase_new phase ; pwiz_phase_add_exec phase contents
+#@ pwiz_phase_new_call phase_id { "after" | "before" } existing_phase [ arg ]
+# phase_id: id of new phase
+# { "after" | "before" } existing_phase: position of phase
+# arg: argument to function
+#
+# Create new phase and add a call to function module_phase with
+#arguments arg to this phase. This function can be used in module
+#initialization.
+# It is the simplification of:
+#@<
+#pwiz_phase_new {phase} {after|before} {existing_phase}
+#pwiz_phase_add {phase} "{module}_{phase} {arg}"
+#@>
+# NOTE: If your arguments needs quotes and special characters, you
+#have to escape them to prevent double bash expansion.
+# WARNING: This function cannot be called outside module init.
+
+# FIXME: undo actions
 # FIXME with pwiz_module_exec: In future, argumentless version will call function named as module
 function pwiz_phase_new_call {
 # FIXME: for debugging only:
@@ -1473,60 +2042,108 @@ function pwiz_phase_new_call {
     pwiz_phase_add "$1" "$1${4:+ $4}"
 }
 
-#@ pwiz_phase_new_3 phase [ after | before ] phase_id
-#@ create all needed for "three phase method"
-# FIXME: comments are out of date
-#@ see more for documantation for its purpose
-#@ adds three phases:
-#@   {phase}_prepare with default contents callme
-#@   phase default empty
-#@   {phase}_set with default contents callme
-#@ function {phase}_provider adding callme to phase
-#@   {phase}_provider (no args)
+#@ pwiz_phase_new_3 phase_id { "after" | "before" } existing_phase [ arg ]
+# phase_id: id of new phase
+# { "after" | "before" } existing_phase: position of phase
+# arg: argument to function
+#
+# Create all needed for three phase structure: set data
+#({phase}_prepare), allow user to modify ({phase}) and use data
+#({phase}_set). This structure is widely used by PWIZ to allow
+#modification of any decission by third party modules. It also defines
+#function {phase}_provider, which can be used in third party modules
+#(it's equivalent to pwiz_phase_add_callme {phase} - without {arg})
+# It is the simplification of:
+#@<
+#pwiz_phase_new {phase}_prepare {after|before} {existing_phase}
+#pwiz_phase_new {phase} after {phase}_prepare
+#pwiz_phase_new {phase}_set after {phase}
+#pwiz_phase_add {phase}_prepare "{module}_{phase}_prepare {arg}"
+#pwiz_phase_add {phase}_set "{module}_{phase}_set {arg}"
+#function {phase}_provider {
+#    pwiz_phase_add_callme {phase}
+#}
+#@>
+# NOTE: If your arguments needs quotes and special characters, you
+#have to escape them to prevent double bash expansion.
+# WARNING: Optional argument {arg} is not used in {phase}_provider.
+# WARNING: This function cannot be called outside module init.
+
+#@ {phase}_provider
+#
+# Function created by @pwiz_phase_new_3.
+# It's equivalent of:
+#@<
+#pwiz_phase_add_callme {module}
+#@>
+# WARNING: This function cannot be called outside module init.
+
+# FIXME: undo actions
 function pwiz_phase_new_3 {
-    pwiz_phase_new_call $1_prepare $2 $3
+    pwiz_phase_new_call $1_prepare $2 $3 $4
     pwiz_phase_new $1 after $1_prepare
-    pwiz_phase_new_call $1_set after $1
+    pwiz_phase_new_call $1_set after $1 $4
     eval "function $1_provider {
     pwiz_phase_add_callme $1
 }"
 }
 
-#@ pwiz_phase_new_3_guess phase [ after | before ] phase_id
-#@ pwiz_phase_new_3 + create guess function
-#@ create all needed for "three phase method" with simple guess addition
-#@ see more for documantation for its purpose
-#@ adds three phases:
-#@   {phase}_prepare with default contents callme
-#@   phase default empty
-#@   {phase}_set with default contents callme
-#@ function {phase}_provider adding callme to phase
-#@   {phase}_provider (no args)
-#@ function {phase}_guess for adding callme to phase
-#@   {phase}_guess guess c p [ string ]
-#@ variables
-#@   $package_basename_guesses variable with defaults for pwiz_ask_*
-#@ $package_basename_guesses_count - if you want to provide own
-#@    defaults, you need to set to #defaults in {phase}_prepare. Otherwise
-#@    not needed.
+#@ pwiz_phase_new_3_guess phase_id { "after" | "before" } existing_phase [ arg ]
+# phase_id: id of new phase
+# { "after" | "before" } existing_phase: position of phase
+# arg: argument to function
+#
+# Create all needed for three phase structure (it does everything,
+#what @pwiz_phase_new_3 does) and create function {phase}_guess to
+#register new guess for question with q={phase} (see @{phase}_guess).
+# It is the simplification of:
+#@<
+#pwiz_phase_new_3 {phase} {after|before} {existing_phase} {arg}
+#function $1_guess {
+#    pwiz_guess_add {phase} "$@"
+#}
+#@>
+# NOTE: If your arguments needs quotes and special characters, you
+#have to escape them to prevent double bash expansion.
+# WARNING: This function cannot be called outside module init.
+
+#@ {phase}_guess guess credit probability string hotkey
+# guess: value of guess
+# credit: credit of guess (can be empty string)
+# probability: probability of guess (can be empty string)
+# string: string value for guess (can be empty string)
+# hotkey: guess hotkey (can be empty string)
+#
+# Guess function, as created by @pwiz_phase_new_3 (see @pwiz_guess_add
+#for more).
+
+# FIXME: undo actions
 function pwiz_phase_new_3_guess {
 #    pwiz_phase_new $1_prepare $2 $3
-    pwiz_phase_new_call $1_prepare $2 $3
+    pwiz_phase_new_call $1_prepare $2 $3 $5
 #    pwiz_phase_add $1_prepare "$1_guesses_count=0 $1_guesses="
 #    pwiz_phase_add_callme $1_prepare
     pwiz_phase_new $1 after $1_prepare
-    pwiz_phase_new_call $1_set after $1
+    pwiz_phase_new_call $1_set after $1 $5
     eval "function $1_provider {
     pwiz_phase_add_callme $1
 }"
     eval "function $1_guess {
-    pwiz_guess_add $1 \"\$1\" \"\$2\" \"\$3\" \"\$4\"
+    pwiz_guess_add $1 \"\$@\"
 }"
 }
 
 #@ pwiz_phase_add_run phase contents
-#@ similar to pwiz_phase_add_run phase pwiz_run contents
-# Adds protected run command.
+# phase: existing phase
+# contents: contents of action to be added for execution
+#
+# Adds protected run command (see also @pwiz_phase_add).
+# Equivalent of:
+#@<
+#pwiz_phase_add phase "pwiz_run contents"
+#@>
+# NOTE: Commands beginning by "pwiz_run" are evaluated in phase engine
+#in a special way preventing double expansion.
 function pwiz_phase_add_run {
 # FIXME: for debugging only:
     if test "$3" != "" ; then
@@ -1535,8 +2152,8 @@ function pwiz_phase_add_run {
     pwiz_phase_add "$1" "pwiz_run $2"
 }
 
-#@ pwiz_phase_add_run_eval phase contents
-#@ similar to pwiz_phase_add_run phase pwiz_run eval contents
+# pwiz_phase_add_run_eval phase contents
+# similar to pwiz_phase_add_run phase pwiz_run eval contents
 # Adds protected run command with shell evaluation in time of call.
 # WARNING: Remember not to expand variables, i. e. use single quotes or backslashes.
 function pwiz_phase_add_run_eval {
@@ -1548,8 +2165,19 @@ function pwiz_phase_add_run_eval {
     pwiz_phase_add "$1" "pwiz_run_eval $2"
 }
 
-#@ pwiz_phase_add_call phase argument contents
-#@ similar to pwiz_phase_add_exec phase contents
+
+#@ pwiz_phase_add_rem phase contents
+# phase: existing phase
+# contents: contents of action to be inserted
+#
+# Adds a comment to protected command list (see also @pwiz_phase_add).
+# Equivalent of:
+#@<
+#pwiz_phase_add phase "pwiz_rem contents"
+#@>
+# NOTE: Commands beginning by "pwiz_rem" are evaluated in phase engine
+#in a special way preventing line splittion. You can add multiple
+#lines using single command using pwiz_phase_add_rem.
 function pwiz_phase_add_rem {
 # FIXME: for debugging only:
     if test "$3" != "" ; then
@@ -1558,30 +2186,30 @@ function pwiz_phase_add_rem {
     pwiz_phase_add "$1" "pwiz_rem $2"
 }
 
-#@ pwiz_phase_add_call phase argument contents
-#@ similar to pwiz_phase_add_exec phase contents
-function pwiz_phase_add_rem_eval {
-    if test "$3" != "" ; then
-	pwiz_fatal "3 arguments: pwiz_phase_add_rem_eval $*"
-    fi
-    pwiz_phase_add "$1" "pwiz_rem_eval $2"
-}
-#@ pwiz_phase_check phase arguments
-# Special command for init
-function pwiz_phase_check {
-    pwiz_array_add PWIZ_STAGE_$1 "$pwiz_module_current $2"
-}
+# FIXME: deprecated
+#function pwiz_phase_add_rem_eval {
+#    if test "$3" != "" ; then
+#	pwiz_fatal "3 arguments: pwiz_phase_add_rem_eval $*"
+#    fi
+#    pwiz_phase_add "$1" "pwiz_rem_eval $2"
+#}
 
-#@ pwiz_phase_clean phase
-function pwiz_phase_clean {
-    eval unset PWIZ_STAGE_$1
-    eval declare -a PWIZ_STAGE_$1
-}
+# FIXME: semms to be unused. Remove.
+# pwiz_phase_check phase arguments
+# Special command for init
+#function pwiz_phase_check {
+#    pwiz_array_add PWIZ_STAGE_$1 "$pwiz_module_current $2"
+#}
+# pwiz_phase_clean phase
+#function pwiz_phase_clean {
+#    eval unset PWIZ_STAGE_$1
+#    eval declare -a PWIZ_STAGE_$1
+#}
 
 #@ pwiz_stage_next
-# Next stage.
-#@ Returns: 0 OK
-#@ Returns: 1 No next stage.
+# returns: 0: OK, 1: no next stage
+#
+# Go to next stage.
 function pwiz_stage_next {
     local pwiz_step_phase_stages
     eval pwiz_step_phase_stages=\${#PWIZ_STAGE_$PWIZ_PHASE_CURRENT\[\*\]}
@@ -1594,35 +2222,9 @@ function pwiz_stage_next {
 }
 
 #@ pwiz_stage_prev
-# Previous stage.
-#@ Returns: 0 OK
-#@ Returns: 1 No next stage.
-function pwiz_stage_prev {
-    local pwiz_step_phase_stages
-    eval pwiz_step_phase_stages=\${#PWIZ_STAGE_$PWIZ_PHASE_CURRENT\[\*\]}
-    let PWIZ_STAGE_CURRENT--
-    if test $PWIZ_STAGE_CURRENT -lt -1 ; then
-	return 1
-    else
-	return 0
-    fi
-}
-
-#@ pwiz_stage_goto stage
-# Goto any stage.
-#@ Returns: 0 OK
-#@ Returns: 1 No next stage.
-function pwiz_stage_goto {
-    local pwiz_step_phase_stages
-    eval pwiz_step_phase_stages=\${#PWIZ_STAGE_$PWIZ_PHASE_CURRENT\[\*\]}
-    PWIZ_STAGE_CURRENT=$1
-    if test $PWIZ_STAGE_CURRENT -lt -1 ; then
-	return 1
-    else
-	return 0
-    fi
-}
-
+# returns: 0: OK, 1: no previous stage
+#
+# Go to previous stage.
 function pwiz_stage_prev {
     local pwiz_step_phase_stages
     eval pwiz_step_phase_stages=\${#PWIZ_STAGE_$PWIZ_PHASE_CURRENT\[\*\]}
@@ -1634,9 +2236,29 @@ function pwiz_stage_prev {
     fi
 }
 
+#@ pwiz_stage_goto stage
+# stage: stage number
+# returns: 0: OK, 1: no such stage
+#
+# Goto any stage.
+
+# FIXME: must run through undo actions
+function pwiz_stage_goto {
+    local pwiz_step_phase_stages
+    eval pwiz_step_phase_stages=\${#PWIZ_STAGE_$PWIZ_PHASE_CURRENT\[\*\]}
+    PWIZ_STAGE_CURRENT=$1
+    if test $PWIZ_STAGE_CURRENT -lt -1 ; then
+	return 1
+    else
+	return 0
+    fi
+}
+
+
 #@ pwiz_phase_next
-#@ Returns: 0 OK
-#@ Returns: 1 No next phase.
+# returns: 0: OK, 1: no next phase
+#
+# Go to next phase.
 function pwiz_phase_next {
     local pwiz_step_phase_stages
     while : ; do
@@ -1656,10 +2278,12 @@ function pwiz_phase_next {
 }
 
 #@ pwiz_phase_prev
-#@ Returns: 0 OK
-#@ Returns: 1 No prev phase.
-# Note: sets stage counter to first stage, not last!
-# Warning: If previous phase is empty, it skips back. It is not reverse fonction to pwiz_phase_next.
+# returns: 0: OK, 1: no previous phase
+#
+# Go to previous phase.
+# WARNING: sets stage counter to first stage of phase, not last!
+# WARNING: If previous phase is empty, it skips back to current. It is
+#not reverse function to pwiz_phase_next.
 function pwiz_phase_prev {
     local pwiz_step_phase_stages
     eval PWIZ_PHASE_CURRENT\=\$PWIZ_PHASE_BEFORE_$PWIZ_PHASE_CURRENT
@@ -1676,10 +2300,12 @@ function pwiz_phase_prev {
 }
 
 #@ pwiz_phase_goto phase
-#@ Returns: 0 OK
-#@ Returns: 1 Bad phase name.
-# Note: sets stage counter to first stage, not last!
-# Warning: If phase is empty, it skips forward.
+# phase: phase name
+# returns: 0: OK, 1: no such phase
+#
+# Goto any phase.
+# WARNING: sets stage counter to first stage, not last!
+# WARNING: If phase is empty, it skips forward.
 function pwiz_phase_goto {
     local pwiz_step_phase_stages pwiz_phase_save
     pwiz_phase_save=$PWIZ_PHASE_CURRENT
@@ -1698,9 +2324,10 @@ function pwiz_phase_goto {
     fi
 }
 
-# pwiz_next
-#@ Returns: 0 OK
-#@ Returns: 1 No next phase or stage.
+#@ pwiz_next
+# returns: 0: OK, 1: no next stage and phase
+#
+# Goto next action in phase engine. Error means, that END was reached.
 function pwiz_next {
     if ! pwiz_stage_next ; then
 	if pwiz_phase_next ; then
@@ -1711,12 +2338,20 @@ function pwiz_next {
     fi
 }
 
-#@ pwiz_step action
-#@ Returns: 0 Phase and stage exists and executed.
-#@ Returns: 1 No next stage and phase.
-#@ Returns: Return code of executed stage is in $pwiz_rc (if any).
-#@ WARNING: Return code is not return code of executed stage!
-#@ WARNING: pwiz_step first increments counters, then executes - reverse order does not enable roll-ons.
+#@ pwiz_step action { "query" | "run" }
+# returns: 0: phase and stage exists and executed, 1: no next stage
+#and phase
+# "query": query action, not execute
+# returns $pwiz_result: in query mode, stage action is returned in
+#this variable
+# "run": execute action
+# returns $pwiz_rc: in run mode, it contains result code of command
+#(if any)
+#
+# Standard step of phase engine.
+# NOTE: pwiz_step first increments counters, then executes, to enable
+#roll-ons (commands adding action immediatelly after current stage).
+# WARNING: Return code is not return code of executed stage!
 function pwiz_step {
     local pwiz_step_stage_code rc
     if pwiz_next ; then
@@ -1754,7 +2389,9 @@ function pwiz_step {
 }
 
 #@ pwiz_phase_reset
-# reset phase engine
+#
+# Reset phase engine (go to phase BEGIN, stage 0). Needed for
+#switching between query and run mode (see @pwiz_step).
 function pwiz_phase_reset {
     PWIZ_PHASE_CURRENT=BEGIN
     PWIZ_STAGE_CURRENT=0
@@ -1762,14 +2399,18 @@ function pwiz_phase_reset {
 pwiz_phase_reset
 
 #@ pwiz_phase_save
-# save phase engine state
+#
+# Save phase engine status. Needed for switching between query and run
+#mode (see @pwiz_step).
 function pwiz_phase_save {
     PWIZ_PHASE_CURRENT_save=$PWIZ_PHASE_CURRENT
     PWIZ_STAGE_CURRENT_save=$PWIZ_STAGE_CURRENT
 }
 
 #@ pwiz_phase_restore
-# restore phase engine state
+#
+# Restore phase engine status. Needed for switching between query and
+#run mode (see @pwiz_step).
 function pwiz_phase_restore {
     PWIZ_PHASE_CURRENT=$PWIZ_PHASE_CURRENT_save
     PWIZ_STAGE_CURRENT=$PWIZ_STAGE_CURRENT_save
@@ -1777,25 +2418,33 @@ function pwiz_phase_restore {
 }
 
 
-#@@ modules
+#@@@ Manipulation with modules
+# Module is a piece of bash code, sourced from PWIZ core.
+# It typically implements package checks, expert system knowledges and its infrastructure.
+
+#@ {module_name}.pwm [ command ]
+# command: Command for module.
+#
+# Run module with command.
+# Available commands:
+# @desc: show description and return
+# @longdesc: show long description and return
+# @init: initialize engine (during initialization, variable
+#$pwiz_module_current is available)
+# @version: show module version
+
+#@ $pwiz_module_current
+# This variable is defined during module initialization (see @{module_name}.pwm).
 
 # FIXME: Check - module must not contain "-" and similar characters (only alphanum and @).
 
-# Module description:
-# Module is a piece of bash code, inlined to main code.
-# It typically implements package checks, expert system knowledges and its infrastructure.
-# Arguments: module_name command [ optional arguments ]
-# Mandatory commands:
-# desc: Shows description and return
-# longdesc: Shows long description and return
-# init: Initialize engine. Before engine initialization, it is called once without arguments.
-# version: Shows module version
-# Other commands:
-# {command}: User space commands
-# Module functions are called: pwiz_module_exec module command  [ optional arguments ]
-# $pwiz_module_current is defined all the time and contains current module name
-
 #@ pwiz_modules_list
+#
+# returns: list of engines to stdout (FIXME will change to
+#$pwiz_result in future versions)
+#
+# List all available modules.
+
 function pwiz_modules_list {
     local file
     (
@@ -1812,6 +2461,8 @@ function pwiz_modules_list {
 }
 
 #@ pwiz_modules_load
+#
+# Load all available modules (internal function).
 function pwiz_modules_load {
     local file
 	for file in $(pwiz_modules_list) ; do
@@ -1829,30 +2480,45 @@ function pwiz_modules_load {
 	done
 }
 
-#@ pwiz_module_desc name
+#@ pwiz_module_desc module
+# module: name of module
+#
+# Prints module description.
 function pwiz_module_desc {
     . ~/pwiz/modules/$1.pwm desc
 }
 
-#@ pwiz_module_longdesc name
+#@ pwiz_module_longdesc module
+# module: name of module
+#
+# Prints module long description.
 function pwiz_module_longdesc {
     . ~/pwiz/modules/$1.pwm longdesc
 }
 
 pwiz_module_current="ERROR"
 
-#@ pwiz_module_load module_name
+#@ pwiz_module_load module
+# module: name of module
+#
+# Load a module. In normal conditions, there is no need to call this
+#functions explicitly, use @pwiz_module_needs instead). It has a
+#protection against multiple loading.
 function pwiz_module_load {
     local loaded pwiz_module_current_save
     eval loaded\=\"\$PWIZ_MODULE_LOADED_$1\"
     if test -z "$loaded" ; then
-	pwiz_module_include $1 init
+	pwiz_module_source $1 init
 	eval PWIZ_MODULE_LOADED_$1\=1
     fi
 }
 
-# FIXME: rename to pwiz_module_exec
-function pwiz_module_include {
+#@ pwiz_module_source module
+# module: name of module
+#
+# Immediatelly load a module. Internal function, used
+#by @pwiz_module_load).
+function pwiz_module_source {
     local pwiz_module_current_save
     pwiz_module_current_save="$pwiz_module_current"
     pwiz_module_current=$1
@@ -1864,8 +2530,12 @@ function pwiz_module_include {
     pwiz_module_current="$pwiz_module_current_save"
 }
 
-#@ pwiz_module_load module_name1 module_name2 ...
-# Loads needed modules (only modules required for module init)
+#@ pwiz_module_needs module ...
+# module: module to be loaded
+#
+# Loads needed modules. Used by module init.
+# NOTE: You need it only for modules required for module init,
+#otherwise @pwiz_module_uses is enough.
 function pwiz_module_needs {
     local module
     for module in "$@" ; do
@@ -1873,8 +2543,14 @@ function pwiz_module_needs {
     done
 }
 
-#@ pwiz_module_load module_name1 module_name2 ...
-# Checks for needed modules (modules can be loaded later)
+#@ pwiz_module_uses module ...
+# module: used module
+#
+# Checks, whether needed modules are available. Modules itself can be
+#loaded later.
+# WARNING: Do not use this function for modules needed during
+#initialization.
+
 # FIXME: implement it
 function pwiz_module_uses {
     :
@@ -1884,60 +2560,77 @@ function pwiz_module_uses {
 
 # FIXME: phases for subpackage testing.
 
-#@@ phase skeleton
-#@ NOTE: Recommendation for custom phases: Use lowecase. Take these ones as "constants".
-#@ If your action surely does not need any action before it in the
-#@ same range, you can use listed phases, otherwise create own phase.
-#@ Each phase has counterpair {phase}_LAST for simple and portable adding to the end of actions.
-#@ WARNING: For listed major phases, avoid if possible: pwiz_phase_add before PHASE
-#@ WARNING: For listed major phases, avoid if possible: pwiz_phase_add after PHASE_LAST
-#@ basic phase descriptions:
-#@ BEGIN
-#@  > special general actions
-#@ START
-#@  > general actions only, $pwiz_project_* attributes are not defined
-#@ PROJECT
-#@  > project and version selection process, here you can set $pwiz_project_*
-# FIXME: rename it?:
-#@ SETUP
-#@  > set up pwiz for work with known project, access where appropriate ($PWIZ_TMPSDIR)
-#@ SOURCE
-#@  > get sources, set extended project attributes, $pwiz_project_* are set, access to $PWIZ_SOURCESDIR
-#@ PREPARE
-#@  > prepare source code (unpack, patch), access to $PWIZ_SRCDIR
-#@    subphases: PREPARE_CLEAN PREPARE_PREUNPACK PREPARE_UNPACK PREPARE_POSTUNPACK PREPARE_CHECK PREPARE_PATCH PREPARE_RECHECK
-#@ BUILD
-#@  > build project (configure, compile), access to $PWIZ_BUILDDIR
-#@    subphases: BUILD_SETENV BUILD_CONF BUILD_POSTCONFHACK BUILD_PRECOMPILE BUILD_COMPILE BUILD_POSTCOMPILE
-#@ PREINSTALL
-#@  > special actions before installation to install root, keep empty if possible
-#@    WARNING: use premerge for standard pre-installation processes
-#@ INSTALL
-#@  > install project, access to $PWIZ_INSTALLROOT
-#@    subphases: INSTALL_PREPARE INSTALL_PREACTION INSTALL_ACTION INSTALL_POSTACTION INSTALL_CHECK INSTALL_POSTCHECK
-#@ CHECKINSTALL
-#@  > Check all installed things. Read access.
-#@ PREMERGE
-#@  > actions before install, access to live system only special actions
-#@ MERGE
-#@  > merge project for live system, access to live system
-#@ CLEAN
-#@  > clean project buld environment, access to all temporary dirs
-#@ POSTINSTALL
-#@  > post installation actions, access to live system
-#@ RUNTEST
-#@  > tests for instaled package, access to live system
-#@ PREUNINSTALL
-#@  > special actions before package uninstallation
-#@ UNMERGE
-#@  > perform uninstallation, access to live system
-#@ POSTUNINSTALL
-#@  > special actions after package uninstallation, access to live system
-#@ RESULTS
-#@  > very last actions, access to $PWIZ_RESULTDIR
-#@ FINISH
-#@  > very last actions, access nowhere
-#@ END
+#@@ Phase skeleton
+# Phase skeleton is a set of phases available unconditionally in all
+#PWIZ instances. There is a list with explanation of expected usage.
+# basic phase descriptions:
+# BEGIN
+#  > special general actions
+# START
+#  > general actions only, $pwiz_project_* attributes are not defined
+# PROJECT
+#  > project and version selection process, here you can set
+#$pwiz_project_*
+# SETUP
+#  > set up pwiz for work with known project, access where appropriate
+#($PWIZ_TMPSDIR)
+# SOURCE
+#  > get sources, set extended project attributes, $pwiz_project_* are
+#set, access to $PWIZ_SOURCESDIR
+# PREPARE
+#  > prepare source code (unpack, patch), access to $PWIZ_SRCDIR
+#    subphases: PREPARE_CLEAN PREPARE_PREUNPACK PREPARE_UNPACK
+#PREPARE_POSTUNPACK PREPARE_CHECK PREPARE_PATCH PREPARE_RECHECK
+# BUILD
+#  > build project (configure, compile), access to $PWIZ_BUILDDIR
+#    subphases: BUILD_SETENV BUILD_CONF BUILD_POSTCONFHACK
+#BUILD_PRECOMPILE BUILD_COMPILE BUILD_POSTCOMPILE
+# PREINSTALL
+#  > special actions before installation to install root, keep empty
+#if possible
+#    WARNING: use premerge for standard pre-installation processes
+# INSTALL
+#  > install project, access to $PWIZ_INSTALLROOT
+#    subphases: INSTALL_PREPARE INSTALL_PREACTION INSTALL_ACTION
+#INSTALL_POSTACTION INSTALL_CHECK INSTALL_POSTCHECK
+# CHECKINSTALL
+#  > Check all installed things. Read access.
+# PREMERGE
+#  > actions before install, access to live system only special
+#actions
+# MERGE
+#  > merge project for live system, access to live system
+# CLEAN
+#  > clean project buld environment, access to all temporary dirs
+# POSTINSTALL
+#  > post installation actions, access to live system
+# RUNTEST
+#  > tests for instaled package, access to live system
+# PREUNINSTALL
+#  > special actions before package uninstallation
+# UNMERGE
+#  > perform uninstallation, access to live system
+# POSTUNINSTALL
+#  > special actions after package uninstallation, access to live
+#system
+# RESULTS
+#  > very last actions, access to $PWIZ_RESULTDIR
+# FINISH
+#  > very last actions, access nowhere
+# END
+# Each phase has counterpair {phase}_LAST for simple and portable adding to the end of actions.
+#
+# NOTE: Recommendation for custom phases: Use lowecase. Take these ones as "constants".
+# NOTE: If your action surely does not need any action before it in the
+#same range, you can use listed phases, otherwise create own phase.
+# WARNING: For listed major phases, avoid if possible: pwiz_phase_add before PHASE
+# WARNING: For listed major phases, avoid if possible: pwiz_phase_add after PHASE_LAST
+
+#FIXME: rename phase SETUP???
+
+#@ init_phase_skeleton
+#
+# Creates phases in skeleton (internal function).
 function init_phase_skeleton {
     local phase prev_phase
     prev_phase=BEGIN
@@ -2026,7 +2719,7 @@ pwiz_modules_load
 
 # FIXME: feature list and all
 # FIXME: Report unknown features.
-#@ Debug messages (cannot appear in module init phase).
+# Debug messages (cannot appear in module init phase).
 IFS="${IFS}:,"
 pwiz_debug_list=false
 for pwiz_debug_feature in ${pwiz_debug_features[@]} ; do

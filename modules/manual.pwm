@@ -21,15 +21,20 @@ case $1 in
 esac
 
 #@@ manual actions
-
 # Manual actions are special phases intended for manual selection of
-# special actions. User is not disturbed by lots of questions with
-# expected negative answer for most of them, but is queried only by one
-# question with chance to select list.
+#special actions. User is not disturbed by lots of questions with
+#expected negative answer for most of them, but is queried only by one
+#question with chance to select list.
 
 # FIXME: each action can be included only once. Is it correct?
 
-#@ manual_action_new id [ after | before ] phase "Short desc" "Long desc"
+#@ manual_action_new action_id { "after" | "before" } existing_phase desc longdesc
+# action_id: id of new action
+# { "after" | "before" } existing_phase: position of phase
+# desc: short description of feature
+# longdesc: long description of feature
+#
+# Define new phase for manual action checkpoint.
 function manual_action_new {
     pwiz_phase_new "$1" "$2" "$3"
     pwiz_phase_add "$1" "manual_action_ask $1"
@@ -37,15 +42,28 @@ function manual_action_new {
     eval manual_action_longdesc_$1\=\"\$5\"
 }
 
-#@ manual_action_new id "Short desc" "Long desc"
-#@ It's only abbreviation.
-#@ FIXME: Maybe it should be named better.
+#@ manual_action_new_me action_id { "after" | "before" } existing_phase desc longdesc
+# action_id: id of new action
+# { "after" | "before" } existing_phase: position of phase
+# desc: short description of feature
+# longdesc: long description of feature
+#
+# Define new phase for manual action checkpoint and predefine manual
+#action adding as one of selections.
+# It is the simplification of:
+#@<
+#manual_action_new "manual_{id}" after {existing_phase} {desc} {longdesc}
+#manual_action_add "{id}" manual_command "add command manually"
+#@>
 function manual_action_new_me {
     manual_action_new "manual_$1" after "$1" "$2" "$3"
     manual_action_add "$1" manual_command "add command manually"
 }
 
-#@ manual_action_ask id (internal)
+#@ manual_action_ask action_id
+# action_id: id of existing action
+#
+# User interface for manual action point. (internal)
 function manual_action_ask {
     local item
 # FIXME: After chaning ask_list callback interface, fix it to allow to ask in time of adding ID.
@@ -55,14 +73,22 @@ function manual_action_ask {
     done
 }
 
-#@ manual_action_add phase_id function [ string hotkey ]
-#@ callback convention: function manual_point_id
+#@ manual_action_add action_id function string hotkey
+# action_id: id of existing action
+# function: function name to be added
+# string: string value for guess (can be empty string)
+# hotkey: guess hotkey (can be empty string)
+#
+# Add a new item to manual action.
+@ callback convention: function manual_point_id
 function manual_action_add {
     pwiz_list_add "manual_$1" "$2" 0 0 "$3" "$4"
 }
 
-#@ manual_command_add manual_action_point
-# For adding manual action.
+#@ manual_command manual_action_point
+# action_id: id of existing action
+#
+# User interface for manual adding of command. (internal)
 function manual_command {
     local patch
     pwiz_ask_string "Enter command you want to run." "Now you can add any command you need to run in this phase." q=$1_manual_command multiline=true
@@ -70,6 +96,19 @@ function manual_command {
     rm $PWIZ_TMPDIR/manual_answer_tmp
 }
 
+#@@ Predefined manual action points
+# All those phase are defined after phase with name without "_manual".
+# manual_PREPARE_PREUNPACK: before unpacking main archive
+# manual_PREPARE_POSTUNPACK: after unpacking of main archive before
+#automatic patches
+# manual_PREPARE_RECHECK : after unpacking of main archive and
+#automatic patches
+# manual_BUILD_SETENV: initial first action of build phase
+# manual_BUILD_POSTCONFHACK: after configuring before compilation
+# manual_BUILD_POSTCOMPILE: after compilation
+# manual_INSTALL_PREACTION: before installation
+# manual_INSTALL_POSTACTION: after installation
+# manual_POSTINSTALL: post-installation
 manual_action_new_me PREPARE_PREUNPACK  "before unpacking main archive" "Now you should define actions you want to do before unpacking main archive."
 manual_action_new_me PREPARE_POSTUNPACK "after unpacking of main archive before automatic patches" "Now you can add additional files and features. Do not add patches for bugs yet, maybe it can be auto-fixed in next phase. You will have a chance to fix it later."
 manual_action_new_me PREPARE_RECHECK    "after unpacking of main archive and automatic patches" "Now you can fix known bugs, which was not auto-fixed."

@@ -25,6 +25,9 @@ case $1 in
 	;;
 esac
 
+#@ find_lang
+#
+# Evaluates found files and adds proper installation command and file list.
 function find_lang {
     local item list cat
     local -i count
@@ -70,6 +73,9 @@ function find_lang {
     fi
 }
 
+#@ find_lang_filelist_inspect
+#
+# Filelist inspector for find_lang (active by default).
 function find_lang_filelist_inspect {
     filelist_read_open
     pwiz_redirect_stdout $filelist_file_tmp

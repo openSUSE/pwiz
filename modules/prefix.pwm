@@ -47,8 +47,10 @@ function prefix_set {
 }
 
 #@ prefix_set_dirs prefix
-#@ Sets all GNU convenient directories depending on prefix and FHS
-#@ FIXME: This code does not follow PWIZ coding conventions.
+#
+# Sets all GNU convenient directories depending on prefix and FHS.
+
+# FIXME: This code does not follow PWIZ coding conventions.
 # But there may be an exception.
 function prefix_set_dirs {
     if test "$1" = @global@ ; then
@@ -58,7 +60,7 @@ function prefix_set_dirs {
     fi
     exec_prefix=$prefix
 
-#@ Code stolen from GNU configure
+# Code stolen from GNU configure
 
 # Installation directory options.
 # These are left unexpanded so users can "make install exec_prefix=/foo"
@@ -78,7 +80,7 @@ oldincludedir="/usr/include"
 infodir="${prefix}/info"
 mandir="${prefix}/man"
 
-#@ Code stolen from GNU-FHS: http://www.penguin.cz/~utx/
+# Code stolen from GNU-FHS: http://www.penguin.cz/~utx/
 
 # This script recognizes new configure options --enable-games-fhs
 # (environment variable enable_games_fhs=yes) to mark package as game

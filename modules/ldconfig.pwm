@@ -2,11 +2,11 @@
 
 case $1 in
     desc )
-	echo "GNOME PWIZ framework"
+	echo "check for need of running ldconfig"
 	return
 	;;
     longdesc )
-	echo "This module adds intelligent guesses for GNOME related packages. It means, for example: searching for source in GNOME FTP, working with gnome paths, proper installing of GNOME packages."
+	echo "After installation of library to system path, call of ldconfig is required. This module detect this situation and calls ldconfig."
 	return
 	;;
     init )
@@ -25,6 +25,9 @@ case $1 in
 	;;
 esac
 
+#@ ldconfig_filelist_install
+#
+# Inspects preliminary file list and optionally add ldconfg to ldconfig phase. (internal)
 function ldconfig_filelist_install {
     local dir
     local run_ldconfig=false

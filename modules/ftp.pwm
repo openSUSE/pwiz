@@ -2,7 +2,7 @@
 
 case $1 in
     desc )
-	echo "anonymous FTP downloading and listing module"
+	echo "anonymous FTP downloading and listing"
 	return
 	;;
     longdesc )
@@ -31,9 +31,13 @@ case $1 in
 	;;
 esac
 
-#@ ftp_list URL callback
-#@ Call callback for all FTP objects.
-#@ if $2 == "", then $pwiz_callback is used
+#@ ftp_list URI callback
+# URI: URI to be listed
+# callback: callback for found items
+#
+# Call callback for all found FTP objects.
+# Callback argument: URI
+# NOTE: If @$2 == "", then $pwiz_callback is used (probably echo).
 function ftp_list {
     mkdir -p $PWIZ_CACHEDIR/ftp
     if ! $ftp_WGET -P $PWIZ_CACHEDIR/ftp -N -nr -r -l 1 "$1/" ; then
@@ -43,10 +47,15 @@ function ftp_list {
     ftp_list_callback "${1#ftp://}/.listing" "${2:-$pwiz_callback}"
 }
 
-#@ ftp_list_recursive URL callback
-#@ Recursivelly call callback for all FTP objects.
-#@ if $2 == "", then $pwiz_callback is used
-# FIXME: Check, whether works for atypical characters in URL
+#@ ftp_list_recursive URI callback
+# URI: URI to be listed
+# callback: callback for found items
+#
+# Call callback for all recursivelly found FTP objects.
+# Callback argument: URI
+# NOTE: If @$2 == "", then $pwiz_callback is used (probably echo).
+
+# FIXME: Check, whether works for atypical characters in URI
 function ftp_list_recursive {
     local pwiz_callback_save pwiz_callback_sub
     mkdir -p $PWIZ_CACHEDIR/ftp
@@ -63,8 +72,8 @@ function ftp_list_recursive {
     shopt -u dotglob
 }
 
-#@ ftp_list_callback (internal function)
-#@ FIXME: symlinks in listings
+# ftp_list_callback (internal function)
+# FIXME: symlinks in listings
 function ftp_list_callback {
     local flags links user group size mount day yearhour name
 # FIXME:???
@@ -79,8 +88,12 @@ function ftp_list_callback {
     fi
 }
 
+#@ ftp_get URI
+# URI: URI of file to get
+# 
+# Download a file using FTP protocol.
+
 # FIXME: storage location and storage engine
-#@ ftp_get URL
 function ftp_get {
     local rc
     cd $PWIZ_CACHEDIR

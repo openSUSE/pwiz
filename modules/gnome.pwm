@@ -26,6 +26,9 @@ case $1 in
 	;;
 esac
 
+#@ gnome_prefix
+#
+# Ask, if package will use GNOME global prefix. (internal)
 function gnome_prefix {
 # FIXME: better symptomas
     if grep -q -r --include=configure.in 'PKG_CHECK_MODULES.*\(gnome\|GNOME\)' . ; then
@@ -38,6 +41,9 @@ function gnome_prefix {
     fi
 }
 
+#@ gnome_package_search_uri
+#
+# Provides an URI guess for searching packages in GNOME FTP. (internal)
 function gnome_package_search_uri {
     local default
 # FIXME: ugly temporary solution:
@@ -53,6 +59,9 @@ function gnome_package_search_uri {
     fi
 }
 
+#@ gnome_PREPARE_CHECK
+#
+# Checks, whether package uses GConf. If yes, set proper configure/install. (internal)
 function gnome_PREPARE_CHECK {
     gnome_gconf_used=false
     if grep -q -r --include=configure.in AM_GCONF_SOURCE_2 . ; then
@@ -67,6 +76,9 @@ function gnome_PREPARE_CHECK {
     fi
 }
 
+#@ gnome_filelist_install
+#
+# Checks, whether package uses GConf. If yes, add gconftool call to postinstallation. (internal)
 function gnome_filelist_install {
     local file
     if $gnome_gconf_used ; then
@@ -93,11 +105,18 @@ function gnome_filelist_install {
     fi
 }
 
+#@ gnome_default_prefix
+#
+# Asks for default GNOME prefix in product. (internal)
 function gnome_default_prefix {
     pwiz_ask_string "Select default GNOME2 prefix." \
 	"In some products, all GNOME2 related packages can have different prefix, than rest of system. You should now enter this prefix. It is a directory, where most GNOME2 packages should go. Use /usr/local for manual installations, /usr for installations with packaging system, eventually $HOME for userland installation." \
 	q=gnome_prefix_global valid=vendor default[0]=@global@ string[0]="PWIZ system default prefix ($prefix_global)" p[0]=80 default[1]=/opt/gnome p[1]=20
 }
+
+#@ gnome_check_uri
+#
+# If package is in GNOME FTP, suggest download URI. (internal)
 
 # FIXME: maybe to FTP module, at least partially?
 # Internal callback.

@@ -98,7 +98,7 @@ function pwiz_engine_question_dumb_string {
 	fi
 	echo -n "$pwiz_engine_question_dumb_question_end"
 	echo "$longdesc" | fmt -w $(tput cols)
-	read -p "pwiz${pwiz_tag_q:+@$pwiz_tag_q}> "
+	read -p "PWIZ:$PWIZ_PHASE_CURRENT[$PWIZ_STAGE_CURRENT]${pwiz_tag_q:+@$pwiz_tag_q}> "
 	case "$REPLY" in
 	    "" )
 		if test "$pwiz_guess_best_value" = @@PWIZ_UNDEFINED@@ ; then
@@ -203,7 +203,7 @@ function pwiz_engine_question_dumb_radio {
 	done
 	echo -n "$pwiz_engine_question_dumb_question_end"
 	echo "$longdesc" | fmt -w $(tput cols)
-	read -p "pwiz${pwiz_tag_q:+@$pwiz_tag_q}> "
+	read -p "PWIZ:$PWIZ_PHASE_CURRENT[$PWIZ_STAGE_CURRENT]${pwiz_tag_q:+@$pwiz_tag_q}> "
 	case "$REPLY" in
 	    "" )
 		if test "$pwiz_guess_best_value" = @@PWIZ_UNDEFINED@@ ; then
@@ -290,7 +290,7 @@ function pwiz_engine_question_dumb_list {
 	    echo "x) exit list editor (default)"
 	    echo -n "$pwiz_engine_question_dumb_question_end"
 echo "$longdesc" | fmt -w $(tput cols)
-	    read -p "pwiz${pwiz_tag_q:+@$pwiz_tag_q}> "
+	    read -p "PWIZ:$PWIZ_PHASE_CURRENT[$PWIZ_STAGE_CURRENT]${pwiz_tag_q:+@$pwiz_tag_q}> "
 	    case "$REPLY" in
 		n )
 		    if $pwiz_tag_allow_new ; then
@@ -333,7 +333,7 @@ Formal type for this is a list. Now you have a chance to add new item to this li
 		echo "i) inactivate item"
 		echo "n) new item in this position"
 		echo "x) exit item editor (default)"
-		read -p "pwiz@$menu_mode${pwiz_tag_q:+@$pwiz_tag_q}> "
+		read -p "PWIZ:$PWIZ_PHASE_CURRENT[$PWIZ_STAGE_CURRENT]@$menu_mode${pwiz_tag_q:+@$pwiz_tag_q}> "
 		case "$REPLY" in
 	    # FIXME: Limit is 1000 guesses.
 		    [0-9] | [0-9][0-9] | [0-9][0-9][0-9] )
@@ -384,7 +384,7 @@ Formal type for this is a list. Now you have a chance to add new item to this li
 	    else
 		echo "a) activate item"
 		echo "x) exit item editor (default)"
-		read -p "pwiz@$menu_mode${pwiz_tag_q:+@$pwiz_tag_q}> "
+		read -p "PWIZ:$PWIZ_PHASE_CURRENT[$PWIZ_STAGE_CURRENT]@$menu_mode${pwiz_tag_q:+@$pwiz_tag_q}> "
 		case "$REPLY" in
 		    a )
 			pwiz_answer="$pwiz_answer${items[$menu_mode]} "

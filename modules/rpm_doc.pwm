@@ -22,6 +22,10 @@ case $1 in
 	;;
 esac
 
+#@ rpm_doc_check
+#
+# Check unpacked package and guess, what should be packaged to
+#documentation. (internal)
 shopt -s extglob
 function rpm_doc_check {
     local LC_ALL=C
@@ -63,6 +67,9 @@ function rpm_doc_check {
 }
 shopt -u extglob
 
+#@ rpm_doc_files_list
+#
+# Adds %doc for selected files to filelist. (internal)
 function rpm_doc_files_list {
     pwiz_phase_add_rem rpm_files_list "%doc ${rpm_doc_files[*]}"
 }

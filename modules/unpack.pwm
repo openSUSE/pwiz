@@ -52,7 +52,14 @@ function unpack_search_dirname {
     done
 }
 
-#@ Output: pwiz_result, unpack_priority:
+#@ unpack_check_extension filename
+# filename: file name to be checked
+# returns $pwiz_result: file name without extension
+# returns $unpack_seq: unpacking command
+# returns $unpack_priority: priority for unpacking (if more formats exist)
+#
+# Check archive type and prepare unpacking sequence.
+
 # FIXME: is ugly, has no callback
 # FIXME: modifyable priority
 function unpack_check_extension {

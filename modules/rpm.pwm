@@ -66,6 +66,10 @@ case $1 in
 	;;
 esac
 
+#@ rpm_setup
+#
+# Initializes and prepares values for minimal preamble. (internal)
+
 # FIXME: Initialize guesses here.
 function rpm_setup {
     # Initialize dummy entries.
@@ -83,17 +87,34 @@ function rpm_setup {
     rpm_add_preamble_line temp "%define __check_files %{nil}"
 }
 
+#@ rpm_source_main
+#
+# Adds package URI as Source. (internal)
 # FIXME: define source list dynamically
 function rpm_source_main {
     rpm_source_add main "$package_uri"
 }
+
+#@ rpm_files_finish
+#
+# Adds %files and arguments. Uses $rpm_files_args. (internal)
+
+#@ $rpm_files_args
+# Arguments of %files.
 
 function rpm_files_finish {
     pwiz_phase_add_rem rpm_files_finish ""
     pwiz_phase_add_rem rpm_files_finish "%files$rpm_files_args"
 }
 
-#@ ... rpm_files_list_callback__{sub}
+#@ rpm_files_list
+#
+# Finalizes files list and creates %files section.
+# Uses ${rpm_files_list_callback__{sub}[@@]} for each subpackage.
+
+#@${rpm_files_list_callback__{sub}[@@]}
+# Files list callback called for each subpackage after %defattr.
+
 function rpm_files_list {
 # FIXME: move to globals or other section, do not create final list, but replace dir -> systemdir
     local subpackage
@@ -135,6 +156,10 @@ function rpm_files_list {
     done
 }
 
+#@ unpack_prepare
+#
+# Adds proper unpacking command. (internal)
+
 # FIXME: zip archives etc.
 # FIXME: Ask for directory and not try it.
 function unpack_prepare {
@@ -154,6 +179,11 @@ function unpack_prepare {
 #    pwiz_phase_add     unpack 'rpm_section=prep_after_setup'
 }
 
+#@ rpm_run_wrapper
+#
+# Defines run wrapper, which call protected commands inside RPM build
+#environment. (internal)
+
 # FIXME: This wrapper is obsolete (maybe will be used for %post in future).
 function rpm_run_wrapper {
 # FIXME: Not complete
@@ -165,7 +195,9 @@ $*")"
     eval pwiz_run_wrap "$expanded"
 }
 
-# redefinition of run wrapper core
+#@ pwiz_run_core
+#
+# Redefinition of run wrapper core for @rpm_run_wrapper. (internal)
 function pwiz_run_core {
 # FIXME: to pwiz_run_prepare
 # FIXME: Flexible %setup
@@ -198,7 +230,14 @@ function pwiz_run_core {
     pwiz_set_rc $pwiz_run_rc
 }
 
-#@ rpm_create_dummy_spec rpm_build_arg section add_setup "$@"
+#@ rpm_create_dummy_spec rpm_build_arg section add_setup command
+# rpm_build_arg: argument for rpmbuild
+# section: RPM section
+# add_setup: add %setup? ({ "true" | "false" })
+# command: command to be added
+#
+# Creates dummy RPM spec file for executing single stage. Used by RPM
+#run wrapper. (internal)
 function rpm_create_dummy_spec {
     rpm_build_arg="$1"
     pwiz_redirect_stdout $PWIZ_TMPDIR/rpm_tmp.spec
@@ -235,6 +274,9 @@ echo "$PWD" >'$PWIZ_TMPDIR/rpm_pwd
 }
 # FIXME ^ save set unparsed to separate file, and parse if required. Use set +x for parsing.
 
+#@ rpm_projectdirs_init_callback
+#
+# Callback changing default PWIZ directories to RPM ones. (internal)
 function rpm_projectdirs_init_callback {
     PWIZ_SOURCESDIR=/usr/src/packages/SOURCES
     PWIZ_SRCDIR=/usr/src/packages/BUILD
@@ -242,12 +284,15 @@ function rpm_projectdirs_init_callback {
     PWIZ_INSTALLROOT=/var/tmp/$pwiz_project_project-$pwiz_project_version-build
 }
 
-#@ rpm_subst "string"
-#@ substitute %{name}, %{_name}, %{version}
-#@ FIXME: implement and substitute %{_name}
-#@ BIG FIXME: crashes for packages with "name" and "version" in package name
-#@ Returns: $pwiz_result
-#@ FIXME: should be part of pwiz_add_run
+#@ rpm_subst string
+# string: string, where names should be replaced
+# returns $pwiz_result: string with replaced names
+#
+# Substitute %{name}, %{_name}, %{version} in source string.
+
+# FIXME: implement and substitute %{_name}
+# BIG FIXME: crashes for packages with "name" and "version" in package name
+# FIXME: should be part of pwiz_add_run
 function rpm_subst_names {
     pwiz_result="$1"
     pwiz_result=${pwiz_result//$pwiz_project_project/%\{name\}}
@@ -257,7 +302,10 @@ function rpm_subst_names {
     pwiz_result=${pwiz_result//$pwiz_project_version/%\{version\}}
 }
 
-#@ rpm_files_create (no args) (internal)
+#@ rpm_files_create
+# uses filelist_read_item values: values from @filelist_read_item values parser
+#
+# Create %files item from read file list item. (internal)
 function rpm_files_create {
     local item_prefix
     if test "$filelist_tag_cat" = doc ; then
@@ -286,7 +334,11 @@ function rpm_files_create {
     esac
 }
 
-# rpm_subpackage_add subpackage
+# rpm_subpackage_add sub
+# sub: subpackage
+#
+# Initializes and prepares values for minimal preamble of subpackage.
+#(internal)
 function rpm_subpackage_add {
     pwiz_array_add rpm_subpackage_list "$1"
     rpm_add_preamble basic  Group        "Other" $subpackage
@@ -295,29 +347,55 @@ function rpm_subpackage_add {
 # FIXME: declare -a ?
 unset rpm_subpackage_list
 
-#@ RPM preambles:
+#@@ RPM preambles
+
 # There are following types of preamble:
-# basic: Basic, required preambles. These are reset and set to real values before spec file finalizing.
-# FIXME: delete this comment: sourcepatch: Source* and Patch* list (internal)
-# ext: extended preambles.
+# basic: Basic, required preambles. These are reset and set to real
+#values before spec file finalizing.
+# ext: Extended preambles.
 # temp: These are throw away before finalizing.
 
-# rpm_add_preamble_line type line subpackage
+# FIXME: delete this comment: sourcepatch: Source* and Patch* list (internal)
+
+#@ rpm_add_preamble_line type line sub
+# type: preamble type { "basic" | "ext" | "temp" }
+# line: line to be added
+# sub: subpackage, to which add this line (can be empty for main
+#package)
+#
+# Add a line to specified preamble. Only for special purposes,
+#otherwise use @rpm_add_preamble or @rpm_add_description.
 function rpm_add_preamble_line {
     pwiz_array_add rpm_preamble__$1_$3 "$2"
 }
 
-# rpm_add_preamble type atribute value subpackage
+#@ rpm_add_preamble type atribute value sub
+# type: preamble type { "basic" | "ext" | "temp" }
+# atribute: RPM preamble attribute
+# value: RPM preamble value
+# line: line to be added
+# sub: subpackage, to which add this line (can be empty for main
+#package)
+#
+# Add an attribute with value to specified preamble.
 function rpm_add_preamble {
     local pad='              '
     rpm_add_preamble_line $1 "$2: ${pad:${#2}+3}$3" "$4"
 }
 
-# rpm_add_description description subpackage
+#@ rpm_add_description description sub
+# description: description of subpacakge
+# sub: subpackage, to which add this line (can be empty for main
+#package)
+#
+# Add a %description preamble.
 function rpm_add_description {
     eval 'rpm_description__'$2'="$1"'
 }
 
+#@ rpm_set_attributes
+#
+# Set basic preambles for all subpackages. (internal)
 function rpm_set_attributes {
     # FIXME: Extract these attributes from spec file, if it exists, either old one or bundled.
     local subpackage
@@ -398,8 +476,9 @@ rpm_group__=DUMMY
 rpm_license=DUMMY
 rpm_summary__=DUMMY
 
-# rpm_write_spec_preamble
-# Writes spec preamble to stdout.
+#@ rpm_write_spec_preamble
+#
+# Writes spec preamble to stdout. (internal)
 function rpm_write_spec_preamble {
     local subpackage i subsection string
     local pad='              '
@@ -443,8 +522,9 @@ function rpm_write_spec_preamble {
     done
 }
 
-# rpm_write_spec_body
-# Writes spec body to stdout.
+#@ rpm_write_spec_body
+#
+# Writes spec body to stdout. (internal)
 function rpm_write_spec_body {
     pwiz_phase_save
     pwiz_phase_reset
@@ -457,16 +537,17 @@ function rpm_write_spec_body {
 		echo "${pwiz_result#pwiz_rem }"
 		;;
 # FIXME: will be removed
-	    "pwiz_run_eval "* | "pwiz_rem_eval "* )
-		eval echo \"\${PWIZ_STAGE_EVAL_$PWIZ_PHASE_CURRENT\[$PWIZ_STAGE_CURRENT\]}\"
-	    ;;
+#	    "pwiz_run_eval "* | "pwiz_rem_eval "* )
+#		eval echo \"\${PWIZ_STAGE_EVAL_$PWIZ_PHASE_CURRENT\[$PWIZ_STAGE_CURRENT\]}\"
+#	    ;;
 	esac
     done
     pwiz_phase_restore
 }
 
-# rpm_write_spec
-# Writes complete spec to $PWIZ_RESULTDIR.
+#@ rpm_write_spec
+#
+# Writes complete spec to $PWIZ_RESULTDIR. (internal)
 function rpm_write_spec {
     rm -f $PWIZ_RESULTDIR/$pwiz_project_project.spec
     pwiz_redirect_stdout $PWIZ_RESULTDIR/$pwiz_project_project.spec
@@ -476,14 +557,17 @@ function rpm_write_spec {
     pwiz_redirect_stdout_close
 }
 
-# rpm_write_sources
-# Copies sources to resultdir.
+#@ rpm_write_sources
+#
+# Copies sources to resultdir. (internal)
 function rpm_write_sources {
     cp -a $PWIZ_SOURCESDIR/* $PWIZ_RESULTDIR
 }
 
-# rpm_spec_compile
-# Compile RPM package from spec file.
+#@ rpm_spec_compile
+#
+# Compile RPM package from spec file. (internal)
+
 # FIXME: don't hardwire paths
 function rpm_spec_compile {
     local subpackage
@@ -499,6 +583,9 @@ function rpm_spec_compile {
 
 # FIXME: rpm should auto-ask for splitted package args, if none are supported.
 
+#@ rpm_manual_source
+#
+# Manual checkpoint for adding extra RPM sources. (internal)
 function rpm_manual_source {
     local id
 # FIXME: After chaning ask_list callback interface, fix it to allow to ask in time of adding ID.
@@ -508,7 +595,11 @@ function rpm_manual_source {
     done
 }
 
-#@ rpm_manual_source_wizard action_id source_id
+#@ rpm_source manual_id source_id
+# manual_id: Id of manual check point.
+# source_id: Id of RPM source.
+#
+# Ask for everything needed for Source. (internal)
 function rpm_source {
 # FIXME: can be URL. Write an URL specifier.
 # FIXME: Maybe use answer variables instead of new ones.
@@ -547,8 +638,9 @@ function rpm_source {
     esac
 }
 
-#@ rpm_source_cp_check manual_id (internal)
-# Copy extra sources, all at once.
+#@ rpm_source_cp_check
+#
+# Copy extra sources in %prep phase. (internal)
 function rpm_source_cp_check {
     if ! test -z "$rpm_source_cp_args" ; then
 # FIXME: pwiz_string_escape
@@ -558,8 +650,13 @@ function rpm_source_cp_check {
 }
 rpm_source_cp_args=
 
-#@ rpm_source_dest_check manual_id source_id source_filename dest_filename (internal)
-# Check build root and generate proper commands.
+#@ rpm_source_dest_check manual_id source_id source_filename dest_filename
+# manual_id: id of manual checkpoint
+# source_id: id of source
+# source_filename: file name of source
+# dest_filename: destination file name
+#
+# Check build root and generate proper commands. (internal)
 function rpm_source_dest_check {
     if ! test -d "$RPM_BUILD_ROOT${4%/*}" ; then
 	mkdir -p "$RPM_BUILD_ROOT${4%/*}"
@@ -573,13 +670,20 @@ pwiz_phase_new rpm_source_dest_check after INSTALL_POSTACTION
 pwiz_phase_new rpm_source_dest_mkdir after rpm_source_dest_check
 pwiz_phase_new rpm_source_dest_cp after rpm_source_dest_mkdir
 
-# rpm_source_add id name
+#@ rpm_source_add id name
+# id: id of source
+# name: source file name
+#
+# Add a source to RPM Source.
 function rpm_source_add {
     eval "rpm_sourceno__$1=${#rpm_sources[@]}"
     rpm_subst_names "$2"
     pwiz_array_add rpm_sources "$pwiz_result"
 }
 
+#@ rpm_manual_patch
+#
+# Manual checkpoint for adding extra RPM patches. (internal)
 function rpm_manual_patch {
     local id
 # FIXME: After chaning ask_list callback interface, fix it to allow to ask in time of adding ID.
@@ -589,7 +693,11 @@ function rpm_manual_patch {
     done
 }
 
-#@ rpm_manual_patch_wizard action_id patch_id
+#@ rpm_patch manual_id source_id
+# manual_id: Id of manual check point.
+# patch_id: Id of RPM patch.
+#
+# Ask for everything needed for Patch. (internal)
 function rpm_patch {
 # FIXME: can be URL. Write an URL specifier.
 # FIXME: Maybe use answer variables instead of new ones.
@@ -615,7 +723,11 @@ function rpm_patch {
     esac
 }
 
-# rpm_patch_add id name
+#@ rpm_patch_add id name
+# id: id of patch
+# name: patch file name
+#
+# Add a patch to RPM Patch.
 function rpm_patch_add {
     eval "rpm_patchno__$1=${#rpm_patches[@]}"
     rpm_subst_names "$2"

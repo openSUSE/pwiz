@@ -26,6 +26,9 @@ esac
 # FIXME: Add finction license_is_required to proper init scripts.
 # FIXME: The same for summary, descriptions etc.
 
+# license_PREPARE_CHECK
+#
+# Check unpacked source and look for most common license definitions. (internal)
 function license_PREPARE_CHECK {
 # FIXME: license_found as array to be able to search more files.
 # As last in resort: sort -u

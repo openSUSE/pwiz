@@ -144,10 +144,13 @@ function package_download {
 }
 
 #@ package_parse_uri URI
+# URI: URI to be parsed
+# returns: 0: known archive, 1: unknown file
+# returns $pwiz_result: stripped package version
+#
+# URI parser searching archives of current project and its versions.
+
 # FIXME: Rename this function.
-# Returns: 0: known archive
-# 1: unknown file
-# Returns: $pwiz_result - stripped package version
 function package_parse_uri {
     local version_save
     decho_uri -n "$1..."

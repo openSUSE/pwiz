@@ -6,7 +6,7 @@ case $1 in
 	return
 	;;
     longdesc )
-	echo "GNU configure uses \$libdir variable. By default it is \$prefix/lib, but ob bi-architectiral systems it can be $prefix/lib64. This module provides this change."
+	echo "GNU configure uses \$libdir variable. By default it is \$prefix/lib, but on bi-architectural systems it can be $prefix/lib64. This module provides this change."
 	return
 	;;
     init )
@@ -23,11 +23,18 @@ case $1 in
 	;;
 esac
 
+#@ biarch_prefix_set
+#
+# Change standard directories to bi-arch ones using RPM macros (internal function).
 function biarch_prefix_set {
     libdir="$prefix/%{_lib}"
     libexecdir="$prefix/%{_lib}"
 }
 
+#@ biarch_filelist_inspect
+#
+# Filelist inspector, which replaces paths with bi-arch one using RPM
+#macros (internal function).
 function biarch_filelist_inspect {
     local name
     filelist_read_open
@@ -41,6 +48,11 @@ function biarch_filelist_inspect {
     mv $filelist_file_tmp $filelist_file
 }
 
+#@ biarch_replace file
+# file: file name with full path
+# returns $pwiz_result: file name with replaced path
+#
+# File name with path changed to bi-arch one using RPM macros.
 function biarch_replace {
 # FIXME: libdir?
     pwiz_result=${1/#$prefix\/lib/$prefix/%\{_lib\}}

@@ -23,10 +23,16 @@ case $1 in
 	;;
 esac
 
+#@ installwatch_SETUP
+#
+# Prepares a directory for collecting lists of accessed files. (internal)
 function installwatch_SETUP {
     pwiz_phase_add SOURCE "mkdir -p $PWIZ_TMPDIR/installwatch"
 }
 
+#@ installwatch_filelist_raw
+#
+# Creates raw filelist from collected information. (internal)
 function installwatch_filelist_raw {
     # FIXME: Path.
     cat $PWIZ_TMPDIR/installwatch/* | PWIZ_TMPDIR="$PWIZ_TMPDIR" ~/pwiz/watch/clean
@@ -43,6 +49,9 @@ function installwatch_filelist_raw {
     cp -a $filelist_raw_file $filelist_raw_file.iw
 }
 
+#@ installwatch_run_wrapper
+#
+# Wrapper for protecting run environment and install file access tracing wrapper. (internal)
 function installwatch_run_wrapper {
     local LD_PRELOAD_save
 #    installwatch -o $PWIZ_TMPDIR/installwatch/$PWIZ_PHASE_CURRENT$PWIZ_STAGE_CURRENT "$@"

@@ -26,6 +26,10 @@ case $1 in
 	;;
 esac
 
+#@ filelist_simplify
+#
+# Filelist inspector, which simplifies file lists by globbing.
+
 # FIXME: new feature request - do not add simlification, which covers only one file
 function filelist_simplify {
     local -i count count2
@@ -224,8 +228,13 @@ cp -a $filelist_file_tmp $filelist_file_tmp.sim2
 }
 
 #@ filelist_simplify_add_callback function ...
-#@ callback format: function file
-# Add Callback for pre-creating pattern guesses.
+# function: callback function
+#
+# Add Callback for pre-creating pattern guesses. 
+# Callback argument is file name to be simplified. You can define
+#variables, which can be later used for creating patterns.
+# See @filelist_simplify_dotsep_callback for example.
+
 # NOTE: Callback is called in extglob mode!
 function filelist_simplify_add_callback {
     local func
@@ -235,9 +244,14 @@ function filelist_simplify_add_callback {
 }
 
 #@ filelist_simplify_add_pattern pattern ...
-# Add a pattern to list of pattern guesses.
-# Variables in those patterns are expanded each time they are used.
-# Preferred patterns: Those are used, even if * is valid.
+# pattern: pattern to be checked
+#
+# Add a preferred pattern to list of pattern guesses in simplification
+#process. Shell variables used in those patterns are expanded each
+#time they are used (it allows co-ordination
+#with @filelist_simplify_add_callback).
+# Preferred patterns: Patterns are used, even if * is valid.
+# NOTE: Empty patterns are allowed and ignored.
 function filelist_simplify_add_pattern {
     local patt
     for patt in "$@" ; do
@@ -246,12 +260,21 @@ function filelist_simplify_add_pattern {
 }
 
 #@ filelist_simplify_add_fallback_pattern pattern ...
-# Add a pattern to list of fallback pattern guesses (i. e. those last in resort).
-# Variables in those patterns are expanded each time they are used.
-# Unpreferred patterns: Those are used, if * is not valid.
+# pattern: pattern to be checked
+#
+# Add an unpreferred pattern to list of pattern guesses in
+#simplification process. Shell variables used in those patterns are
+#expanded each time they are used (it allows co-ordination
+#with @filelist_simplify_add_callback).
+# Unpreferred patterns: Those are used, only if * is not valid.
+# Preferred patterns: Patterns are used, even if * is valid.
+# NOTE: Empty patterns are allowed and ignored.
+
+# FIXME:
 # NOTE: If you prefer *.ext1 and *.ext2 instead of *, use:
 #	filelist_simplify_fallback_patterns[1000-${#filelist_simplify_fallback_patterns[@]}]="/$patt"
 # (and fix directory match)
+
 function filelist_simplify_add_fallback_pattern {
     local patt
     for patt in "$@" ; do
@@ -260,10 +283,15 @@ function filelist_simplify_add_fallback_pattern {
 }
 
 #@ filelist_simplify_compare_filename_pattern filename pattern
-#@ Check, whether filename matches pattern
-#@ Returns: OK/fail
+# filename: file name
+# pattern: pattern to be checked
+# returns: 0: matches, 1: does not match
+#
+# Checks, whether filename matches filename pattern.
 # NOTE: "case" and string replacement in Bash uses different pattern
-# matching (filename-like expansion).
+#matching (it's only filename-like expansion, because it does not take
+#'/' as special character).
+
 # FIXME: Fails for extglob filename patterns.
 # NOTE: Unused function.
 function filelist_simplify_compare_file_pattern {
@@ -279,15 +307,26 @@ function filelist_simplify_compare_file_pattern {
     shopt -u extglob
     return $rc
 }
-#@ filelist_simplify_compare_filename_pattern_gen generate extglob pattern.
-#@ Two phase call increases efficiency of comparing many files with the same pattern.
+#@ filelist_simplify_compare_filename_pattern_gen pattern
+# pattern: pattern to be checked
+# returns $filelist_simplify_compare_file_pattern_pregen: pregenerated pattern
+# 
+# Generate extglob pattern for file checking. Re-implemetation
+#of @filelist_simplify_compare_file_pattern in two parts increases
+#efficiency of comparing many files with the same pattern.
 function filelist_simplify_compare_file_pattern_gen {
     filelist_simplify_compare_file_pattern_pregen=${1//\\*/*([^/])}
     filelist_simplify_compare_file_pattern_pregen=${filelist_simplify_compare_file_pattern_pregen//\\?/[^/]}
 }
-#@ filelist_simplify_compare_filename_pattern_use use extglob pattern.
-#@ Two phase call increases efficiency of comparing many files with the same pattern.
-# WARNING: Must be run in extglob mode!
+
+#@ filelist_simplify_compare_filename_pattern_gen filename
+# filename: file name
+# uses $filelist_simplify_compare_file_pattern_pregen: pregenerated pattern
+# 
+# Checks, whether filename matches filename pattern. Re-implemetation
+#of @filelist_simplify_compare_file_pattern in two parts increases
+#efficiency of comparing many files with the same pattern.
+# WARNING: This function must be run in extglob mode!
 function filelist_simplify_compare_file_pattern_use {
     local rc=1
     case "$1" in
@@ -324,6 +363,28 @@ function filelist_simplify_PREPARE {
 # FIXME: Maybe nice to have name-* name-name2-* *.ext1.ext2 etc.
 
 # Add a callback pattern *.ext for any extension
+#@ filelist_simplify_dotsep_callback filename
+# filename: file name to be simplified
+#
+# Using standard filelist_simplify functions, define on-fly
+#simplification guess for file.ext: *.ext. Active by default.
+# Code example (simplified):
+#@<
+#shopt -s extglob
+#function filelist_simplify_dotsep_callback {
+#    local basename="${1##*/}"
+#    local ext="${basename##*.}"
+#    if ! test "$ext" = "$basename" ; then
+#	filelist_simplify_dotsep_pattern="*.$ext"
+#    else
+#	filelist_simplify_dotsep_pattern=
+#    fi
+#}
+#shopt -u extglob
+#filelist_simplify_add_callback filelist_simplify_dotsep_callback
+#filelist_simplify_add_fallback_pattern '$filelist_simplify_dotsep_pattern'
+#@>
+
 shopt -s extglob
 function filelist_simplify_dotsep_callback {
     local basename="${1##*/}"

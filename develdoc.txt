@@ -22,7 +22,9 @@ Because bash do not support pointers and output redirection has
 performance problems, the obvious way is:
 
 Returned values are in special variable $pwiz_result. It can be array
-or single variable, depending on context.
+or single variable, depending on context. Similarly, sometimes is used
+$pwiz_callback for calling helpers and $pwiz_answer for result of
+question engine.
 
 
 Phase engine
@@ -107,9 +109,9 @@ Engine does not need to be initialized on load.
 
 Interface engine can be launched by following ways:
 
-{engine_name}.pwe desc - Should write description and exit.
+{engine_name}.pwe desc - Should write description and return.
 
-{engine_name}.pwe longdesc - Should write long description and exit.
+{engine_name}.pwe longdesc - Should write long description and return.
 
 {engine_name}.pwe - Without arguments, engine should be loaded.
 
@@ -249,3 +251,61 @@ function ldconfig_filelist_install {
 	pwiz_phase_add_run ldconfig "%run_ldconfig"
     fi
 }
+
+
+
+Command protection
+
+PWIZ commands can be started in two different ways: protected and
+unprotected.
+
+Protected commands are commands, which should be started
+in environment similar to stand-alone build (for example inside
+rpmbuild). This mode uses command @pwiz_run. It simulates environment
+inside build engine and logs all actions for further analysis.
+Protected commands will appear in final product as part of build file
+(e. g. spec file), unless stated something else.
+
+Unprotected commands are started directly by PWIZ without any
+protection and logging. They are intended for internal activities and
+code inspection. These commands will not appear in final product.
+
+Third special commands of @pwiz_rem type are not started at all, but
+will appear in final product. This type is intended for comments and
+for special actions (e. g. inserting %build to spec file).
+
+
+Structures
+
+
+Debug features
+
+You can declare debug feature. User can then enable such logging with
+--enable-debug=feature.
+
+Defined in: pwiz core
+
+
+Documentation in code:
+
+#@@@ Title level 1
+
+#@@ Title level 2
+
+##@ Information in free text. Continuatino lines are permitted and are
+#starting by # without space.
+##@ Next column will again start with ##@.
+
+#@ function arg1 arg2
+# arg1: Description of arg1.
+# arg2: Description of arg2.
+# returns: Description of returned values followed by an empty comment
+#line (not needed for variable descriptions). (Continuation lines
+#begin with # without space.)
+#
+# Description of function terminated by line started by non-comment.
+#Function @names are started by @. @"Multi words" are available.
+#@<
+# You can also define preformatted comments.
+#@>
+# You can use @@ and @$ to cance special meaning of at sign.

@@ -32,16 +32,25 @@ case $1 in
 	;;
 esac
 
+#@ filelist_install
+#
+# Generates preliminary file list in install phase.
 function filelist_install {
     filelist_generate
 }
 
+#@ filelist_raw
+#
+# Calls $filelist_raw_provider_function to get raw file list.
 function filelist_raw {
     #@ Raw file list name for list creator process.
     filelist_raw_file=$PWIZ_TMPDIR/filelist_raw.lst
     $filelist_raw_provider_function
 }
 
+#@ filelist_clean
+#
+# Cleans file list (canonicalize path, remove duplicates and some accesses).
 function filelist_clean {
     #@ File list name for inspect processes.
     filelist_file=$PWIZ_TMPDIR/filelist.lst
@@ -55,9 +64,7 @@ function filelist_clean {
     exec 3>&-
 }
 
-#@ filelist_raw_add file type (internal)
-#@ echo an item for raw filelist
-#@ WARNING: to add an item to raw filelist, you need filelist_raw_open, filelist_raw_close
+# echo an item for raw filelist
 # FIXME: implement no install root
 function filelist_raw_clean_1 {
     while filelist_read_item 0 ; do
@@ -149,19 +156,31 @@ function filelist_raw_clean_2 {
 }
 
 #@ filelist_raw_open
-#@ function for filelist_raw_add
-#@ filelist_raw_close
-#@ function for filelist_raw_add
+#
+# Open raw filelist file for output in stdout. Used
+#by @filelist_raw_provider function.
 function filelist_raw_open {
     pwiz_redirect_stdout $filelist_raw_file
 }
+#@ filelist_raw_close
+#
+# Close raw filelist file in stdout. Used by @filelist_raw_provider
+#function.
 function filelist_raw_close {
     pwiz_redirect_stdout_close
 }
 
 #@ filelist_raw_provider
-#@ function for init of modules providing filelist_raw argument and functionality.
-#@ filelist_raw_provider should call filelist_raw_add
+#
+# Function for init of module providing filelist_raw function.
+#Function will be named @{module}_filelist_raw.
+# WARNING: This function cannot be called outside module init.
+
+#@{module}_filelist_raw
+# uses $filelist_raw_file: File name of destination raw file.
+#
+# Function, which generates raw file list.
+
 function filelist_raw_provider {
     filelist_raw_provider_function=${pwiz_module_current}_filelist_raw
 }
@@ -170,50 +189,97 @@ function filelist_raw_provider {
 # FIXME: But there can be problems with special modules, requiring whole list in time.
 
 #@ filelist_inspect_provider
-#@ function for init of modules providing filelist_inspect argument and functionality.
+#
+# Function for init of modules providing filelist_inspect function.
+#Function will be named @{module}_filelist_inspect.
+
+#@{module}_filelist_inspect
+#uses $filelist_file: list file to be inspected
+#uses $filelist_file_tmp: temporary file name
+#
+# Function, which inspects file list. it can add, remove or modify
+#files in file list.
+
 function filelist_inspect_provider {
     pwiz_phase_add_callme filelist_inspect
 }
 
 #@ filelist_install_provider
-#@ function for filelist inspections during INSTALL phase
+#
+# Function for init of modules providing filelist_install function.
+#Function will be named @{module}_filelist_install.
+
+#@{module}_filelist_install
+#uses $filelist_file: list file to be installed
+#uses $filelist_file_tmp: temporary file name
+#
+# Function, which inspects preliminary file list during INSTALL phase.
+#it can add, remove or modify files in file list.
+# Example of simple inspect provider, which includes all files (valid
+#for all list inspectors):
+#@<
+#... init
+#    filelist_inspect_provider
+#...
+#function mymodule_filelist_inspect {
+#    local name
+#    filelist_read_open
+#    pwiz_redirect_stdout $filelist_file_tmp
+#    while filelist_read_item ; do
+#	echo "$filelist_tag_name $filelist_tagline"
+#    done
+#    filelist_read_close
+#    pwiz_redirect_stdout_close
+#    mv $filelist_file_tmp $filelist_file
+#}
+#@>
+
 function filelist_install_provider {
     pwiz_phase_add_callme filelist_install
 }
+
 #@ filelist_generate
-#@ generate file list in any moment.
-#@ Clean list is generated, but no inspectors are called.
+#
+# Generate file list on request. Clean list is generated, but no
+#inspectors are called.
+
 # FIXME: Incremental list generation can save time
 function filelist_generate {
     filelist_raw
     filelist_clean
 }
 
-#@ filelist_read_open [stream#]
-#@ function for filelist_read_item
-#@ filelist_read_close [stream#]
-#@ function for filelist_read_item
-# ba default uses stream 3
+#@ filelist_read_open [ stream ]
+# stream: stream number to be opened for read (default 3)
+#
+# Function opens filelist for reading in defined stream.
 function filelist_read_open {
     local stream=${1:-3}
     eval exec $stream\<$filelist_file
 }
+
+#@ filelist_read_close [ stream ]
+# stream: stream number to be closed (default 3)
+#
+# Closes defined stream.
 function filelist_read_close {
     local stream=${1:-3}
     eval exec $stream\<\&-
 }
 
-# FIXME: can be alias?
-# FIXME: tag oriented?
-#@ filelist_read_item [stream#]
-#@ Input: filelist line
-#@ Returns:
-#@ filelist_tag_type
-#@ filelist_tagline line containing all characters defining tags and type (for special purposes only)
-#@ $filelist_tag_{key}
-#@ Currently known keys: cat (filelist category - doc...), attr (attributes), sub (subpackage)
-# FIXME: include read command here
-# NOTE: Works with stream 3
+#@ filelist_read_item [ stream ]
+# stream: stream number from where to read item (default 3)
+# returns $filelist_tag_name: list item file or directory name
+# returns $filelist_tagline: part of line with all tags and type (for
+#special purposes or verbatim copying)
+# returns $filelist_tag_{key}: returns value of tags associated with list item
+#
+# Reads list item from opened stream.
+# Known tags variables:
+# $filelist_tag_type: type of object ("file", "dir", "read")
+# $filelist_tag_attr: attributes of file in package (not permissions,
+#but attributes like doc, man, noverify etc.)
+# $filelist_tag_sub: subpackage
 function filelist_read_item {
     local stream=${1:-3}
     local var
@@ -240,8 +306,14 @@ function filelist_read_item {
 # FIXME implement function filelist_write_item
 
 #@ filelist_split_candidate sub ...
-#@ Defines candidate for splitting package to subpackages.
-# NOTE: This is required, because in time of inspection, we don't know, whether such subpackage will be created.
+# sub: split candidate name
+#
+# Suggests candidate for splitting package to subpackages.
+# Purpose of this functions: In time of inspection, we don't know,
+#whether such subpackage will be really created or not, but we need
+#candidate name to be able to detect files in system owned by this
+#package and possible subpackages.
+
 # FIXME: split name can contain -, but shell variable not
 function filelist_split_candidate {
     local sub
@@ -252,12 +324,22 @@ function filelist_split_candidate {
     eval unset filelist_split_candidate_requires_${sub}
 }
 
-# filelist_split_candidate_prerequires subpackage what_requires
+#@ filelist_split_candidate_prerequires sub what_requires
+# sub: split candidate name
+# what_requires: list of prerequirements
+#
+# Set prerequirements (i. e. packages needed for installation) of
+#subpackage, if it will be created.
 function filelist_split_candidate_prerequires {
     eval 'pwiz_array_add filelist_split_candidate_prerequires__'$1' "$2"'
 }
 
-# filelist_split_candidate_requires subpackage what_requires
+#@ filelist_split_candidate_requires sub what_requires
+# sub: split candidate name
+# what_requires: list of requirements
+#
+# Set requirements (i. e. packages needed for using) of subpackage, if
+#it will be created.
 function filelist_split_candidate_requires {
     eval 'pwiz_array_add filelist_split_candidate_requires__'$1' "$2"'
 }
