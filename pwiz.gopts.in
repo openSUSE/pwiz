@@ -727,48 +727,37 @@ alias pwiz_reset_vtags='unset ${!pwiz_vtag_*} ; pwiz_default_vtags'
 #recurse, there is no chance for simple predefining default value for
 #tag as global variable. You have to use this function.
 # Register default tag value.
+
+# FIXME: WARNING: dual expansion
 function pwiz_register_tag_default {
-    pwiz_array_add pwiz_tagreset "$1"
-    pwiz_array_add pwiz_vtagreset "$1"
+    pwiz_array_add pwiz_tagreset "pwiz_tag_$1"
+    pwiz_array_add pwiz_vtagreset "pwiz_vtag_$1"
 }
 declare -a pwiz_tagreset
 declare -a pwiz_vtagreset
+
+# Default version inheritance of answers.
+pwiz_register_tag_default inherit=80
+# FIXME: Now probably obsolete.
+# Credit level of unknown source.
+pwiz_register_tag_default credit=50
+
+pwiz_register_tag_default yesno=false
+pwiz_register_tag_default allow_new=true
+pwiz_register_tag_default no_default=false
+pwiz_register_tag_default item_type=string
+pwiz_register_tag_default valid=exact
+pwiz_register_tag_default knowledge=general
 
 #@ pwiz_default_tags
 #
 # After calling @pwiz_reset_tags, no tags are defined. To define
 #default values, use this function.
 function pwiz_default_tags {
-    # Default version inheritance of answers.
-    pwiz_tag_inherit=80
-    # FIXME: Now probably obsolete.
-    # Credit level of unknown source.
-    pwiz_tag_credit=50
-
-    pwiz_tag_yesno=false
-    pwiz_tag_allow_new=true
-    pwiz_tag_no_default=false
-    pwiz_tag_item_type=string
-    pwiz_tag_valid=exact
-    pwiz_tag_knowledge=general
-
     eval "${pwiz_tagreset[@]}"
 }
 
 function pwiz_default_vtags {
-    # Default version inheritance of answers.
-    pwiz_vtag_inherit=80
-    # FIXME: Now probably obsolete.
-    # Credit level of unknown source.
-    pwiz_vtag_credit=50
-
-    pwiz_vtag_yesno=false
-    pwiz_vtag_allow_new=true
-    pwiz_vtag_no_default=false
-    pwiz_vtag_item_type=string
-    pwiz_vtag_valid=exact
-    pwiz_vtag_knowledge=general
-
     eval "${pwiz_vtagreset[@]}"
 }
 

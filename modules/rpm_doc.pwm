@@ -93,7 +93,7 @@ function rpm_doc_configure {
 function rpm_doc_copy {
     if $rpm_doc_has_doc_files_addon ; then
 	# mkdir check not needed, done by adding actions.
-	rpm_subst_names "cp ${rpm_doc_files[*]} \$RPM_BUILD_ROOT/usr/share/doc/packages/$pwiz_project_project-$pwiz_project_version"
+	rpm_subst_names "cp -p ${rpm_doc_files[*]} \$RPM_BUILD_ROOT/usr/share/doc/packages/$pwiz_project_project-$pwiz_project_version"
 	pwiz_phase_add_run rpm_doc_copy "$pwiz_result"
     fi
 }
@@ -117,13 +117,12 @@ function rpm_doc_files_list {
 # Make a fix to prevent removing of files in %files %doc.
 function rpm_doc_filelist_install {
     local has_ugly_doc=false
-    local has_doc_packages=false
     local ugly_file ugly_datadir
     filelist_read_open
     while filelist_read_item ; do
 	if test "$filelist_tag_name" != /usr/share/doc/packages -a "$filelist_tag_name" != /usr/share/doc ; then
 	    if test "${filelist_tag_name#/usr/share/doc/packages/}" != "$filelist_tag_name" ; then
-		has_doc_packages=true
+		rpm_doc_has_doc_files_addon=true
 	    else
 		if test "${filelist_tag_name#$datadir/doc}" != "$filelist_tag_name" ; then
 		    ugly_file=$filelist_tag_name

@@ -4,10 +4,15 @@
 
 	* Makefile.am, configure.in: Documentation and packaging fixes.
 
-	* pwiz.gopts.in, filelist.pwm, gnu_configure.pwm, rpm.pwm,
-	rpm_doc.pwm: Documentation packaging and file tagging fixes.
+	* pwiz.gopts.in, modules/filelist.pwm, modules/gnu_configure.pwm,
+	modules/rpm.pwm, modules/rpm_doc.pwm: Documentation packaging,
+	file tagging and RPM attributes fixes.
 
-	* filelist_simplify.pwm: Fixed dead loop for symbolic paths.
+	* modules/filelist_simplify.pwm: Fixed dead loop for symbolic paths.
+
+	* pwiz.gopts.in, engines/question/dumb.pwe: Fixed tag resetting.
+
+	* modules/rpm.pwm: Deleted incorrect defaults.
 
 2004-07-16  Stanislav Brabec  <sbrabec@suse.cz>
 

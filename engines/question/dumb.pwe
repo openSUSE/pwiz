@@ -418,7 +418,7 @@ Formal type for this is a list. Now you have a chance to add new item to this li
     pwiz_answer="${pwiz_answer# }"
     pwiz_answer="${pwiz_answer% }"
 }
-pwiz_register_tag_default pwiz_tag_multiline=false
+pwiz_register_tag_default multiline=false
 
 function pwiz_engine_question_dumb_auto_answer {
     local string

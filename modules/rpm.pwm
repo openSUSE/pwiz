@@ -427,7 +427,7 @@ function rpm_set_attributes {
 	q=rpm_summary__
     rpm_add_preamble basic  Summary      "$rpm_summary__"
     pwiz_ask_string "Enter RPM prerequires for main package." \
-	"RPM prerequires are packages required for installing this package." q=rpm_prereq__ default="" p=70
+	"RPM prerequires are packages required for installing this package." q=rpm_prereq__ default=PWIZ_DUMMY c=-1 p=70
     if ! test -z "$pwiz_answer" ; then
 	rpm_add_preamble ext    PreReq       "$pwiz_answer"
     fi
@@ -473,10 +473,6 @@ function rpm_set_attributes {
 	rpm_add_description           "$pwiz_answer" $subpackage
     done
 }
-# Dummy items for temporary spec files.
-rpm_group__=DUMMY
-rpm_license=DUMMY
-rpm_summary__=DUMMY
 
 #@ rpm_write_spec_preamble
 #
