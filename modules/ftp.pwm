@@ -75,7 +75,8 @@ function ftp_get {
 # Call callback for all found FTP objects.
 function ftp_list {
     mkdir -p $PWIZ_CACHEDIR/ftp
-    $ftp_WGET -P $PWIZ_CACHEDIR/ftp -N  --no-remove-listing -r -l 1 "$1/"
+    # Fetch only a directory listing.
+    $ftp_WGET -P $PWIZ_CACHEDIR/ftp -N  -nr -r -l 1 -R '*' "$1/"
     if ! test -f "$PWIZ_CACHEDIR/ftp/${1#ftp://}/.listing" ; then
 	echo "*** $1 not found"
 	return 1
@@ -83,46 +84,64 @@ function ftp_list {
     ftp_list_callback "${1#ftp://}/.listing" "$5"
 }
 
-#@ ftp_list_recursive uri provider domain path uri_list_callback
-# uri: complete URI
-# provider: provider part of URI
-# domain: domain part of URI
-# path: path part of URI
-# uri_list_callback: callback for found items
+##@ ftp_list_recursive uri provider domain path uri_list_callback
+## uri: complete URI
+## provider: provider part of URI
+## domain: domain part of URI
+## path: path part of URI
+## uri_list_callback: callback for found items
+##
+## Call callback for all recursivelly found FTP objects.
 #
-# Call callback for all recursivelly found FTP objects.
-
-# FIXME: Check, whether works for atypical characters in URI
-# FIXME: replace echo by debug commands
-function ftp_list_recursive {
-    local callback_save callback_sub
-    mkdir -p $PWIZ_CACHEDIR/ftp
-    $ftp_WGET -P $PWIZ_CACHEDIR/ftp -N  --no-remove-listing -r -R '*' "$1/"
-    if ! test -f "$PWIZ_CACHEDIR/ftp/${1#ftp://}/.listing" ; then
-	echo "*** $1 not found"
-	return 1
-    fi
-    shopt -s dotglob
-    callback_save=$pwiz_callback
-    callback_sub=$5
-    pwiz_callback=ftp_list_callback
-    pwiz_find "${1#ftp://}" $PWIZ_CACHEDIR/ftp/ "$callback_sub"
-    pwiz_callback=$callback_save
-    shopt -u dotglob
-}
+## FIXME: Check, whether works for atypical characters in URI
+## FIXME: replace echo by debug commands
+#function ftp_list_recursive {
+#    local callback_save callback_sub
+#    mkdir -p $PWIZ_CACHEDIR/ftp
+#    $ftp_WGET -P $PWIZ_CACHEDIR/ftp -N  -nr -r -R '*' "$1/"
+#    if ! test -f "$PWIZ_CACHEDIR/ftp/${1#ftp://}/.listing" ; then
+#	echo "*** $1 not found"
+#	return 1
+#    fi
+#    shopt -s dotglob
+#    callback_save=$pwiz_callback
+#    callback_sub=$5
+#    pwiz_callback=ftp_list_callback
+#    pwiz_find "${1#ftp://}" $PWIZ_CACHEDIR/ftp/ "$callback_sub"
+#    pwiz_callback=$callback_save
+#    shopt -u dotglob
+#}
 
 # ftp_list_callback (internal function)
-# FIXME: symlinks in listings
+#
+
+# FIXME: integrate with ftp_list (there is no reason to separate it
 function ftp_list_callback {
     local flags links user group size mount day yearhour name
+    local rc
 # FIXME:???
-    if test "${1##*/}" = .listing ; then
+#    if test "${1##*/}" = .listing ; then
 	exec 3<"$PWIZ_CACHEDIR/ftp/$1"
 	while read -u3 flags links user group size mount day yearhour name ; do
 	    eval name=$'"${name%%\r}"'
 	    pwiz_canonize "${1%/.listing}/$name"
-	    $2 "ftp://$pwiz_result"
+	    case "${flags:0:1}" in
+		d )
+		    uri_callback $2 "ftp://$pwiz_result" list
+		    ;;
+		- )
+		    uri_callback $2 "ftp://$pwiz_result" file
+		    ;;
+		l )
+		    uri_callback $2 "ftp://$pwiz_result" link
+		    ;;
+		* )
+		    uri_callback $2 "ftp://$pwiz_result" unknown
+		    ;;
+	    esac
 	done
 	exec 3<&-
-    fi
+#    fi
 }
+
+# FIXME: implement API for symlinks

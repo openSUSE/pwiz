@@ -73,6 +73,8 @@ function sourceforge_exists {
 # file: file name to be downloaded to
 #
 # Get a file from Sourceforge.net.
+# NOTE: Code is little tricky: sourceforge://project is supported only
+#in uri_list and sourceforge://project/file only in uri_get.
 function sourceforge_get {
     local -a mirror mirror_location a1 a2 a3 i uri PWD_save
     mkdir -p $PWIZ_TMPDIR/sourceforge_get
@@ -117,12 +119,12 @@ function sourceforge_get {
 # callback: callback for found items
 #
 # List downloadable files of Sourceforge.net project.
+# NOTE: Code is little tricky: sourceforge://project is supported only
+#in uri_list and sourceforge://project/file only in uri_get.
 function sourceforge_list {
     local sourceforge_list_callback_save="$5"
     uri_list "http://prdownloads.sourceforge.net/$3/" sourceforge_list_callback
 }
-
-alias sourceforge_list_recursive=sourceforge_list
 
 # sourceforge_list_callback (internal)
 #
@@ -131,6 +133,6 @@ function sourceforge_list_callback {
     local uri
     uri=${1#http://prdownloads.sourceforge.net/}
     if test "$1" != "$uri" ; then
-	$sourceforge_list_callback_save sourceforge://$uri
+	uri_callback $sourceforge_list_callback_save sourceforge://$uri file
     fi
 }

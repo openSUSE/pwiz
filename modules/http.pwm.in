@@ -84,25 +84,27 @@ function http_list {
     exec 3<$PWIZ_TMPDIR/html_list/html_urls
     # stdin holds html_urls inode until it's closed
     rm -rf $PWIZ_TMPDIR/html_list
-    local tmp
+    local tmp uri_type
     while read -u3 REPLY ; do
+	# If uri has trailing "/" it is probably web page, otherwise it is unknown - can be both html or file
+	if test "$REPLY" = "${REPLY%/}" ; then
+	    uri_type=unknown
+	else
+	    uri_type=list
+	fi
 	if test "${REPLY/:\/\/}" = "$REPLY" ; then
 	    if test "${REPLY:0:1}" = / ; then
 		tmp=${real_location#*://}
-		"$5" "${real_location%%://*}://${tmp%%/*}$REPLY"
+		uri_callback "$5" "${real_location%%://*}://${tmp%%/*}$REPLY" $uri_type
 	    else
-		"$5" "${real_location%/*}/$REPLY"
+		uri_callback "$5" "${real_location%/*}/$REPLY" $uri_type
 	    fi
 	else
-	    "$5" "$REPLY"
+	    uri_callback "$5" "$REPLY" $uri_type
 	fi
     done
     exec 3<&-
 }
-
-# FIXME: implement it
-alias http_list_recursive=http_list
-
 
 #@ http_get_redir uri
 # uri: complete URI
