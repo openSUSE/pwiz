@@ -14,7 +14,7 @@ case $1 in
 	pwiz_module_needs package version unpack manual
 	pwiz_module_uses filelist unpack
 # FIXME: after package or after SOURCE?
-	pwiz_phase_new_call rpm_setup after package
+	pwiz_phase_new_call rpm_setup after SETUP
 # FIXME: not used:
 	pwiz_phase_new rpm_header after rpm_setup
 # FIXME: move from init:
@@ -73,9 +73,6 @@ function rpm_setup {
 	rpm_add_preamble_line basic "%define _name $package_basename"
     fi
     rpm_add_preamble basic  Version      $pwiz_project_version
-    if ! test -z "$package_home_page" ; then
-	rpm_add_preamble basic  URL          "$package_home_page"
-    fi
     rpm_add_preamble basic  Group        "Other"
     rpm_add_preamble basic  License      "Unknown"
     rpm_add_preamble basic  Summary      "DUMMY"
@@ -332,6 +329,9 @@ function rpm_set_attributes {
 	"RPM requires assigning group attribute for any package created. You should select one of the list." \
 	q=rpm_group__ default=Other p=0
     rpm_group__="$pwiz_answer"
+    if ! test -z "$package_home_page" ; then
+	rpm_add_preamble basic  URL          "$package_home_page"
+    fi
     rpm_add_preamble basic  Group        "$rpm_group__"
     pwiz_ask_string "Enter RPM license for main package." \
 	"RPM requires assigning license attribute for any package created. You should select one of the list." \
