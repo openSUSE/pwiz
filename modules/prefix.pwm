@@ -25,7 +25,7 @@ case $1 in
     prefix_set )
 	pwiz_ask_string "Select prefix for your package." \
 	    "You should enter prefix for your package. It is a main directory, where most packages should go. Most packages should use global prefix, but some needs extra prefix." \
-	    q=prefix default[0]=@global@ p[0]=50 string[0]="Default prefix"
+	    q=prefix default[0]=@global@ p[0]=50 string[0]="PWIZ system default prefix ($prefix_global)"
 	prefix_set_dirs "$pwiz_answer"
 	return
 	;;

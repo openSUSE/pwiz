@@ -19,27 +19,33 @@ case $1 in
 	return
 	;;
     filelist_raw )
+	filelist_raw_open
+	installwatch_IFS_save="$IFS"
+	IFS=$'\t\n'
 	for installwatch_stage in $PWIZ_TMPDIR/installwatch/* ; do
 	    exec 3<$installwatch_stage
-	    installwatch_IFS_save="$IFS"
-	    IFS=$'\t\n'
 	    while read -u3 installwatch_a1 installwatch_a2 installwatch_a3 installwatch_a4 ; do
 		case "$installwatch_a2" in
 		    open )
-			filelist_raw_add "$installwatch_a3" file
+			echo "$installwatch_a3" file
 			;;
 # FIXME: special tags for links
 		    symlink | link )
-			filelist_raw_add "$installwatch_a4" file
+			echo "$installwatch_a4" file
 			;;
 		    mkdir )
-			filelist_raw_add "$installwatch_a3" dir
+			echo "$installwatch_a3" dir
 			;;
 		esac
 	    done
 	    exec 3<&-
+# installwatch works incorrectly for SUID and statically linked binaries (e. g. ldconfig).
+# we need to combine it with simple find
 	done
 	IFS="$installwatch_IFS_save"
+	# no callback needed, default echo does the right thing
+	pwiz_find_d $PWIZ_INSTALLROOT
+	filelist_raw_close
 	return
 	;;
     version )

@@ -11,15 +11,11 @@ case $1 in
 	;;
     init )
 # Phase providing preliminary file list during installation.
-	pwiz_phase_new filelist_install before INSTALL_LAST
-	pwiz_phase_add_callme filelist_install
-	pwiz_phase_new filelist_raw after RESULTS
-	pwiz_phase_add_callme filelist_raw
-	pwiz_phase_new filelist_clean after filelist_raw
-	pwiz_phase_add_callme filelist_clean
+	pwiz_phase_new_callme filelist_install before INSTALL_LAST
+	pwiz_phase_new_callme filelist_raw after RESULTS
+	pwiz_phase_new_callme filelist_clean after filelist_raw
 	pwiz_phase_new filelist_inspect after filelist_clean
-	pwiz_phase_new filelist_finish after filelist_inspect
-	pwiz_phase_add_callme filelist_finish
+	pwiz_phase_new_callme filelist_finish after filelist_inspect
 # FIXME
 #	pwiz_phase_new filelist_split after filelist_fix
 # FIXME: do not register twice for subsequent packages
@@ -39,8 +35,10 @@ case $1 in
 	filelist_file=$PWIZ_TMPDIR/filelist.lst
 	#@ Temporary file name for inspect processes.
 	filelist_file_tmp=$PWIZ_TMPDIR/filelist.lst~
-	IFS="$filelist_IFS_save"
-	LANG=C sort <$filelist_raw_file | uniq >$filelist_file
+	# dual uniq makes sorting faster in many cases
+set -x
+	uniq <$filelist_raw_file | tee $filelist_raw_file.0 | filelist_raw_clean_1 | tee $filelist_raw_file.1 | LC_ALL=C sort | filelist_raw_clean_2 | uniq | tee $filelist_raw_file.2 >$filelist_file
+set +x
 	return
 	;;
     version )
@@ -52,38 +50,70 @@ case $1 in
 	;;
 esac
 
-#@ filelist_raw_add file type
-#@ add an item to raw filelist
+#@ filelist_raw_add file type (internal)
+#@ echo an item for raw filelist
+#@ WARNING: to add an item to raw filelist, you need filelist_raw_open, filelist_raw_close
 # FIXME: implement no install root
-function filelist_raw_add {
-    local name
-    case $1 in
+function filelist_raw_clean_1 {
+    local line
+    while read line ; do
+	local name="${line% *}"
+	local attr="${line##* }"
+	case $name in
 # FIXME: not fixed list
-	$PWIZ_SRCDIR/* | $PWIZ_BUILDDIR/* | $PWIZ_SOURCESDIR/* | $PWIZ_TMPDIR/* )
-	    ;;
-	$PWIZ_INSTALLROOT/* )
-	    if test -e "$1" ; then
-# FIXME faster redirection
-		pwiz_canonize "${1##$PWIZ_INSTALLROOT}"
-		name="$pwiz_result"
-		if test "$2" = dir ; then
-		    pwiz_pkgdb_what_owns "${1##$PWIZ_INSTALLROOT}"
-		    if test ${#pwiz_result[@]} -gt 1 -o "${pwiz_result[0]:-$pwiz_project_project}" != "$pwiz_project_project" ; then
-			echo "$name odir" >>$filelist_raw_file
+	    $PWIZ_SRCDIR/* | $PWIZ_BUILDDIR/* | $PWIZ_SOURCESDIR/* | $PWIZ_TMPDIR/* )
+		;;
+	    $PWIZ_INSTALLROOT/* )
+		if test -e "$name" ; then
+		    pwiz_canonize "${name##$PWIZ_INSTALLROOT}"
+		    name="$pwiz_result"
+		    if test $attr = dir ; then
+# FIXME: remove redirection
+# FIXME: implement and ask more files at once
+			echo "$name dir"
 		    else
-			echo "$name dir" >>$filelist_raw_file
+			echo "$name file"
 		    fi
-		else
-		    echo "$name file" >>$filelist_raw_file
 		fi
+		;;
+	    /tmp/* | /dev/null | /dev/tty* | /var/tmp/* )
+		;;
+	    * )
+		echo >&2 "ERROR: FIXME: access violation $name"
+		;;
+	esac
+    done
+}
+function filelist_raw_clean_2 {
+    local line
+    while read line ; do
+	local name="${line% *}"
+	local attr="${line##* }"
+	if test $attr = dir ; then
+# FIXME: remove redirection
+# FIXME: implement and ask more files at once
+	    pwiz_pkgdb_what_owns "${1##$PWIZ_INSTALLROOT}" >&6
+# FIXME check for both package and package-devel
+	    if test ${#pwiz_result[@]} -gt 1 -o "${pwiz_result[0]:-$pwiz_project_project}" != "$pwiz_project_project" ; then
+		echo "$name odir"
+	    else
+		echo "$name dir"
 	    fi
-	    ;;
-	/tmp/* | /dev/null | /dev/tty* | /var/tmp/* )
-	    ;;
-	* )
-	    echo "ERROR: FIXME: access violation $1"
-	    ;;
-    esac
+	else
+	    echo "$name file"
+	fi
+    done
+}
+
+#@ filelist_raw_open
+#@ function for filelist_raw_add
+#@ filelist_raw_close
+#@ function for filelist_raw_add
+function filelist_raw_open {
+    pwiz_redirect_stdout $filelist_raw_file
+}
+function filelist_raw_close {
+    pwiz_redirect_stdout_close
 }
 
 #@ filelist_raw_provider

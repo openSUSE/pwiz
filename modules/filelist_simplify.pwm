@@ -100,7 +100,7 @@ echo "compares with simplify path: $filelist_simplify_ofile"
 	unset filelist_simplify_oattr
 	unset filelist_simplify_globs
 	pwiz_redirect_stdout_close
-	LANG=C sort <$filelist_file_tmp | uniq >$filelist_file
+	LC_ALL=C sort <$filelist_file_tmp | uniq >$filelist_file
 	return
 	;;
     version )

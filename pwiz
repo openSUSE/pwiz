@@ -164,7 +164,7 @@ shopt -s nullglob
 
 #@ pwiz_find path [ path_prefix ] [ callback_argument_2 ]
 #@ Input: $pwiz_callback: callback function (default is echo)
-#@ A Bash alternative to simple find.
+#@ A Bash alternative to simple recursive find for all files and links.
 #@ $path_prefix mast have training slash, if used
 #@ WARNING: If you want really all files, you must turn on dot globbing (shopt -s dotglob).
 function pwiz_find {
@@ -178,6 +178,23 @@ function pwiz_find {
     fi
 }
 pwiz_callback=echo
+
+#@ pwiz_find_d path [ path_prefix ] [ callback_argument_3 ]
+#@ Input: $pwiz_callback: callback function callback_argument_2 is file/dir (default is echo)
+#@ A Bash alternative to simple recursive find for all dirs, files and links.
+#@ $path_prefix mast have training slash, if used
+#@ WARNING: If you want really all files, you must turn on dot globbing (shopt -s dotglob).
+function pwiz_find_d {
+    local item
+    if test -d "$2$1" ; then
+	$pwiz_callback "${1#$2}" dir "$3"
+	for item in "$2$1/"* ; do
+	    pwiz_find "${item#$2}" "$2" "$3"
+	done
+    else
+	$pwiz_callback "${1#$2}" file "$3"
+    fi
+}
 
 #@ pwiz_canonize
 # Returns: Canonical form of file name in $pwiz_result
@@ -865,6 +882,26 @@ function pwiz_phase_add_callme {
     local phase=$1
     shift
     pwiz_phase_add_exec "$phase" $pwiz_module_current "$phase" "$@"
+}
+
+#@ pwiz_phase_add_callme phase [ after | before ] contents phase_id
+# phase===argument
+#@ similar to pwiz_phase_new phase ; pwiz_phase_add_exec phase contents
+function pwiz_phase_new_callme {
+    pwiz_phase_new "$1" "$2" "$3"
+    local phase=$1
+    shift 3
+    pwiz_phase_add_exec "$phase" $pwiz_module_current "$phase" "$@"
+}
+
+#@ "three phase method" create
+function pwiz_phase_new_3 {
+    pwiz_phase_new_callme $1_prepare $2 $3
+    pwiz_phase_new $1 after $1_prepare
+    pwiz_phase_new_callme $1_set after $1
+    eval "function $1_provider {
+    pwiz_phase_add_callme $1
+}"
 }
 
 #@ pwiz_phase_add_callme_arg phase argument contents
