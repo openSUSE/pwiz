@@ -37,7 +37,6 @@ function gnome_prefix {
 	fi
     fi
 }
-gnome_prefix_global=NONE
 
 function gnome_package_search_uri {
     local default
@@ -95,11 +94,9 @@ function gnome_filelist_install {
 }
 
 function gnome_default_prefix {
-    if test "$gnome_prefix_global" = NONE ; then
-	pwiz_ask_string "Select default GNOME2 prefix." \
-	    "In some products, all GNOME2 related packages can have different prefix, than rest of system. You should now enter this prefix. It is a directory, where most GNOME2 packages should go. Use /usr/local for manual installations, /usr for installations with packaging system, eventually $HOME for userland installation." \
-	    q=gnome_prefix_global valid=vendor default[0]=@global@ string[0]="PWIZ system default prefix ($prefix_global)" p[0]=80 default[1]=/opt/gnome p[1]=20
-    fi
+    pwiz_ask_string "Select default GNOME2 prefix." \
+	"In some products, all GNOME2 related packages can have different prefix, than rest of system. You should now enter this prefix. It is a directory, where most GNOME2 packages should go. Use /usr/local for manual installations, /usr for installations with packaging system, eventually $HOME for userland installation." \
+	q=gnome_prefix_global valid=vendor default[0]=@global@ string[0]="PWIZ system default prefix ($prefix_global)" p[0]=80 default[1]=/opt/gnome p[1]=20
 }
 
 # FIXME: maybe to FTP module, at least partially?

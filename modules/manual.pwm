@@ -58,7 +58,7 @@ function manual_action_ask {
 #@ manual_action_add phase_id function [ string hotkey ]
 #@ callback convention: function manual_point_id
 function manual_action_add {
-    pwiz_list_add "manual_$1" "$2" 0 "$3" "$4"
+    pwiz_list_add "manual_$1" "$2" 0 0 "$3" "$4"
 }
 
 #@ manual_command_add manual_action_point
