@@ -11,8 +11,9 @@ case $1 in
 	;;
     init )
 	pwiz_module_uses archive
-	pwiz_phase_new unpack after setup
-	pwiz_phase_add_callme_arg unpack prepare
+	pwiz_module_needs package
+	pwiz_phase_new unpack after PREPARE
+	pwiz_phase_add_callme_arg unpack
 	pwiz_phase_add_callme package
 	;;
     version )
@@ -24,11 +25,11 @@ case $1 in
 	unpack_prepare
 	return
 	;;
-    prepare )
+    unpack )
 # FIXME: URI / name .tar.gz can be .tar.bz2. More archives to unpack.
 set -x
-	cp -a "$PWIZ_CACHEDIR/${package_uri##*/}" $PWIZ_SRCDIR
-	cd $PWIZ_UNPACKDIR
+	cp -a "$PWIZ_CACHEDIR/${package_uri##*/}" $PWIZ_SOURCESDIR
+	cd $PWIZ_SRCDIR
 set +x
 	return
 	;;
@@ -82,7 +83,7 @@ function unpack_check_extension {
 }
 
 function unpack_prepare {
-	pwiz_phase_add_run_eval unpack '$unpack_seq "$PWIZ_SRCDIR/${package_uri##*/}"'
+	pwiz_phase_add_run_eval unpack '$unpack_seq "$PWIZ_SOURCESDIR/${package_uri##*/}"'
 	pwiz_phase_add_callme_arg unpack search_dirname
 	pwiz_phase_add_run_eval unpack 'cd "$unpack_dirname"'
 }

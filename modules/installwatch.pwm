@@ -10,20 +10,15 @@ case $1 in
 	return
 	;;
     init )
-	pwiz_module_needs package
-	pwiz_phase_new installwatch after post
-	pwiz_phase_add_callme installwatch
-	pwiz_phase_add_callme package
+	pwiz_module_needs filelist
+	pwiz_phase_add_callme SOURCE
+	filelist_raw_provider
 	;;
-    package )
-# FIXME: do not register twice, but mkdir for each package
-	pwiz_phase_add package "mkdir -p $PWIZ_TMPDIR/installwatch"
-	pwiz_run_wrapper_register installwatch_run_wrapper
+    SOURCE )
+	pwiz_phase_add SOURCE "mkdir -p $PWIZ_TMPDIR/installwatch"
 	return
 	;;
-    installwatch )
-	installwatch_raw_file=$PWIZ_TMPDIR/installwatch_raw.lst
-	installwatch_file=$PWIZ_TMPDIR/installwatch.lst
+    filelist_raw )
 	for installwatch_stage in $PWIZ_TMPDIR/installwatch/* ; do
 	    exec 3<$installwatch_stage
 	    installwatch_IFS_save="$IFS"
@@ -31,20 +26,20 @@ case $1 in
 	    while read -u3 installwatch_a1 installwatch_a2 installwatch_a3 installwatch_a4 ; do
 		case "$installwatch_a2" in
 		    open )
-			installwatch_add "$installwatch_a3" file
+			filelist_raw_add "$installwatch_a3" file
 			;;
+# FIXME: special tags for links
 		    symlink | link )
-			installwatch_add "$installwatch_a4" file
+			filelist_raw_add "$installwatch_a4" file
 			;;
 		    mkdir )
-			installwatch_add "$installwatch_a3" dir
+			filelist_raw_add "$installwatch_a3" dir
 			;;
 		esac
 	    done
 	    exec 3<&-
 	done
 	IFS="$installwatch_IFS_save"
-	LANG=C sort <$installwatch_raw_file | uniq >$installwatch_file
 	return
 	;;
     version )
@@ -55,31 +50,6 @@ case $1 in
 	return
 	;;
 esac
-
-# FIXME: implement no install root
-function installwatch_add {
-    case $1 in
-# FIXME: not fixed list
-	$PWIZ_UNPACKDIR/* | $PWIZ_BUILDDIR/* | $PWIZ_SRCDIR/* | $PWIZ_TMPDIR/* )
-	    ;;
-	$PWIZ_INSTALLROOT/* )
-	    if test -e "$1" ; then
-# FIXME faster redirection
-		pwiz_canonize "${1##$PWIZ_INSTALLROOT}"
-		if test "$2" = dir ; then
-		    echo "$pwiz_result dir" >>$installwatch_raw_file
-		else
-		    echo "$pwiz_result file" >>$installwatch_raw_file
-		fi
-	    fi
-	    ;;
-	/tmp/* | /dev/null | /dev/tty* | /var/tmp/* )
-	    ;;
-	* )
-	    echo "ERROR: FIXME: access violation $1"
-	    ;;
-    esac
-}
 
 function installwatch_run_wrapper {
     local LD_PRELOAD_save

@@ -1,0 +1,109 @@
+#! /bin/bash
+
+case $1 in
+    desc )
+	echo "file list utilities"
+	return
+	;;
+    longdesc )
+	echo "This module contains framework for creating and improving file lists."
+	return
+	;;
+    init )
+# Phase providing preliminary file list during installation.
+	pwiz_phase_new filelist_install before INSTALL_LAST
+	pwiz_phase_add_callme filelist_install
+	pwiz_phase_new filelist_raw after RESULTS
+	pwiz_phase_add_callme filelist_raw
+	pwiz_phase_new filelist_clean after filelist_raw
+	pwiz_phase_add_callme filelist_clean
+	pwiz_phase_new filelist_inspect after filelist_clean
+	pwiz_phase_new filelist_finish after filelist_inspect
+	pwiz_phase_add_callme filelist_finish
+# FIXME
+#	pwiz_phase_new filelist_split after filelist_fix
+# FIXME: do not register twice for subsequent packages
+        pwiz_run_wrapper_register installwatch_run_wrapper
+	;;
+    filelist_install )
+	filelist_generate
+	;;
+    filelist_raw )
+	#@ Raw file list name for list creator process.
+	filelist_raw_file=$PWIZ_TMPDIR/filelist_raw.lst
+	pwiz_module_exec $filelist_raw_provider_module filelist_raw
+	return
+	;;
+    filelist_clean )
+	#@ File list name for inspect processes.
+	filelist_file=$PWIZ_TMPDIR/filelist.lst
+	#@ Temporary file name for inspect processes.
+	filelist_file_tmp=$PWIZ_TMPDIR/filelist.lst~
+	IFS="$filelist_IFS_save"
+	LANG=C sort <$filelist_raw_file | uniq >$filelist_file
+	return
+	;;
+    version )
+	echo "0.1"
+	return
+	;;
+    * )
+	return
+	;;
+esac
+
+#@ filelist_raw_add file type
+#@ add an item to raw filelist
+# FIXME: implement no install root
+function filelist_raw_add {
+    local name
+    case $1 in
+# FIXME: not fixed list
+	$PWIZ_SRCDIR/* | $PWIZ_BUILDDIR/* | $PWIZ_SOURCESDIR/* | $PWIZ_TMPDIR/* )
+	    ;;
+	$PWIZ_INSTALLROOT/* )
+	    if test -e "$1" ; then
+# FIXME faster redirection
+		pwiz_canonize "${1##$PWIZ_INSTALLROOT}"
+		name="$pwiz_result"
+		if test "$2" = dir ; then
+		    pwiz_pkgdb_what_owns "${1##$PWIZ_INSTALLROOT}"
+		    if test ${#pwiz_result[@]} -gt 1 -o "${pwiz_result[0]:-$pwiz_project_project}" != "$pwiz_project_project" ; then
+			echo "$name odir" >>$filelist_raw_file
+		    else
+			echo "$name dir" >>$filelist_raw_file
+		    fi
+		else
+		    echo "$name file" >>$filelist_raw_file
+		fi
+	    fi
+	    ;;
+	/tmp/* | /dev/null | /dev/tty* | /var/tmp/* )
+	    ;;
+	* )
+	    echo "ERROR: FIXME: access violation $1"
+	    ;;
+    esac
+}
+
+#@ filelist_raw_provider
+#@ function for init of modules providing filelist_raw argument and functionality.
+#@ filelist_raw_provider should call filelist_raw_add
+function filelist_raw_provider {
+    filelist_raw_provider_module=$pwiz_module_current
+}
+
+#@ filelist_inspect_provider
+#@ function for init of modules providing filelist_inspect argument and functionality.
+function filelist_inspect_provider {
+    pwiz_phase_add_callme filelist_inspect
+}
+
+#@ filelist_generate
+#@ generate file list in any moment.
+#@ Clean list is generated, but no inspectors are called.
+# FIXME: Incremental list generation can save time
+function filelist_generate {
+    pwiz_module_exec filelist filelist_raw
+    pwiz_module_exec filelist filelist_clean
+}

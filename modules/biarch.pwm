@@ -1,0 +1,41 @@
+#! /bin/bash
+
+case $1 in
+    desc )
+	echo "bi-architectural libdir selector for RPM based systems"
+	return
+	;;
+    longdesc )
+	echo "GNU configure uses \$libdir variable. By default it is \$prefix/lib, but ob bi-architectiral systems it can be $prefix/lib64. This module provides this change."
+	return
+	;;
+    init )
+	pwiz_module_needs prefix rpm filelist
+	pwiz_phase_add_callme prefix_set
+	filelist_inspect_provider
+	;;
+    prefix_set )
+	libdir="$prefix/%{_lib}"
+	libexecdir="$prefix/%{_lib}"
+	return
+	;;
+    filelist_inspect )
+	exec 3<$filelist_file
+	pwiz_redirect_stdout $filelist_file_tmp
+	while read -u3 biarch_file ; do
+	    biarch_file_new=${biarch_file#$prefix/lib#$prefix/%\{_lib\}}
+	    echo "$biarch_file_new"
+	done
+	exec 3<&-
+	pwiz_redirect_stdout_close
+	mv $filelist_file_tmp $filelist_file
+	return
+	;;
+    version )
+	echo "0.1"
+	return
+	;;
+    * )
+	return
+	;;
+esac

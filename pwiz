@@ -3,16 +3,16 @@
 # FIXME
 trap "echo \"PWIZ must be error-less\" ; exit 1" ERR
 
+# FIXME: declare most functions readonly (declare -f -r or -F -r, readonly -f)
+# FIXME: declare integers, where appropriate
+
 # These will be variables in future, not constants.
 # FIXME: All those should be queried:
-# assigned:
-pwiz_project_project=gnome-panel
-# assigned:
-pwiz_project_base=gnome-panel
-# assigned:
-pwiz_project_version_policy=even_subversion_is_stable
+#pwiz_project_project=gnome-panel
+#pwiz_project_base=gnome-panel
+#pwiz_project_version_policy=even_subversion_is_stable
 pwiz_project_subproject=-
-pwiz_project_version=2.4.0
+#pwiz_project_version=2.4.0
 pwiz_project_patchlevel=0
 pwiz_project_vendor=SuSE
 pwiz_project_product=Linux
@@ -25,27 +25,113 @@ pwiz_knowledge_build=80
 
 #@@ general
 
+#@ fast redirection
+# channels 5-7 are reserved for saving original redirection
+
+#@ pwiz_redirect_stdin file
+function pwiz_redirect_stdin {
+    exec 5<&0
+    exec <"$1"
+}
+#@ pwiz_redirect_stdout file
+function pwiz_redirect_stdout {
+    exec 6>&1
+    exec >"$1"
+}
+#@ pwiz_redirect_stdout file
+function pwiz_redirect_stderr {
+    exec 7>&2
+    exec 2>"$1"
+}
+#@ pwiz_redirect_stdout_append file
+function pwiz_redirect_stdout_append {
+    exec 6>&1
+    exec >>"$1"
+}
+#@ pwiz_redirect_stderr_append file
+function pwiz_redirect_stderr_append {
+    exec 7>&2
+    exec 2>>"$1"
+}
+#@ pwiz_redirect_stdin_close
+function pwiz_redirect_stdin_close {
+    exec <&-
+    exec <&5-
+}
+#@ pwiz_redirect_stdout_close
+function pwiz_redirect_stdout_close {
+    exec >&-
+    exec >&6-
+}
+#@ pwiz_redirect_stdout
+function pwiz_redirect_stderr_close {
+    exec 2>&-
+    exec 2>&7-
+}
+
+# pwiz_projectdirs_init
+# initialize work directories for project.
+# Call it every time you change $pwiz_project_* variables
+function pwiz_projectdirs_init {
+    local dir
+    if test "$pwiz_project_project" = "" ; then
+	dir=
+    else
+	dir="/$pwiz_project_project"
+    fi
+#@ Temporary directory for PWIZ modules, which is not cleaned after termination: $PWIZ_TMPDIR
+#@ But can be cleaned in any time.
+# WARNING: PWIZ_CACHEDIR is common for all projects!
+# WARNING: Do not access here from pwiz_run
+# NOTE: Use module name as prefix for all file names there.
+    PWIZ_CACHEDIR=~/pwiz/tmpcache
 #@ Temporary directory for PWIZ modules: $PWIZ_TMPDIR
-PWIZ_TMPDIR=~/pwiz/tmp
-mkdir -p $PWIZ_TMPDIR
-#@ Temporary directory for PWIZ source codes: $PWIZ_SRCDIR
-PWIZ_SRCDIR=~/pwiz/src
-mkdir -p $PWIZ_SRCDIR
-#@ Temporary directory for PWIZ unpacked sources: $PWIZ_UNPACKDIR
-PWIZ_UNPACKDIR=~/pwiz/unpack
-mkdir -p $PWIZ_UNPACKDIR
+# WARNING: Do not access here from pwiz_run
+# NOTE: Use module name as prefix for all file names there.
+    PWIZ_TMPDIR=~/pwiz/tmp$dir
+#@ Temporary directory for PWIZ source codes: $PWIZ_SOURCESDIR
+# WARNING: Do not write here from pwiz_run
+    PWIZ_SOURCESDIR=~/pwiz/src$dir
+#@ Temporary directory for PWIZ unpacked sources: $PWIZ_SRCDIR
+# WARNING: Do not use this before SOURCE stage
+# WARNING: In separate build dir mode do not write here after unpack stage
+# WARNING: Do not write here from outside pwiz_run
+    PWIZ_SRCDIR=~/pwiz/unpack$dir
 #@ Temporary directory for PWIZ build: $PWIZ_BUILDDIR
-PWIZ_BUILDDIR=~/pwiz/build
-mkdir -p $PWIZ_BUILDDIR
+# WARNING: Do not use this before PREPARE stage
+# WARNING: Do not write here from outside pwiz_run
+    PWIZ_BUILDDIR=~/pwiz/build$dir
 #@ Temporary directory for PWIZ installation root: $PWIZ_INSTALLROOT
-PWIZ_INSTALLROOT=~/pwiz/install
-rm -rf $PWIZ_INSTALLROOT
-mkdir -p $PWIZ_INSTALLROOT
+# WARNING: Do not use this before INSTALL stage
+# WARNING: Do not write here before INSTALL stage
+# WARNING: Do not write here from outside pwiz_run
+    PWIZ_INSTALLROOT=~/pwiz/install$dir
+#@ Directory for PWIZ results: $PWIZ_RESULTDIR
+    PWIZ_RESULTDIR=~/pwiz/results$dir
+    pwiz_projectdirs_init_callback "$dir"
+    mkdir -p $PWIZ_CACHEDIR
+    rm -rf $PWIZ_TMPDIR/*
+    mkdir -p $PWIZ_TMPDIR
+    rm -rf $PWIZ_SOURCESDIR/*
+    if test "$pwiz_project_project" != "" ; then
+	mkdir -p $PWIZ_SOURCESDIR
+	rm -rf $PWIZ_SRCDIR/*
+	mkdir -p $PWIZ_SRCDIR
+	rm -rf $PWIZ_BUILDDIR/*
+	mkdir -p $PWIZ_BUILDDIR
+	rm -rf $PWIZ_INSTALLROOT/*
+	mkdir -p $PWIZ_INSTALLROOT
+	mkdir -p $PWIZ_RESULTDIR
+    fi
+}
 
-# FIXME: not hardwire
-rm -rf $PWIZ_TMPDIR/pwiz_run
-
-
+# pwiz_projectdirs_init_callback
+# initialize work directories for project callback hook.
+# Can be redefined by module.
+# Can redefine following variables: $PWIZ_SOURCESDIR, $PWIZ_SRCDIR, $PWIZ_BUILDDIR, $PWIZ_INSTALLROOT
+function pwiz_projectdirs_init_callback {
+    :
+}
 
 #@ pwiz_set_rc return_code
 #@ Helper, which only sets return code.
@@ -93,25 +179,103 @@ function pwiz_find {
 }
 pwiz_callback=echo
 
-#@ pwiz_run args
-#@ Returns: Return code of executed stage, it is also stored in $pwiz_run_rc.
-#@ $pwiz_run_rc is restored before next pwiz_run.
-#@ WARNING: Do not alter pwiz_run_rc!
-# FIXME: Do not hardwire installwatch. Make modular and move to module installwatch.
-function pwiz_run {
-    local LD_PRELOAD_save
-    echo "****** Running: $@"
-    pwiz_set_rc $pwiz_run_rc
-    mkdir -p $PWIZ_TMPDIR/pwiz_run/$pwiz_project_project
-#    installwatch -o $PWIZ_TMPDIR/pwiz_run/$pwiz_project_project/$PWIZ_PHASE_CURRENT$PWIZ_STAGE_CURRENT "$@"
-    LD_PRELOAD_save="$LD_PRELOAD"
-    export INSTW_LOGFILE=$PWIZ_TMPDIR/pwiz_run/$pwiz_project_project/$PWIZ_PHASE_CURRENT$PWIZ_STAGE_CURRENT
-    export LD_PRELOAD="$LD_PRELOAD /usr/lib/installwatch.so"
-    "$@"
-    pwiz_run_rc=$?
-    export LD_PRELOAD="$LD_PRELOAD_save"
+#@ pwiz_canonize
+# Returns: Canonical form of file name in $pwiz_result
+# NOTE: Does not canonize relative paths.
+function pwiz_canonize {
+    local old_name
+    pwiz_result="$1"
+# // -> /
+    old_name=
+    while test "$old_name" != "$pwiz_result" ; do
+	old_name="$pwiz_result"
+	pwiz_result="${pwiz_result//\/\///}"
+    done
+# /./ -> /
+    old_name=
+    while test "$old_name" != "$pwiz_result" ; do
+	old_name="$pwiz_result"
+	pwiz_result="${pwiz_result//\/.\///}"
+    done
+# /path/../ -> /
+    shopt -s extglob
+    old_name=
+    while test "$old_name" != "$pwiz_result" ; do
+	old_name="$pwiz_result"
+	pwiz_result="${pwiz_result//\/*([^\/])\/../}"
+    done
+    shopt -u extglob
+}
+
+#@ pwiz_run
+# Run in protected build environment.
+# Order of evaluation:
+# pwiz_run_prepare - one function defined by build environment system (rpm, ebuild)
+# pwiz_run_wrappers - chain of run wrappers defining environment protection (install watchers, sandboxing, run trace)
+# pwiz_run_core - one function defined by build environment system, which does execution and sets pwiz_rc.
+
+#@ pwiz_run_wrapper_register function
+# Register wrapper for pwiz_run
+# wrapper uses pwiz_run_wrap for subsequent call
+#@ example:
+#function mywrapper {
+#    do_anything
+#    operate_on "@" # returns ${result[]}
+#    pwiz_run_wrap "${result[@]}"
+#    do_the_rest
+#}
+#pwiz_run_wrapper_register mywrapper
+function pwiz_run_wrapper_register {
+    pwiz_run_function=$1
+    eval 'function pwiz_run_wrap_'$pwiz_run_wrapper_count' {
+    pwiz_run_wrap_function=pwiz_run_wrap_'$((pwiz_run_wrapper_count-1))'
+    '$1' "$@"
+}'
+    pwiz_run_function=pwiz_run_wrap_$pwiz_run_wrapper_count
+    let pwiz_run_wrapper_count++
+}
+pwiz_run_wrapper_count=1
+pwiz_run_function=pwiz_run_core
+
+function pwiz_run_wrap {
+    $pwiz_run_wrap_function "$@"
+}
+
+#@ pwiz_run_wrap_0 (internal)
+# Calls pwiz_run_core.
+function pwiz_run_wrap_0 {
+    pwiz_run_core "$@"
 }
 pwiz_run_rc=0
+
+#@ pwiz_run_core args
+# Immediatelly calls run args.
+# Can be redefined by modules.
+function pwiz_run_core {
+    pwiz_set_rc $pwiz_run_rc
+    "$@"
+    pwiz_run_rc=$?
+}
+
+# pwiz_run_prepare
+# Top level wrapper.
+# After preparation calls $pwiz_run_function "$@"
+# Can be redefined by modules.
+function pwiz_run_prepare {
+    $pwiz_run_function "$@"
+}
+
+#@ pwiz_run args
+#@ Returns: Undefined!
+#@ Returns: Return code of executed stage is also stored in $pwiz_run_rc.
+#@ $pwiz_run_rc is restored before next pwiz_run.
+#@ WARNING: Do not alter pwiz_run_rc!
+function pwiz_run {
+    set -x
+    echo "****** Running: $@"
+    pwiz_run_prepare "$@"
+    set +x
+}
 
 #@ pwiz_run_eval args
 # Expand variables, save them and then call pwiz_run
@@ -155,7 +319,7 @@ PWIZ_EXIT=
 
 #@ pwiz_add_exit function
 function pwiz_exit {
-    $PWIZ_EXIT
+    eval $PWIZ_EXIT
     exit "$@"
 }
 
@@ -178,18 +342,18 @@ not_implemented=6
 
 #@ pwiz_engine_desc class name
 function pwiz_engine_desc {
-    . ~/pwiz/engines/$1/$2 desc
+    . ~/pwiz/engines/$1/$2.pwe desc
 }
 
 #@ pwiz_engine_longdesc class name
 function pwiz_engine_longdesc {
-    . ~/pwiz/engines/$1/$2 longdesc
+    . ~/pwiz/engines/$1/$2.pwe longdesc
 }
 
 #@ pwiz_engine_load class name
 function pwiz_engine_load {
     local interface i
-    . ~/pwiz/engines/$1/$2
+    . ~/pwiz/engines/$1/$2.pwe
     pwiz_engine_${1}_${2}_init
     pwiz_add_exit pwiz_engine_${1}_${2}_quit
     eval interface\=\"\$PWIZ_ENGINE_INTERFACE_$1\"
@@ -205,7 +369,8 @@ function pwiz_engine_load {
 function pwiz_engine_list {
     (
 	cd ~/pwiz/engines/$1
-	ls -1
+# FIXME not set, use pwiz_result instead of redirection
+	ls -1 | sed 's/\.pwe$//'
     )
 }
 
@@ -240,11 +405,15 @@ pwiz_engine_interface cache read read_tags write delete list
 
 #@@ question engine
 
-# pwiz_pkgdb_who_owns file [ files ]
+#@ pwiz_pkgdb_who_owns file [ files ]
 # Returns: 0: OK
 # Returns: 1: Problem.
+# Returns: ${pwiz_result[@]}
+
+#@ pwiz_pkgdb_package_to_project package
 # Returns: $pwiz_result
-pwiz_engine_interface pkgdb who_owns
+
+pwiz_engine_interface pkgdb what_owns
 
 # Question engine is iterface for communication with users. Engine
 # asks user and waits for response.
@@ -399,11 +568,10 @@ function pwiz_guess {
     guesses_count=0
     unset pwiz_guesses pwiz_strings pwiz_trusts
     while test $guesses_count -lt ${#pwiz_tag_default[*]} -a "${pwiz_tag_default[0]}" != @@PWIZ_UNDEFINED@@ ; do
-	pwiz_guesses[$guesses_count]="${pwiz_tag_default[$guesses_count]}"
-	pwiz_strings[$guesses_count]="${pwiz_tag_string[$guesses_count]}"
-	pwiz_check_p "${pwiz_tag_p[$guesses_count]}"
-	pwiz_trusts[$guesses_count]=$(( ${pwiz_tag_p[$guesses_count]} * $pwiz_auto_guess / 100 ))
-	guesses_count=$(( $guesses_count + 1 ))
+	pwiz_guesses[guesses_count]="${pwiz_tag_default[guesses_count]}"
+	pwiz_strings[guesses_count]="${pwiz_tag_string[guesses_count]}"
+	pwiz_check_p "${pwiz_tag_p[guesses_count]}"
+	pwiz_trusts[guesses_count++]=$((${pwiz_tag_p[guesses_count]} * $pwiz_auto_guess / 100))
     done
 
     if ! test -z "$pwiz_tag_q" ; then
@@ -418,15 +586,14 @@ function pwiz_guess {
 	    eval pwiz_guess_trust "$tags"
 	    is_new=true
 	    guesses_count=0
-	    while test $guesses_count -lt ${#pwiz_guesses[*]} ; do
-		if test "${pwiz_guesses[$guesses_count]}" = "$pwiz_result" ; then
-		    if test $pwiz_trust -gt ${pwiz_trusts[$guesses_count]} ; then
-			pwiz_trusts[$guesses_count]=$pwiz_trust
+	    for (( guesses_count=0 ; guesses_count < ${#pwiz_guesses[*]} ; guesses_count++ )) ; do
+		if test "${pwiz_guesses[guesses_count]}" = "$pwiz_result" ; then
+		    if test $pwiz_trust -gt ${pwiz_trusts[guesses_count]} ; then
+			pwiz_trusts[guesses_count]=$pwiz_trust
 		    fi
 		    is_new=false
 		    break
 		fi
-		guesses_count=$(( $guesses_count + 1 ))
 	    done
 	    if $is_new ; then
 		pwiz_trusts[${#pwiz_guesses[*]}]=$pwiz_trust
@@ -438,17 +605,15 @@ function pwiz_guess {
     fi
 
     pwiz_guess_best_value=@@PWIZ_UNDEFINED@@
-    guesses_count=0
     local best_guess_trust=0
     pwiz_guess_best=-1
-    while test $guesses_count -lt ${#pwiz_guesses[*]} ; do
-	echo "********* Guess[$guesses_count]: ${pwiz_guesses[$guesses_count]} trust=${pwiz_trusts[$guesses_count]}"
-	if test "${pwiz_trusts[$guesses_count]}" -ge $best_guess_trust ; then
-	    best_guess_trust=${pwiz_trusts[$guesses_count]}
+    for (( guesses_count=0 ; guesses_count < ${#pwiz_guesses[*]} ; guesses_count++ )) ; do
+	echo "********* Guess[guesses_count]: ${pwiz_guesses[guesses_count]} trust=${pwiz_trusts[guesses_count]}"
+	if test "${pwiz_trusts[guesses_count]}" -ge $best_guess_trust ; then
+	    best_guess_trust=${pwiz_trusts[guesses_count]}
 	    pwiz_guess_best=$guesses_count
-	    pwiz_guess_best_value="${pwiz_guesses[$guesses_count]}"
+	    pwiz_guess_best_value="${pwiz_guesses[guesses_count]}"
 	fi
-	guesses_count=$(( $guesses_count + 1 ))
     done
     echo "********* Available guesses: ${#pwiz_guesses[*]}"
     echo "********* Best guess $pwiz_guess_best: $pwiz_guess_best_value"
@@ -472,7 +637,7 @@ function pwiz_guess_trust {
     for pwiz_key in $pwiz_key_list ; do
 	if test "$(type -t "pwiz_guess_trust_$pwiz_key")" = function ; then
 	    eval pwiz_guess_trust_$pwiz_key
-	    subtrust=$(( $subtrust * $pwiz_trust / 100 ))
+	    let subtrust=subtrust\*pwiz_trust/100
 	fi
     done
     pwiz_trust=$subtrust
@@ -628,9 +793,12 @@ pwiz_tag_item_type=string
 # ok means: "Ignore, if phase already exists."
 function pwiz_phase_new {
     local tmp_phase
+    eval tmp_phase\=\$PWIZ_PHASE_AFTER_$3
+    if test "$tmp_phase" = "" ; then
+	pwiz_fatal "cannot create new phase $1 $2 $3 - $3 is unknown"
+    fi
     eval tmp_phase\=\$PWIZ_PHASE_AFTER_$1
-    if test "$tmp_phase" = ""
-	then
+    if test "$tmp_phase" = "" ;	then
 	case "$2" in
 	    after )
 		eval tmp_phase\=\$PWIZ_PHASE_AFTER_$3
@@ -672,6 +840,11 @@ function pwiz_phase_list {
 #@ pwiz_phase_add phase contents
 function pwiz_phase_add {
     local phase=$1
+    local tmp_phase
+    eval tmp_phase\=\$PWIZ_PHASE_AFTER_$1
+    if test "$tmp_phase" = "" ; then
+	pwiz_fatal "cannot add to phase $1 - phase does not exist"
+    fi
     shift
     eval PWIZ_STAGE_$phase\[\${#PWIZ_STAGE_$phase\[\*\]}]=\"\$@\"
 }
@@ -766,7 +939,7 @@ function pwiz_phase_clean {
 function pwiz_stage_next {
     local pwiz_step_phase_stages
     eval pwiz_step_phase_stages=\${#PWIZ_STAGE_$PWIZ_PHASE_CURRENT\[\*\]}
-    PWIZ_STAGE_CURRENT=$(( $PWIZ_STAGE_CURRENT + 1 ))
+    let PWIZ_STAGE_CURRENT++
     if test $PWIZ_STAGE_CURRENT -ge $pwiz_step_phase_stages ; then
 	return 1
     else
@@ -781,7 +954,7 @@ function pwiz_stage_next {
 function pwiz_stage_prev {
     local pwiz_step_phase_stages
     eval pwiz_step_phase_stages=\${#PWIZ_STAGE_$PWIZ_PHASE_CURRENT\[\*\]}
-    PWIZ_STAGE_CURRENT=$(( $PWIZ_STAGE_CURRENT - 1 ))
+    let PWIZ_STAGE_CURRENT--
     if test $PWIZ_STAGE_CURRENT -lt -1 ; then
 	return 1
     else
@@ -807,7 +980,7 @@ function pwiz_stage_goto {
 function pwiz_stage_prev {
     local pwiz_step_phase_stages
     eval pwiz_step_phase_stages=\${#PWIZ_STAGE_$PWIZ_PHASE_CURRENT\[\*\]}
-    PWIZ_STAGE_CURRENT=$(( $PWIZ_STAGE_CURRENT - 1 ))
+    let PWIZ_STAGE_CURRENT--
     if test $PWIZ_STAGE_CURRENT -ge $pwiz_step_phase_stages -o $PWIZ_STAGE_CURRENT -lt -1 ; then
 	return 1
     else
@@ -901,7 +1074,7 @@ function pwiz_next {
 function pwiz_step {
     local pwiz_step_stage_code rc
     if pwiz_next ; then
-	echo "*** Entering stage $PWIZ_PHASE_CURRENT[$PWIZ_STAGE_CURRENT]..."
+	echo "*** Entering stage $PWIZ_PHASE_CURRENT[PWIZ_STAGE_CURRENT]..."
 	eval pwiz_step_stage_code=\"\${PWIZ_STAGE_$PWIZ_PHASE_CURRENT\[$PWIZ_STAGE_CURRENT\]}\"
 	case $1 in
 	    query )
@@ -945,12 +1118,13 @@ function pwiz_modules_list {
     local file
     (
 	cd ~/pwiz/modules
-	for file in * ; do
-#!!!!!!!!!!! for debugging only
+# FIXME: Use pwiz_result instead of redirection
+	for file in *.pwm ; do
+#FIXME for debugging only
 	    if [ "${file:$((${#file}-1))}" = "~" ] ; then
 		continue
 	    fi
-	    echo $file
+	    echo ${file%.pwm}
 	done
     )
 }
@@ -980,7 +1154,6 @@ function pwiz_module_load {
     local loaded pwiz_module_current_save
     eval loaded\=\"\$PWIZ_MODULE_LOADED_$1\"
     if test -z "$loaded" ; then
-	pwiz_module_exec $1
 	pwiz_module_exec $1 init
 	eval PWIZ_MODULE_LOADED_$1\=1
     fi
@@ -991,11 +1164,11 @@ function pwiz_module_exec {
     local pwiz_module_current_save
     pwiz_module_current_save="$pwiz_module_current"
     pwiz_module_current=$1
-    if ! test -f ~/pwiz/modules/$1 ; then
+    if ! test -f ~/pwiz/modules/$1.pwm ; then
 	pwiz_fatal "module $1 not found"
     fi
     shift
-    . ~/pwiz/modules/$pwiz_module_current "$@"
+    . ~/pwiz/modules/$pwiz_module_current.pwm "$@"
     pwiz_module_current="$pwiz_module_current_save"
 }
 
@@ -1025,21 +1198,69 @@ function pwiz_module_uses {
 
 
 #@@ phase skeleton
+#@ NOTE: Recommendation for custom phases: Use lowecase. Take these ones as "constants".
+#@ If your action surely does not need any action before it in the
+#@ same range, you can use listed phases, otherwise create own phase.
+#@ Each phase has counterpair {phase}_LAST for simple and portable adding to the end of actions.
+#@ WARNING: For listed phases, avoid if possible: pwiz_phase_add before PHASE
+#@ WARNING: For listed phases, avoid if possible: pwiz_phase_add after PHASE_LAST
+#@ basic phase descriptions:
+#@ BEGIN
+#@  > special general actions
+#@ START
+#@  > general actions only, $pwiz_project_* attributes are not defined
+#@ PROJECT
+#@  > project and version selection process, here you can set $pwiz_project_*
+# FIXME: rename it?:
+#@ SOURCE
+#@  > get sources, set extended project attributes, $pwiz_project_* are set, access to $PWIZ_SOURCESDIR
+#@ PREPARE
+#@  > prepare source code (unpack, patch), access to $PWIZ_SRCDIR
+#@ BUILD
+#@  > build project (configure, compile), access to $PWIZ_BUILDDIR
+#@ PREINSTALL
+#@  > special actions before installation to install root, keep empty if possible
+#@    WARNING: use premerge for standard pre-installation processes
+#@ INSTALL
+#@  > install project, access to $PWIZ_INSTALLROOT
+#@ PREMERGE
+#@  > actions before install, access to live system only special actions
+#@ MERGE
+#@  > merge project for live system, access to live system
+#@ CLEAN
+#@  > clean project buld environment, access to all temporary dirs
+#@ POSTINSTALL
+#@  > post installation actions, access to live system
+#@ RUNTEST
+#@  > tests for instaled package, access to live system
+#@ PREUNINSTALL
+#@  > special actions before package uninstallation
+#@ UNINSTALL
+#@  > perform uninstallation, access to live system
+#@ POSTUNINSTALL
+#@  > special actions after package uninstallation, access to live system
+#@ RESULTS
+#@  > very last actions, access to $PWIZ_RESULTDIR
+#@ FINISH
+#@  > very last actions, access nowhere
+#@ END
 function init_phase_skeleton {
     local phase prev_phase
     prev_phase=BEGIN
-    for phase in init prep setup build install post runtest uninst finish ; do
+    for phase in START PROJECT SOURCE PREPARE BUILD PREINSTALL INSTALL PREMERGE MERGE CLEAN POSTINSTALL RUNTEST PREUNINSTALL UNINSTALL POSTUNINSTALL RESULTS FINISH ; do
 	pwiz_phase_new $phase after $prev_phase
-	prev_phase=$phase
+	pwiz_phase_new ${phase}_LAST after $phase
+	prev_phase=${phase}_LAST
     done
 }
+
 
 pwiz_engine_load cache file
 pwiz_engine_load question dumb
 pwiz_engine_load pkgdb rpm
 init_phase_skeleton
 pwiz_modules_load
-
+pwiz_projectdirs_init
 
 while pwiz_step run ; do
     :
@@ -1049,69 +1270,35 @@ echo ""
 echo "* Finished. Build summary:"
 
 # BIG FIXME
-rm -f $PWIZ_SRCDIR/$pwiz_project_project/$pwiz_project_project.spec
+rm -f $PWIZ_RESULTDIR/$pwiz_project_project.spec
+echo >$PWIZ_RESULTDIR/$pwiz_project_project.spec "# *** Autogenerated by PWIZ. Do not edit by hand. ***"
+cp -a $PWIZ_SOURCESDIR/* $PWIZ_RESULTDIR
 PWIZ_PHASE_CURRENT=BEGIN
 PWIZ_STAGE_CURRENT=0
 while pwiz_step query ; do
     case "$pwiz_result" in
 	"pwiz_run "* )
-	    echo "${pwiz_result#pwiz_run }" >>$PWIZ_SRCDIR/$pwiz_project_project/$pwiz_project_project.spec
+	    echo "${pwiz_result#pwiz_run }" >>$PWIZ_RESULTDIR/$pwiz_project_project.spec
 	    ;;
 	"pwiz_rem "* )
-	    echo "${pwiz_result#pwiz_rem }" >>$PWIZ_SRCDIR/$pwiz_project_project/$pwiz_project_project.spec
+	    echo "${pwiz_result#pwiz_rem }" >>$PWIZ_RESULTDIR/$pwiz_project_project.spec
 	    ;;
 	"pwiz_run_eval "* | "pwiz_rem_eval "* )
 	    echo "*** To be evaluated ${pwiz_result}"
-	    eval echo \"\${PWIZ_STAGE_EVAL_$PWIZ_PHASE_CURRENT\[$PWIZ_STAGE_CURRENT\]}\" >>$PWIZ_SRCDIR/$pwiz_project_project/$pwiz_project_project.spec
+	    eval echo \"\${PWIZ_STAGE_EVAL_$PWIZ_PHASE_CURRENT\[$PWIZ_STAGE_CURRENT\]}\" >>$PWIZ_RESULTDIR/$pwiz_project_project.spec
 	    ;;
 	* )
 	    echo "*** internal $pwiz_tmp"
 	    ;;
     esac
 done
-echo "*** File $PWIZ_SRCDIR/$pwiz_project_project/$pwiz_project_project.spec was written."
+echo "*** File $PWIZ_RESULTDIR/$pwiz_project_project.spec was written."
+
+echo "Veryfying spec file."
+cd $PWIZ_RESULTDIR
+rpmbuild -ba $pwiz_project_project.spec
+cp -a /usr/src/packages/RPMS/*/$pwiz_project_project-[0-9]* .
+cp -a /usr/src/packages/SRPMS/$pwiz_project_project-[0-9]* .
 
 echo "All done."
-set >pwiz.set
 pwiz_exit
-
-sdasdasdasdasdasdadasdasdsadasdasd
-
-pwiz_engine_desc cache file
-
-pwiz_cache_write test_id "test code"
-pwiz_cache_write test_id2 "test cod'e 2"
-pwiz_cache_write test_id3 "test cod
-e 2"
-pwiz_cache_write test_id4 "test cod\"e 2"
-
-pwiz_cache_read test_id3
-
-
-pwiz_phase_new test1 after BEGIN
-pwiz_phase_new test2 after test1
-pwiz_phase_new test3 before END
-pwiz_phase_new test0 before test1
-pwiz_phase_list
-
-pwiz_phase_add test1 "./configure"
-pwiz_phase_add test1 "ls -al"
-pwiz_phase_add test1 "echo test multiline1
-echo test multiline2"
-
-pwiz_phase_add test0 "echo test1"
-pwiz_phase_add test3 "echo 3"
-
-echo ================================================
-pwiz_step
-pwiz_step
-pwiz_step
-pwiz_step
-pwiz_step
-pwiz_step
-pwiz_step
-pwiz_step
-pwiz_step
-pwiz_step
-pwiz_step
-

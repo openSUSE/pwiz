@@ -1,0 +1,113 @@
+#! /bin/bash
+
+case $1 in
+    desc )
+	echo "file list simplification"
+	return
+	;;
+    longdesc )
+	echo "This module simplifies the file list of package. It makes it better human readable."
+	return
+	;;
+    init )
+	pwiz_module_needs filelist
+	pwiz_phase_new filelist_simplify before filelist_finish
+	pwiz_phase_add_callme filelist_simplify
+	;;
+    filelist_simplify )
+	unset filelist_simplify_files
+	unset filelist_simplify_attr
+	unset filelist_simplify_ofiles
+	unset filelist_simplify_oattr
+	unset filelist_simplify_globs
+
+	# Read file list to memory
+	filelist_simplify_count=0
+	filelist_simplify_ocount=0
+	exec 3<$filelist_file
+	while read -u3 find_lang_file ; do
+	    case "${find_lang_file##* }" in
+		file | dir )
+		    filelist_simplify_files[filelist_simplify_count]="${find_lang_file% *}"
+		    filelist_simplify_attr[filelist_simplify_count++]="${find_lang_file##* }"
+		    let filelist_simplify_count++
+		    ;;
+		ofile | odir )
+		    filelist_simplify_ofiles[filelist_simplify_ocount]="${find_lang_file% *}"
+		    filelist_simplify_oattr[filelist_simplify_ocount++]="${find_lang_file##* }"
+		    ;;
+	    esac
+	done
+	exec 3<&-
+
+	# Make a simplification
+	for (( filelist_simplify_count=0 ; filelist_simplify_count < ${#filelist_simplify_files[@]} ; filelist_simplify_count++ )) ; do
+	    filelist_simplify_file="${filelist_simplify_files[filelist_simplify_count]}"
+	    if test -z "$filelist_simplify_file" ; then
+		continue
+	    fi
+	    filelist_simplify_init_path="$filelist_simplify_file"
+	    filelist_simplify_valid_path=
+	    filelist_simplify_path="$filelist_simplify_init_path"
+
+# FIXME: If path is not absolute, dead loop occurs
+	    while test "$filelist_simplify_path" != "" ; do
+		filelist_simplify_path="${filelist_simplify_path%/*}"
+echo "simplify path: $filelist_simplify_path"
+		for filelist_simplify_ofile in "${filelist_simplify_ofiles[@]}" ; do
+echo "compares with simplify path: $filelist_simplify_ofile"
+		    case "$filelist_simplify_ofile" in
+			$filelist_simplify_path/* )
+			    break 2
+			    ;;
+		    esac
+		done
+		filelist_simplify_valid_path="$filelist_simplify_path/*"
+	    done
+
+	    if test -z "$filelist_simplify_valid_path" ; then
+		continue
+	    fi
+
+	    filelist_simplify_globs[${#filelist_simplify_globs[@]}]="$filelist_simplify_valid_path"
+	    for (( filelist_simplify_count2=0 ; filelist_simplify_count2 < ${#filelist_simplify_files[@]} ; filelist_simplify_count2++ )) ; do
+		case "${filelist_simplify_files[filelist_simplify_count2]}" in
+		    $filelist_simplify_valid_path )
+			filelist_simplify_files[filelist_simplify_count2]=
+			break
+			;;
+		esac
+	    done
+
+	done
+
+	pwiz_redirect_stdout $filelist_file_tmp
+	# Output result
+	for (( filelist_simplify_count=0 ; filelist_simplify_count < ${#filelist_simplify_files[@]} ; filelist_simplify_count++ )) ; do
+	    if ! test -z "${filelist_simplify_files[filelist_simplify_count]}" ; then
+		echo "${filelist_simplify_files[filelist_simplify_count]} ${filelist_simplify_attr[filelist_simplify_count]}"
+	    fi
+	done
+	for (( filelist_simplify_count=0 ; filelist_simplify_count < ${#filelist_simplify_ofiles[@]} ; filelist_simplify_count++ )) ; do
+	    echo "${filelist_simplify_ofiles[filelist_simplify_count]} ${filelist_simplify_oattr[filelist_simplify_count]}"
+	done
+	for (( filelist_simplify_count=0 ; filelist_simplify_count < ${#filelist_simplify_globs[@]} ; filelist_simplify_count++ )) ; do
+	    echo "${filelist_simplify_globs[filelist_simplify_count]} glob"
+	done
+	unset filelist_simplify_files
+	unset filelist_simplify_attr
+	unset filelist_simplify_ofiles
+	unset filelist_simplify_oattr
+	unset filelist_simplify_globs
+	pwiz_redirect_stdout_close
+	LANG=C sort <$filelist_file_tmp | uniq >$filelist_file
+	return
+	;;
+    version )
+	echo "0.1"
+	return
+	;;
+    * )
+	return
+	;;
+esac

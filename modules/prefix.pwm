@@ -10,14 +10,24 @@ case $1 in
 	return
 	;;
     init )
-	pwiz_phase_add_callme start
+	pwiz_phase_add_callme START
+	pwiz_phase_new prefix_set after BUILD
+	pwiz_phase_add_callme prefix_set
 	;;
-    start )
+    START )
 # FIXME better defaults. Check for packaging system presence.
 	pwiz_ask_string "Select default prefix for PWIZ." \
 	    "You should enter global prefix. It is a directory, where most packages should go. Use /usr/local for manual installations, /usr for installations with packaging system, eventually $HOME for userland installation." \
 	    q=prefix_global valid=setup default[0]=/usr p[0]=50 default[1]=/usr/local p[1]=40 default[2]=$HOME p[2]=30
 	prefix_global=$pwiz_answer
+	return
+	;;
+    prefix_set )
+	pwiz_ask_string "Select prefix for your package." \
+	    "You should enter prefix for your package. It is a main directory, where most packages should go. Most packages should use global prefix, but some needs extra prefix." \
+	    q=prefix default[0]=@global@ p[0]=50 string[0]="Default prefix"
+	prefix_set_dirs "$pwiz_answer"
+	return
 	;;
     version )
 	echo "0.1"
@@ -28,3 +38,150 @@ case $1 in
 	;;
 esac
 
+#@ prefix_set_dirs prefix
+#@ Sets all GNU convenient directories depending on prefix and FHS
+#@ FIXME: This code does not follow PWIZ coding conventions.
+# But there may be an exception.
+function prefix_set_dirs {
+    if test "$1" = @global@ ; then
+	prefix=$prefix_global
+    else
+	prefix=$1
+    fi
+    exec_prefix=$prefix
+
+#@ Code stolen from GNU configure
+
+# Installation directory options.
+# These are left unexpanded so users can "make install exec_prefix=/foo"
+# and all the variables that are supposed to be based on exec_prefix
+# by default will actually change.
+# Use braces instead of parens because sh, perl, etc. also accept them.
+bindir="${exec_prefix}/bin"
+sbindir="${exec_prefix}/sbin"
+libexecdir="${exec_prefix}/libexec"
+datadir="${prefix}/share"
+sysconfdir="${prefix}/etc"
+sharedstatedir="${prefix}/com"
+localstatedir="${prefix}/var"
+libdir="${exec_prefix}/lib"
+includedir="${prefix}/include"
+oldincludedir="/usr/include"
+infodir="${prefix}/info"
+mandir="${prefix}/man"
+
+#@ Code stolen from GNU-FHS: http://www.penguin.cz/~utx/
+
+# This script recognizes new configure options --enable-games-fhs
+# (environment variable enable_games_fhs=yes) to mark package as game
+# hierrarchy package. It also recognizes --disable-games-games
+# (enable_games_games=no) to disable <dir>/games/games effect and
+# --enable-libexec-sbin (enable_libexec_sbin=yes) to bind libexecdir
+# to sbindir instead of libdir.
+
+# Set the installation prefix
+#if test "$prefix" = NONE ; then
+#   prefix="$ac_default_prefix"
+#fi
+
+fhs_datadir="${prefix}/share"
+fhs_sysconfdir="${prefix}/etc"
+fhs_localstatedir="${prefix}/var"
+fhs_imddir="${prefix}"
+fhs_mandir=
+
+case "$prefix" in
+    "" | / )
+	if test "$exec_prefix" = 'NONE' ; then
+	    exec_prefix=
+	    prefix=/usr
+	else
+	    # datadir should not be used directly by apps under prefix ""
+	    fhs_datadir=/usr/share
+	    if test "$includedir" = "${prefix}/include" ; then
+		includedir=/usr/include
+	    fi
+	fi
+	fhs_sysconfdir=/etc
+	fhs_localstatedir=/var
+	fhs_imddir="$fhs_datadir"
+	;;
+    /usr )
+	fhs_sysconfdir=/etc
+	fhs_localstatedir=/var
+	fhs_imddir="$fhs_datadir"
+	;;
+    /usr/local )
+	fhs_localstatedir=/var/local
+	fhs_sysconfdir=/etc/local
+	;;
+    /usr/X11* )
+	fhs_datadir="${prefix}/lib/X11"
+	fhs_sysconfdir=/etc/X11
+	fhs_localstatedir=/var # guess from /var/lib/xdm
+	fhs_mandir="${prefix}/man"
+	fhs_imddir="$fhs_datadir"
+	;;
+    /opt | /opt/* )
+	fhs_sysconfdir=/etc$prefix # i.e. /etc/opt | /etc/opt/*
+	fhs_localstatedir=/var$prefix # i.e. /var/opt | /var/opt/*
+	;;
+esac
+
+#if test "$bindir" = "${exec_prefix}/bin" ; then
+    if test "$enable_games_fhs" = yes ; then
+	bindir="${exec_prefix}/games"
+    fi
+#fi
+#if test "$libexecdir" = "${exec_prefix}/libexec" ; then
+    if test "$enable_libexec_sbin" = yes ; then
+	libexecdir="${exec_prefix}/sbin"
+    else
+	libexecdir="${exec_prefix}/lib"
+    fi
+#fi
+#if test "$datadir" = "${prefix}/share" ; then
+    if test "$enable_games_fhs" = yes -a "$enable_games_games" != no ; then
+	datadir="$fhs_datadir/games"
+    else
+	datadir="$fhs_datadir"
+    fi
+#fi
+#if test "$sysconfdir" = "${prefix}/etc" ; then
+   sysconfdir="$fhs_sysconfdir"
+#fi
+#if test "$localstatedir" = "${prefix}/var" ; then
+    if test "$enable_games_fhs" = yes -a "$enable_games_games" != no ; then
+	localstatedir="$fhs_localstatedir/games"
+    else
+	localstatedir="$fhs_localstatedir"
+    fi
+#fi
+#if test "$sharedstatedir" = "${prefix}/com" ; then
+    if test "$enable_games_fhs" = yes ; then
+	if test "$enable_games_games" = no ; then
+	    sharedstatedir="$fhs_localstatedir"
+	else
+	    sharedstatedir="$fhs_localstatedir/games"
+	fi
+    else
+	sharedstatedir="$fhs_localstatedir/cache"
+    fi
+#fi
+#if test "$infodir" = "${prefix}/info" ; then
+   infodir="$fhs_imddir/info"
+#fi
+#if test "$mandir" = "${prefix}/man" ; then
+   if test x$fhs_mandir = x ; then
+      mandir="$fhs_imddir/man" ; else
+      mandir="$fhs_mandir"
+   fi
+#fi
+
+# FIXME: RPM uses different target
+# This is not a standard part of GNU, but can be defined.
+#if test "$docdir" = "${prefix}/doc" ; then
+   docdir="$fhs_imddir/doc"
+#fi
+
+}

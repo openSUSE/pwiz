@@ -11,11 +11,11 @@ case $1 in
 	;;
     init )
 	pwiz_module_needs check_unpacked patch
-	pwiz_phase_new make after build
+	pwiz_phase_new make after BUILD
 # gnu_make_fallback_check is reserved for last-in-resort failure check.
 	pwiz_phase_new make_fallback_check after make
 # FIXME: install_default. If none, use "make install"
-	pwiz_phase_new install_action after install
+	pwiz_phase_new install_action after INSTALL
 	pwiz_phase_add_callme make
 	check_unpacked_init
 	;;

@@ -11,24 +11,34 @@ case $1 in
 	;;
     init )
 	pwiz_module_needs package version unpack
-	pwiz_module_uses installwatch unpack
+	pwiz_module_uses filelist unpack
+# FIXME: after package or after SOURCE?
 	pwiz_phase_new rpmsetup after package
 	pwiz_phase_add_callme rpmsetup
 	pwiz_phase_new rpmheader after rpmsetup
-	pwiz_phase_add_rem prep     ""
-	pwiz_phase_add_rem prep     "%prep"
-	pwiz_phase_add     prep     'rpm_section=prep ; rm -f $PWIZ_TMPDIR/rpm_{vars,pwd}'
-	pwiz_phase_add_rem build    "%build"
-	pwiz_phase_add     build    'rpm_section=build ; rm -f $PWIZ_TMPDIR/rpm_{vars,pwd}'
-	pwiz_phase_add_rem install  ""
-	pwiz_phase_add_rem install  "%install"
-	pwiz_phase_add     install  'rpm_section=install ; rm -f $PWIZ_TMPDIR/rpm_{vars,pwd}'
-	pwiz_phase_add_rem finish   ""
-	pwiz_phase_add_rem finish   "%files"
-	pwiz_phase_add_callme finish finish
+	pwiz_phase_add_rem PREPARE  ""
+	pwiz_phase_add_rem PREPARE  "%prep"
+	pwiz_phase_add     PREPARE  'rpm_section=prep ; rm -f $PWIZ_TMPDIR/rpm_{vars,pwd}'
+	pwiz_phase_add_rem BUILD    ""
+	pwiz_phase_add_rem BUILD    "%build"
+	pwiz_phase_add     BUILD    'rpm_section=build ; rm -f $PWIZ_TMPDIR/rpm_{vars,pwd}'
+	pwiz_phase_add_rem INSTALL  ""
+	pwiz_phase_add_rem INSTALL  "%install"
+	pwiz_phase_add     INSTALL  'rpm_section=install ; rm -f $PWIZ_TMPDIR/rpm_{vars,pwd}'
+	pwiz_phase_add_run INSTALL  'rm -rf $RPM_BUILD_ROOT'
+	pwiz_phase_add_rem CLEAN    ""
+	pwiz_phase_add     CLEAN    'rpm_section=clean ; rm -f $PWIZ_TMPDIR/rpm_{vars,pwd}'
+# FIXME: non build-rooted packages
+	pwiz_phase_add_rem CLEAN    "%clean"
+	pwiz_phase_add_run CLEAN    'rm -rf $RPM_BUILD_ROOT'
+	pwiz_phase_new rpm_files_finish after FINISH
+	pwiz_phase_add_callme rpm_files_finish
+	pwiz_phase_new rpm_files_list after rpm_files_finish
+	pwiz_phase_add_callme rpm_files_list
 # FIXME: remove this
 #	pwiz_run_wrapper_register rpm_spec_run_wrapper
 	rpm_section=preamble
+	rpm_files_args=
 	;;
     rpmsetup )
 	pwiz_phase_add_rem rpmheader "Name:         $pwiz_project_project"
@@ -44,19 +54,30 @@ case $1 in
 	pwiz_phase_add_rem rpmheader "FIXME"
 	return
 	;;
-    finish )
+    rpm_files_finish )
+	pwiz_phase_add_rem rpm_files_finish ""
+	pwiz_phase_add_rem rpm_files_finish "%files$rpm_files_args"
+	;;
+    rpm_files_list )
 # FIXME: move to globals or other section, do not create final list, but replace dir -> systemdir
-	exec 3<$installwatch_file
+	exec 3<$filelist_file
 	while read -u3 rpm_file ; do
-	    if test "$rpm_file" = "${rpm_file% dir}" ; then
-		pwiz_phase_add_rem finish "${rpm_file% file}"
-	    else
-# FIXME owned directories exceptions
-		pwiz_pkgdb_what_owns "${rpm_file% dir}"
-		if test ${#pwiz_result[@]} -le 1 -a "${pwiz_result[0]:-$pwiz_project_project}" = "$pwiz_project_project" ; then
-		    pwiz_phase_add_rem finish "%dir ${rpm_file% dir}"
-		fi
-	    fi
+	    case "${rpm_file##* }" in
+		file )
+		    pwiz_phase_add_rem rpm_files_list "${rpm_file% *}"
+		    ;;
+		dir )
+		    pwiz_phase_add_rem rpm_files_list "%dir ${rpm_file% *}"
+		    ;;
+		odir | ofile )
+		    ;;
+		glob )
+		    pwiz_phase_add_rem rpm_files_list "${rpm_file% *}"
+		    ;;
+		* )
+		    pwiz_fatal "unknown item attribute ${rpm_file##* }"
+		    ;;
+	    esac
 	done
 	exec 3<&-
 	return
@@ -75,7 +96,7 @@ esac
 function unpack_prepare {
 #    mkdir $PWIZ_TMPDIR/rpm_unpack
 #    cd $PWIZ_TMPDIR/rpm_unpack
-#    $unpack_seq "$PWIZ_SRCDIR/$pwiz_project_project/${package_uri##*/}"
+#    $unpack_seq "$PWIZ_SOURCESDIR/$pwiz_project_project/${package_uri##*/}"
 #    pwiz_exec unpack search_dirname
 #    cd -
 #    rm -rf $PWIZ_TMPDIR/rpm_unpack
@@ -90,7 +111,7 @@ function rpm_run_wrapper {
 # FIXME: Not complete
     expanded="$(rpm -E "%define name $pwiz_project_project
 %define version $pwiz_project_version
-%define setup $unpack_seq $PWIZ_SRCDIR/${package_uri##*/} ; cd %{name}-%{version}
+%define setup $unpack_seq $PWIZ_SOURCESDIR/${package_uri##*/} ; cd %{name}-%{version}
 $*")"
     echo "*** RPM expanded: $expanded"
     eval pwiz_run_wrap "$expanded"
@@ -112,14 +133,15 @@ function pwiz_run_core {
 	build )
 	    rpm_create_spec "-bc --short-circuit" build true "$@"
 	    ;;
-	install )
+# NOTE: rpmbuild has no support for calling clean
+	install | clean )
 	    rpm_create_spec "-bi --short-circuit" install true "$@"
 	    ;;
 	* )
 	    pwiz_fatal "Unimplemented RPM section"
 	    ;;
     esac
-    cd $PWIZ_SRCDIR
+    cd $PWIZ_SOURCESDIR
     rpmbuild $rpm_build_arg $PWIZ_TMPDIR/rpm_tmp.spec
     if test -f $PWIZ_TMPDIR/pwd ; then
 	cd "$(<$PWIZ_TMPDIR/pwd)"
@@ -170,8 +192,20 @@ echo \"\$PWD\" >$PWIZ_TMPDIR/pwd"
 }
 
 function pwiz_projectdirs_init_callback {
-    PWIZ_SRCDIR=/usr/src/packages/SOURCES
-    PWIZ_UNPACKDIR=/usr/src/packages/BUILD
+    PWIZ_SOURCESDIR=/usr/src/packages/SOURCES
+    PWIZ_SRCDIR=/usr/src/packages/BUILD
     PWIZ_BUILDDIR=/usr/src/packages/BUILD
     PWIZ_INSTALLROOT=/var/tmp/$pwiz_project_project-$pwiz_project_version-build
+}
+
+#@ rpm_subst "string"
+#@ substitute %{name}, %{version}
+#@ FIXME: implement and substitute %{_name}
+#@ BIG FIXME: crashes for packages with "name" and "version" in package name
+#@ Returns: $pwiz_result
+#@ FIXME: should be part of pwiz_add_run
+function rpm_subst_names {
+    pwiz_result="$1"
+    pwiz_result=${pwiz_result//$pwiz_project_project/%\{name\}}
+    pwiz_result=${pwiz_result//$pwiz_project_version/%\{version\}}
 }

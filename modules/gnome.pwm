@@ -10,8 +10,8 @@ case $1 in
 	return
 	;;
     init )
-	pwiz_phase_new package after package anonftp
-	pwiz_phase_add_callme package
+#	pwiz_phase_new package after package anonftp
+#	pwiz_phase_add_callme package
 	;;
 package )
 	return

@@ -11,7 +11,7 @@ case $1 in
 	;;
     init )
 	pwiz_module_uses unpack version
-	pwiz_phase_new package after project
+	pwiz_phase_new package after PROJECT
 	pwiz_phase_add_callme package
 	;;
 package )

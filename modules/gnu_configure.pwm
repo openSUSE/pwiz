@@ -10,8 +10,9 @@ case $1 in
 	return
 	;;
     init )
-	pwiz_module_needs check_unpacked gnu_make
-	pwiz_phase_new configure after build
+# FIXME: Name conventions of "three phase action"
+	pwiz_module_needs check_unpacked gnu_make prefix
+	pwiz_phase_new configure after prefix_set
 # configure_fallback_check is reserved for last-in-resort failure check.
 	pwiz_phase_new configure_fallback_check after configure
 	check_unpacked_init
@@ -34,12 +35,53 @@ case $1 in
 		pwiz_phase_add_callme configure_fallback_check
 # FIXME!!!!! installroot can or cannot be available. Use RPM %expansion
 		pwiz_phase_add_run_eval install_action 'make DESTDIR=$PWIZ_INSTALLROOT install'
-		gnu_configure_prefix_args=" --prefix=$prefix_global"
 	    fi
 	fi
 	return
 	;;
     args )
+# FIXME: dependent on $ac_default_prefix
+	if test "$prefix" != /usr/local ; then
+	    gnu_configure_prefix_args="$gnu_configure_prefix_args --prefix=$prefix"
+	fi
+	if test "$exec_prefix" != "$prefix" ; then
+	    gnu_configure_prefix_args="$gnu_configure_prefix_args --exec-prefix=$exec_prefix"
+	fi
+	if test "$bindir" != "$prefix/bin" ; then
+	    gnu_configure_prefix_args="$gnu_configure_prefix_args --bindir=$bindir"
+	fi
+	if test "$sbindir" != "$prefix/sbin" ; then
+	    gnu_configure_prefix_args="$gnu_configure_prefix_args --sbindir=$sbindir"
+	fi
+	if test "$libexecdir" != "$prefix/libexec" ; then
+	    gnu_configure_prefix_args="$gnu_configure_prefix_args --libexecdir=$libexecdir"
+	fi
+	if test "$datadir" != "$prefix/share" ; then
+	    gnu_configure_prefix_args="$gnu_configure_prefix_args --datadir=$datadir"
+	fi
+	if test "$sysconfdir" != "$prefix/etc" ; then
+	    gnu_configure_prefix_args="$gnu_configure_prefix_args --sysconfdir=$sysconfdir"
+	fi
+	if test "$sharedstatedir" != "$prefix/com" ; then
+	    gnu_configure_prefix_args="$gnu_configure_prefix_args --sharedstatedir=$sharedstatedir"
+	fi
+	if test "$localstatedir" != "$prefix/var" ; then
+	    gnu_configure_prefix_args="$gnu_configure_prefix_args --localstatedir=$localstatedir"
+	fi
+	if test "$libdir" != "$prefix/lib" ; then
+	    gnu_configure_prefix_args="$gnu_configure_prefix_args --libdir=$libdir"
+	fi
+	if test "$includedir" != "$prefix/include" ; then
+	    gnu_configure_prefix_args="$gnu_configure_prefix_args --includedir=$includedir"
+	fi
+# FIXME: oldincludedir probably not needed
+	if test "$infodir" != "$prefix/info" ; then
+	    gnu_configure_prefix_args="$gnu_configure_prefix_args --infodir=$infodir"
+	fi
+	if test "$mandir" != "$prefix/man" ; then
+	    gnu_configure_prefix_args="$gnu_configure_prefix_args --mandir=$mandir"
+	fi
+# FIXME: some way to use docdir
 	pwiz_ask_string \
 		"This package will use configure script with following arguments:$gnu_configure_prefix_args$gnu_configure_args
 Do you want any additional options?" \
