@@ -192,7 +192,7 @@ function pwiz_engine_question_dumb_radio {
 # FIXME: implement pwiz_engine_question_dumb_selection
 
 function pwiz_engine_question_dumb_list {
-    local desc longdesc list_off list_item guesses_count count_off menu_mode="" default REPLY pwiz_answer_save
+    local desc longdesc list_off list_item items_count count_off menu_mode="" default REPLY pwiz_answer_save string
     local -a items
 
     desc="$1"
@@ -204,27 +204,41 @@ function pwiz_engine_question_dumb_list {
     else
 	pwiz_answer=" $pwiz_guess_best_value "
     fi
+    for (( items_count=0 ; items_count < ${#pwiz_list_all[@]} ; items_count++ )) ; do
+	if ! test -z "${pwiz_list_strings[items_count]}" ; then
+	    eval "local list__${pwiz_list_all[items_count]}=\"\${pwiz_list_strings[items_count]}\""
+	fi
+    done
     while : ; do
 	echo
 	echo "$desc"
 	echo "Active items (in order):"
-	guesses_count=0
+	items_count=0
 	list_off=" ${pwiz_list_all[*]} "
+# FIXME: Hotkeys.
 	for list_item in $pwiz_answer ; do
-# FIXME: Text representation of items
-	    echo "$guesses_count) $list_item"
-	    items[guesses_count]="$list_item"
+	    eval string\=\"\$list__$list_item\"
+	    if test -z "$string" ; then
+		echo "$items_count) \"$list_item\""
+	    else
+		echo "$items_count) $string"
+	    fi
+	    items[items_count]="$list_item"
 # Maybe FIXME: Implement this on arrays:
 	    list_off=${list_off/ $list_item / }
-	    let guesses_count++
+	    let items_count++
 	done
-	count_off=$guesses_count
+	count_off=$items_count
 	echo "Inactive items:"
 	for list_item in $list_off ; do
-# FIXME: Text representation of items
-	    echo "$guesses_count) $list_item"
-	    items[guesses_count]="$list_item"
-	    let guesses_count++
+	    eval string\=\"\$list__$list_item\"
+	    if test -z "$string" ; then
+		echo "$items_count) \"$list_item\""
+	    else
+		echo "$items_count) $string"
+	    fi
+	    items[items_count]="$list_item"
+	    let items_count++
 	done
 	if test "$menu_mode" = "" ; then
 	    echo "[number]) action in this position (item operations, new)"
@@ -259,7 +273,7 @@ Formal type for this is a list. Now you have a chance to add new item to this li
 		    ;;
 	    # FIXME: Limit is 1000 guesses.
 		[0-9] | [0-9][0-9] | [0-9][0-9][0-9] )
-		    if test $REPLY -ge $guesses_count ; then
+		    if test $REPLY -ge $items_count ; then
 			echo "Invalid choice!"
 			continue
 		    fi
@@ -286,19 +300,19 @@ Formal type for this is a list. Now you have a chance to add new item to this li
 			    continue
 			fi
 			pwiz_answer=" "
-			guesses_count=0
-			while test $guesses_count -lt $REPLY ; do
-			    if test "${items[guesses_count]}" != "${items[$menu_mode]}" ; then
-				pwiz_answer="$pwiz_answer${items[guesses_count]} "
+			items_count=0
+			while test $items_count -lt $REPLY ; do
+			    if test "${items[items_count]}" != "${items[$menu_mode]}" ; then
+				pwiz_answer="$pwiz_answer${items[items_count]} "
 			    fi
-			    let guesses_count++
+			    let items_count++
 			done
 			pwiz_answer="$pwiz_answer${items[$menu_mode]} "
-			while test $guesses_count -lt $count_off ; do
-			    if test "${items[guesses_count]}" != "${items[$menu_mode]}" ; then
-				pwiz_answer="$pwiz_answer${items[guesses_count]} "
+			while test $items_count -lt $count_off ; do
+			    if test "${items[items_count]}" != "${items[$menu_mode]}" ; then
+				pwiz_answer="$pwiz_answer${items[items_count]} "
 			    fi
-			    let guesses_count++
+			    let items_count++
 			done
 			menu_mode=""
 			;;
@@ -312,6 +326,7 @@ Formal type for this is a list. Now you have a chance to add new item to this li
 			echo -n  "Enter ID for this new item: "
 			read
 			pwiz_answer_save="$pwiz_answer"
+# FIXME: This probably should disappear and only callback should exist.
 			eval pwiz_ask_$pwiz_tag_item_type '"$desc Enter value for new item." "$longdesc
 Formal type for this is a list. Now you have a chance to add new item to this list." "$@" q=${pwiz_tag_q}_$REPLY'
 			pwiz_answer="$pwiz_answer_save"

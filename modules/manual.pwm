@@ -42,12 +42,14 @@ function manual_action_new {
 #@ FIXME: Maybe it should be named better.
 function manual_action_new_me {
     manual_action_new "manual_$1" after "$1" "$2" "$3"
+    manual_action_add "$1" manual_command "add command manually"
 }
 
 #@ manual_action_ask id (internal)
 function manual_action_ask {
     local item
-    eval "pwiz_ask_list \"Manual action point: \$manual_action_desc_$1\" \"\$manual_action_longdesc_$1\" q=$1 allow_new=false"
+# FIXME: After chaning ask_list callback interface, fix it to allow to ask in time of adding ID.
+    eval "pwiz_ask_list \"Manual action point: \$manual_action_desc_$1\" \"\$manual_action_longdesc_$1\" q=$1 allow_new=false item_type=none"
     for item in $pwiz_answer ; do
 	pwiz_phase_add "$1" "$item $1"
     done
@@ -57,6 +59,15 @@ function manual_action_ask {
 #@ callback convention: function manual_point_id
 function manual_action_add {
     pwiz_list_add "manual_$1" "$2" 0 "$3" "$4"
+}
+
+#@ manual_command_add manual_action_point
+# For adding manual action.
+function manual_command {
+    local patch
+    pwiz_ask_string "Enter command you want to run." "Now you can add any command you need to run in this phase." q=$1_manual_command multiline=true
+    pwiz_phase_add_run $1 "$pwiz_answer"
+    rm $PWIZ_TMPDIR/manual_answer_tmp
 }
 
 manual_action_new_me PREPARE_PREUNPACK  "before unpacking main archive" "Now you should define actions you want to do before unpacking main archive."

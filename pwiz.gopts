@@ -602,6 +602,7 @@ pwiz_engine_interface pkgdb what_owns
 #@ Returns: FIXME
 
 # FIXME: obsolete yesno
+# FIXME: pwiz_ask_radio is obsolete use ask_string with allow_new=false
 #pwiz_engine_interface question radio selection string list
 pwiz_engine_interface question yesno radio selection string list
 
@@ -970,6 +971,12 @@ pwiz_tag_knowledge=general
 
 # FIXME: The backend can use two ways: special yesno function or use it via string input.
 
+# dummy function for list tag item_type=none
+# FIXME: Should disappear in future.
+function pwiz_ask_none {
+    :
+}
+
 alias pwiz_ask_yesno="set -o noglob ; pwiz_ask_yesno_f"
 function pwiz_ask_yesno_f {
     set +o noglob
@@ -1021,6 +1028,7 @@ function pwiz_ask_radio_f {
 # mylist1 + mylist1_item_1 + mylist_item_2 + mylist_item_2_sub_item_1 => problem
 # mylist1 + mylist1__item_1 + mylist__item_2 + mylist__item_2__subitem1 - cut the second @.
 # FIXME: Maybe result should have space before and after it (before parsing).
+# FIXME: Implement ordered list with repeating and unordered list (set)
 alias pwiz_ask_list="set -o noglob ; pwiz_ask_list_f"
 function pwiz_ask_list_f {
     set +o noglob

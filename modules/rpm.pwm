@@ -83,8 +83,7 @@ function rpm_setup {
 
 # FIXME: define source list dynamically
 function rpm_source_main {
-    rpm_subst_names "$package_uri"
-    rpm_source_add main $pwiz_result
+    rpm_source_add main "$package_uri"
 }
 
 function rpm_files_finish {
@@ -146,7 +145,7 @@ function unpack_prepare {
 # FIXME:
     rpm_setup_args=
     if test "$package_basename" != "$pwiz_project_project" ; then
-	rpm_setup_args=' -n %{_name}-%{version}'
+	rpm_setup_args="$rpm_setup_args -n %{_name}-%{version}"
     fi
     pwiz_phase_add_run unpack "%setup$rpm_setup_args"
 # FIXME: probably obsolete
@@ -469,58 +468,97 @@ function rpm_spec_compile {
 
 # FIXME: rpm should auto-ask for splitted package args, if none are supported.
 
-# FIXME: Stuff should work, if package name != project name
-
-# FIXME: Should be list in future.
 function rpm_manual_source {
-    local source
-    pwiz_ask_string "Extra RPM sources needed before main package unpacking (lines containing \"source_id source_filename\")." "Now you can manage extra sources needed before main package unpacking." q=$1_rpm_manual_source multiline=true #callback=rpm_manual_source_callback
-# FIXME: without temp file?
-# FIXME: echo -n, but verify all pwiz_ask code before?
-    echo "$pwiz_result" >$PWIZ_TMPDIR/rpm_answer_tmp
-    exec 3<$PWIZ_TMPDIR/rpm_answer_tmp
-    while read -u3 id source ; do
-	rpm_source_add "$id" "$source"
+    local id
+# FIXME: After chaning ask_list callback interface, fix it to allow to ask in time of adding ID.
+    pwiz_ask_list "Extra RPM sources needed in this point." "Now you can manage extra sources needed in this point of work." q=rpm_manual_source_$1 item_type=none
+    for id in "${pwiz_answer[@]}" ; do
+	rpm_source "$1" "$id"
     done
-    exec 3<&-
-    rm $PWIZ_TMPDIR/rpm_answer_tmp
 }
 
-function rpm_manual_patch {
-    local patch
-    pwiz_ask_string "Extra RPM patches needed before main package unpacking (lines containing \"patch_id patch_filename\")." "Now you can manage extra patches needed before main package unpacking." q=$1_rpm_manual_patch multiline=true #callback=rpm_manual_patch_callback
-# FIXME: without temp file?
-# FIXME: echo -n, but verify all pwiz_ask code before?
-    echo "$pwiz_result" >$PWIZ_TMPDIR/rpm_answer_tmp
-    exec 3<$PWIZ_TMPDIR/rpm_answer_tmp
-    while read -u3 id patch ; do
-	rpm_patch_add "$id" "$patch"
-    done
-    exec 3<&-
-    rm $PWIZ_TMPDIR/rpm_answer_tmp
+#@ rpm_manual_source_wizard action_id source_id
+function rpm_source {
+# FIXME: can be URL. Write an URL specifier.
+# FIXME: Maybe use answer variables instead of new ones.
+    pwiz_ask_string "Enter source $2 name." "Enter here source name for source id $2. File itself must be copied to $PWIZ_RESULTDIR." q=rpm_source__$1__$2
+    rpm_source_add $2 "$pwiz_answer"
+# FIXME: Ask for source description string.
+    cp -a $PWIZ_RESULTDIR/$pwiz_answer $PWIZ_SOURCESDIR
+    local -a addons
+    if test "$PWIZ_PHASE_CURRENT" = manual_PREPARE_PREUNPACK ; then
+	addons=( "default[1]=\"@setup@-b#\"" "p[1]=0" "string[1]=\"unpack during %setup before changing directory\"" "default[2]=\"@setup@-a#\"" "p[2]=10" "string[2]=\"unpack during %setup after changing directory\"" )
+    fi
+    pwiz_ask_string "What do you want to do with this source (\"#\" is source number)." "Because RPM sources and patches in PWIZ are ID based, you need to enter eventual commands here. Use \"#\" instead of source number and ## instead of #." default[0]="cp -a %{S:#} ." p[0]=0 string[0]="copy to actual directory" "${addons[@]}" q=rpm_source_name__$1__$2
+    eval local sourceno\=\$rpm_sourceno__$2
+    pwiz_answer=${pwiz_answer//\\#\\#/@@rpm_crosshash@@}
+    pwiz_answer=${pwiz_answer//\\#/$sourceno}
+    pwiz_answer=${pwiz_answer//@@rpm_crosshash@@/#}
+    case $pwiz_answer in
+	@setup@* )
+	    rpm_setup_args="$rpm_setup_args ${pwiz_answer#@setup@}"
+	    ;;
+	* )
+	    pwiz_phase_add_run $1 "$pwiz_answer"
+	    ;;
+    esac
 }
 
 # rpm_source_add id name
 function rpm_source_add {
-    eval "rpm_source__$1=${#rpm_sources[@]}"
-    pwiz_array_add rpm_sources $2
+    eval "rpm_sourceno__$1=${#rpm_sources[@]}"
+    rpm_subst_names "$2"
+    pwiz_array_add rpm_sources "$pwiz_result"
+}
+
+function rpm_manual_patch {
+    local id
+# FIXME: After chaning ask_list callback interface, fix it to allow to ask in time of adding ID.
+    pwiz_ask_list "Extra RPM patches needed in this point." "Now you can manage extra patches needed in this point of work." q=rpm_manual_patch_$1 item_type=none
+    for id in "${pwiz_answer[@]}" ; do
+	rpm_patch "$1" "$id"
+    done
+}
+
+#@ rpm_manual_patch_wizard action_id patch_id
+function rpm_patch {
+# FIXME: can be URL. Write an URL specifier.
+# FIXME: Maybe use answer variables instead of new ones.
+    pwiz_ask_string "Enter patch $2 name." "Enter here patch name for patch id $2. File itself must be copied to $PWIZ_RESULTDIR." q=rpm_patch__$1__$2
+    rpm_patch_add $2 "$pwiz_answer"
+# FIXME: Ask for patch description string.
+    cp -a $PWIZ_RESULTDIR/$pwiz_answer $PWIZ_SOURCESDIR
+    local -a addons
+    pwiz_ask_string "What do you want to do with this patch (\"#\" is patch number)." "Because RPM patches and patches in PWIZ are ID based, you need to enter eventual commands here. Use \"#\" instead of patch number and ## instead of #." default[0]="@patch@%patch#" p[0]=30 string[0]="apply patch" q=rpm_patch_name__$1__$2
+    eval local patchno\=\$rpm_patchno__$2
+    pwiz_answer=${pwiz_answer//\\#\\#/@@rpm_crosshash@@}
+    pwiz_answer=${pwiz_answer//\\#/$patchno}
+    pwiz_answer=${pwiz_answer//@@rpm_crosshash@@/#}
+    local patchcmd="$pwiz_answer"
+    case $pwiz_answer in
+	@patch@* )
+	    pwiz_ask_string "Enter arguments of %patch." "You should %patch arguments. It can be, for example \"-p1\"" default[0]="" p[0]=20 default[1]="-p1" p[1]=10
+	    pwiz_phase_add_run $1 "${patchcmd#@patch@}${pwiz_answer:+ $pwiz_answer}"
+	    ;;
+	* )
+	    pwiz_phase_add_run $1 "$pwiz_answer"
+	    ;;
+    esac
 }
 
 # rpm_patch_add id name
 function rpm_patch_add {
-    eval "rpm_patch__$1=${#rpm_patches[@]}"
-    pwiz_array_add rpm_patches $2
-}
-
-
-# FIXME: not yet used andd patch callback, too
-function rpm_manual_source_callback {
-    local id
-    pwiz_ask_string "Enter source ID." "ID string recognizes this source across versions. It cound be short, but unique and explanative. It can contain only letters, underbars and numbers (must not begin by number)."
-    id="$pwiz_answer"
-    
-    pwiz_answer="$id"
+    eval "rpm_patchno__$1=${#rpm_patches[@]}"
+    rpm_subst_names "$2"
+    pwiz_array_add rpm_patches "$pwiz_result"
 }
 
 manual_action_add PREPARE_PREUNPACK rpm_manual_source "manage extra RPM sources"
-manual_action_add PREPARE_PREUNPACK rpm_manual_patch  "manage extra RPM patches"
+
+manual_action_add PREPARE_POSTUNPACK rpm_manual_source "manage extra RPM sources"
+manual_action_add PREPARE_POSTUNPACK rpm_manual_patch  "manage enhancement RPM patches"
+
+manual_action_add PREPARE_RECHECK rpm_manual_source "manage extra RPM sources"
+manual_action_add PREPARE_RECHECK rpm_manual_patch  "manage bugfix RPM patches"
+
+# FIXME: be able to add additional source late during install and send event back
