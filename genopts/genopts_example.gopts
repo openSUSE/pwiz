@@ -1,6 +1,6 @@
 #! /bin/bash
 
-# Your genopts section can start anywhere in code.
+# Your genopts section can start anywhere in code.
 
 @genopts
 
