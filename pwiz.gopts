@@ -699,7 +699,7 @@ function pwiz_cache_validity_product {
 # based on comparison of particular key. Trust level function has
 # access to other values, which can be used for guess.
 
-pwiz_debug_feature guess
+pwiz_debug_feature guess "internals of guess creation" "This feature turns on displaying of single steps in making a guess."
 
 #@ pwiz_guess_trust_{key}
 # Function compares keys and returns
