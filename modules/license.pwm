@@ -45,6 +45,10 @@ function license_PREPARE_CHECK {
 		55ca817ccb7d5b5b66355690e9abc605 )
 		    license_found="${license_found:+$license_found }LGPL"
 		    ;;
+# GNU Lesser General Public License, Version 2.1, February 1999
+		d8045f3b8f929c1cb29a1e3fd737b499 )
+		    license_found="${license_found:+$license_found }LGPL"
+		    ;;
 	    esac
 	fi
     done
