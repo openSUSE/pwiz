@@ -53,7 +53,7 @@ Decrease level of verbosity.
 @option DEBUG -d --debug=TYPE
 Comma separated list of specific debugging messages.
 Try --debug=list for all available types.
-All turns all debugging messages.
+Use --debug=all for all available debuggings.
 
 @options_only
 
@@ -554,6 +554,8 @@ function pwiz_engine_interface {
 # Address space is defined by keys. Keys are similar to filesystem
 # paths.
 # Returns result in $pwiz_result.
+
+# FIXME: cache engine should test, whether all key items are non empty
 
 #@ pwiz_cache_read key
 #@ pwiz_cache_read_tags key
@@ -1749,7 +1751,7 @@ for pwiz_debug_feature in ${pwiz_debug_features[@]} ; do
 	if test "$pwiz_debug_option" = list ; then
 	    pwiz_debug_list=true
 	else
-	    if test "$pwiz_debug_option" = "$pwiz_debug_feature" ; then
+	    if test "$pwiz_debug_option" = "$pwiz_debug_feature" -o  "$pwiz_debug_option" = all ; then
 		pwiz_feature_active=true
 	    fi
 	fi
