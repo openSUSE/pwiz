@@ -28,7 +28,6 @@ function pwiz_engine_pkgdb_rpm_what_owns {
     shopt -s extglob
     for package in $(rpm 2>/dev/null -qf "$@") ; do
 	pwiz_result[$package_count]=${package%-*([^-])-*([^-])}
-	echo "****** $* owns ${package%-*([^-])-*([^-])}"
 	let package_count++
     done
     shopt -u extglob

@@ -10,6 +10,17 @@ case $1 in
 	return
 	;;
     init )
+	case $OPTCNT_VERBOSE in
+	    0 )
+		ftp_WGET="wget -q"
+		;;
+	    1 )
+		ftp_WGET="wget -nv"
+		;;
+	    2 )
+		ftp_WGET="wget -v"
+		;;
+	esac
 	;;
     version )
 	echo "0.1"
@@ -25,7 +36,7 @@ esac
 #@ if $2 == "", then $pwiz_callback is used
 function ftp_list {
     mkdir -p $PWIZ_CACHEDIR/ftp
-    if ! wget -P $PWIZ_CACHEDIR/ftp -N -nr -r -l 1 "$1/" ; then
+    if ! $ftp_WGET -P $PWIZ_CACHEDIR/ftp -N -nr -r -l 1 "$1/" ; then
 	echo "*** $1 not found"
 	return 1
     fi
@@ -39,7 +50,7 @@ function ftp_list {
 function ftp_list_recursive {
     local pwiz_callback_save
     mkdir -p $PWIZ_CACHEDIR/ftp
-    if ! wget -P $PWIZ_CACHEDIR/ftp -N -nr -r -R '*' "$1" ; then
+    if ! $ftp_WGET -P $PWIZ_CACHEDIR/ftp -N -nr -r -R '*' "$1" ; then
 	echo "*** $1 not found"
 	return 1
     fi
@@ -71,7 +82,7 @@ function ftp_list_callback {
 function ftp_get {
     local rc
     cd $PWIZ_CACHEDIR
-    wget -N "$1"
+    $ftp_WGET -N "$1"
     rc=$?
     cd -
     return $rc

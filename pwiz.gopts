@@ -38,7 +38,7 @@ question without default guess.
 Run in batch mode. Fails if there is a question without
 default guess.
 
-@not_yet_implemented_switch PROMPT -p --prompt
+@switch PROMPT -p --prompt
 Debug shell prompt before and after each stage.
 
 @switch LIST_MODULES --list-modules
@@ -60,20 +60,22 @@ All turns all debugging messages.
 @end
 
 #@ Verbose messages.
+alias eecho='echo >&2'
+
 if test $OPTCNT_VERBOSE -ge 1 ; then
-    alias vecho=echo
+    alias vecho='echo >&2'
 else
     alias vecho=:
 fi
 
 if test $OPTCNT_VERBOSE -ge 2 ; then
-    alias vvecho=echo
+    alias vvecho='echo >&2'
 else
     alias vvecho=:
 fi
 
 if test $OPTCNT_VERBOSE -ge 3 ; then
-    alias vvvecho=echo
+    alias vvvecho='echo >&2'
 else
     alias vvvecho=:
 fi
@@ -82,14 +84,24 @@ fi
 if test $OPTCNT_QUIET -ge 1 ; then
     alias qecho=:
 else
-    alias qecho=echo
+    alias qecho='echo >&2'
 fi
 
 if test $OPTCNT_QUIET -ge 2 ; then
     alias qqecho=:
 else
-    alias qqecho=echo
+    alias qqecho='echo >&2'
 fi
+
+#@ pwiz_debug_feature name desc longdesc
+#@ Debug features.
+function pwiz_debug_feature {
+    pwiz_array_add pwiz_debug_features "$1"
+    eval "pwiz_debug_desc_$1="'"$2"'
+    eval "pwiz_debug_longdesc_$1="'"$3"'
+}
+declare -a pwiz_debug_features
+
 
 # FIXME
 trap "echo \"PWIZ must be error-less\" ; exit 1" ERR
@@ -114,6 +126,28 @@ pwiz_knowledge_general=80
 pwiz_knowledge_build=80
 
 #@@ general
+
+#@ Debug prompt
+function pwiz_prompt {
+    local REPLY
+    local HISTFILE=~/.pwiz_history
+    echo
+    vecho "Shell prompt. Empty line for exit. Mult-line strings are not allowed."
+# FIXME: Maybe global and trap
+    history -r
+# FIXME: Completion
+    while read -e -r -p "$1pwiz:$PWIZ_PHASE_CURRENT[$PWIZ_STAGE_CURRENT]@$PWD> " ; do
+	if test -z "$REPLY" ; then
+	    break
+	fi
+	eval "$REPLY"
+	let HISTCMD++
+	history -s "$REPLY"
+# FIXME: Maybe global and trap
+	history -a
+    done
+    echo
+}
 
 #@ fast redirection
 # channels 5-7 are reserved for saving original redirection
@@ -380,7 +414,12 @@ function pwiz_run_prepare {
 #@ $pwiz_run_rc is restored before next pwiz_run.
 #@ WARNING: Do not alter pwiz_run_rc!
 function pwiz_run {
-    echo "****** Running: $@"
+# FIXME: for debugging only:
+# FIXME: Adopt other parts of run stuff to 1 arg
+    if test "$2" != "" ; then
+	pwiz_warning "2 arguments: pwiz_run $*"
+    fi
+    vvecho "running: $*"
     pwiz_run_prepare "$@"
 }
 
@@ -412,8 +451,13 @@ function pwiz_debug {
 }
 
 #@ pwiz_fatal error
+function pwiz_warning {
+    eecho "Packaging wizard warning: $pwiz_module_current: $1"
+}
+
+#@ pwiz_fatal error
 function pwiz_fatal {
-    echo "Packaging wizard fatal: $pwiz_module_current: $1"
+    eecho "Packaging wizard fatal: $pwiz_module_current: $1"
     pwiz_exit 2
 }
 
@@ -512,7 +556,7 @@ pwiz_engine_interface cache read read_tags write delete list
 
 #@@ question engine
 
-#@ pwiz_pkgdb_who_owns file [ files ]
+#@ pwiz_pkgdb_what_owns file [ files ]
 # Returns: 0: OK
 # Returns: 1: Problem.
 # Returns: ${pwiz_result[@]}
@@ -636,6 +680,8 @@ function pwiz_cache_validity_product {
 # based on comparison of particular key. Trust level function has
 # access to other values, which can be used for guess.
 
+pwiz_debug_feature guess
+
 #@ pwiz_guess_trust_{key}
 # Function compares keys and returns
 # Returns value 0-100 in $pwiz_trust.
@@ -696,7 +742,7 @@ function pwiz_guess {
 	    eval v_default\=\"\${pwiz_guess_default_$pwiz_tag_q\[count\]}\"
 	    eval v_p\=\${pwiz_guess_p_$pwiz_tag_q\[count\]}
 	    eval v_string\=\"\${pwiz_guess_string_$pwiz_tag_q\[count\]}\"
-	    echo "********* found guess in variable $v_default ($v_p%)"
+	    decho_guess "found guess in variable $v_default ($v_p%)"
 	    is_new=true
 	    for (( guesses_count=0 ; guesses_count < ${#pwiz_guesses[*]} ; guesses_count++ )) ; do
 		if test "${pwiz_guesses[guesses_count]}" = "$v_default" ; then
@@ -714,15 +760,13 @@ function pwiz_guess {
 		fi
 		pwiz_array_add pwiz_guesses "$v_default"
 	    fi
-	    echo "********* result=$pwiz_result"
-	    echo "********* pwiz_trust=$pwiz_trust"
 	done
 
     # parse cached guesses
-	echo "****** using $pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$product/$pversion/$build"
+	decho_guess "cache query:  $pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$product/$pversion/$build"
 	pwiz_cache_list "$pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$product/$pversion/$build"
 	for key_found in $pwiz_result ; do
-	    echo "********* found $key_found"
+	    decho_guess "found: $key_found"
 	    pwiz_key_parse $key_found
 	    pwiz_cache_read_tags $key_found
 	    tags="$pwiz_result"
@@ -742,8 +786,8 @@ function pwiz_guess {
 		pwiz_trusts[${#pwiz_guesses[*]}]=$pwiz_trust
 		pwiz_array_add pwiz_guesses "$pwiz_result"
 	    fi
-	    echo "********* result=$pwiz_result"
-	    echo "********* pwiz_trust=$pwiz_trust"
+	    decho_guess "result: $pwiz_result"
+	    decho_guess "trust: $pwiz_trust"
 	done
 
     fi
@@ -752,15 +796,15 @@ function pwiz_guess {
     local best_guess_trust=0
     pwiz_guess_best=-1
     for (( guesses_count=0 ; guesses_count < ${#pwiz_guesses[*]} ; guesses_count++ )) ; do
-	echo "********* Guess[guesses_count]: ${pwiz_guesses[guesses_count]} trust=${pwiz_trusts[guesses_count]}"
+	decho_guess "guess[$guesses_count]: ${pwiz_guesses[guesses_count]} trust=${pwiz_trusts[guesses_count]}"
 	if test "${pwiz_trusts[guesses_count]}" -ge $best_guess_trust ; then
 	    best_guess_trust=${pwiz_trusts[guesses_count]}
 	    pwiz_guess_best=$guesses_count
 	    pwiz_guess_best_value="${pwiz_guesses[guesses_count]}"
 	fi
     done
-    echo "********* Available guesses: ${#pwiz_guesses[*]}"
-    echo "********* Best guess $pwiz_guess_best: $pwiz_guess_best_value"
+    decho_guess "available guesses: ${#pwiz_guesses[*]}"
+    decho_guess "best guess $pwiz_guess_best: $pwiz_guess_best_value"
 }
 declare -a pwiz_guesses pwiz_trusts
 # Trust level of unknown source.
@@ -828,9 +872,8 @@ function pwiz_ask_core {
     pwiz_keys_set
     pwiz_cache_validity_apply
 
-    echo "****** Query: $2"
+    decho_guess "query tags: $*"
     pwiz_guess "$@"
-    echo "********* Available guesses: ${#pwiz_guesses[*]}"
 
     $question_function "$desc" "$longdesc" "$@"
     rc=$?
@@ -916,10 +959,10 @@ function pwiz_ask_list_f {
     fi
 
     pwiz_list_all=
-    echo "****** using list $pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$product/$pversion/$build"
+    decho_guess "list query: $pwiz_tag_q/$project/$subproject/$version/$patchlevel/$vendor/$product/$pversion/$build"
     pwiz_cache_list "${pwiz_tag_q}_*/$project/$subproject/$version/$patchlevel/$vendor/$product/$pversion/$build"
     for key_found in $pwiz_result ; do
-	echo "********* found list $key_found"
+	decho_guess "list found: $key_found"
 	pwiz_key_parse $key_found
 	is_new=true
 	list_count=0
@@ -934,7 +977,7 @@ function pwiz_ask_list_f {
 	fi
     done
     pwiz_list_all="$pwiz_list_all "
-    echo "********* complete list=\"$pwiz_list_all\""
+    decho_guess "list completed: \"$pwiz_list_all\""
 
     pwiz_ask_core pwiz_question_list "$desc" "$longdesc" "$@"
 
@@ -1208,13 +1251,13 @@ function pwiz_phase_next {
 	fi
 	eval pwiz_step_phase_stages=\${#PWIZ_STAGE_$PWIZ_PHASE_CURRENT\[\*\]}
 	if test $pwiz_step_phase_stages -eq 0 ; then
-	    echo "*** Skipping empty phase $PWIZ_PHASE_CURRENT..." >&2
+	    vvecho "Skipping empty phase $PWIZ_PHASE_CURRENT..."
 	else
 	    break
 	fi
     done
     PWIZ_STAGE_CURRENT=-1
-    qqecho "Entering phase $PWIZ_PHASE_CURRENT..." >&2
+    vecho "Entering phase $PWIZ_PHASE_CURRENT..." >&2
 }
 
 #@ pwiz_phase_prev
@@ -1233,7 +1276,7 @@ function pwiz_phase_prev {
 	pwiz_phase_next
     else
 	PWIZ_STAGE_CURRENT=-1
-	qqecho "Entering phase $PWIZ_PHASE_CURRENT..." >&2
+	vecho "Entering phase $PWIZ_PHASE_CURRENT..." >&2
     fi
 }
 
@@ -1256,7 +1299,7 @@ function pwiz_phase_goto {
     if test $pwiz_step_phase_stages -eq 0 ; then
 	pwiz_phase_next
     else
-	qqecho "Entering phase $PWIZ_PHASE_CURRENT..." >&2
+	vecho "Entering phase $PWIZ_PHASE_CURRENT..." >&2
     fi
 }
 
@@ -1282,7 +1325,7 @@ function pwiz_next {
 function pwiz_step {
     local pwiz_step_stage_code rc
     if pwiz_next ; then
-	qecho "Entering stage $PWIZ_PHASE_CURRENT[$PWIZ_STAGE_CURRENT]..." >&2
+	vvecho "Entering stage $PWIZ_PHASE_CURRENT[$PWIZ_STAGE_CURRENT]..." >&2
 	eval pwiz_step_stage_code=\"\${PWIZ_STAGE_$PWIZ_PHASE_CURRENT\[$PWIZ_STAGE_CURRENT\]}\"
 	case $1 in
 	    query )
@@ -1290,15 +1333,21 @@ function pwiz_step {
 		;;
 	    run )
 # FIXME pwiz_rem and pwiz_rem_eval
-		echo -e "*** Running:\n$pwiz_step_stage_code"
+		vvecho -e "Running: $pwiz_step_stage_code"
 # FIXME: pwiz_rune does not need this expansion, but direct run yes
 # Do it better, this is a hack.
+		if $OPTARG_PROMPT ; then
+		    pwiz_prompt +
+		fi
 		if test "${pwiz_step_stage_code%% *}" = pwiz_run ; then
 		    $pwiz_step_stage_code
 		else
 		    eval "$pwiz_step_stage_code"
 		fi
 		pwiz_rc=$?
+		if $OPTARG_PROMPT ; then
+		    pwiz_prompt -
+		fi
 		;;
 	esac
 	return 0
@@ -1484,6 +1533,7 @@ function init_phase_skeleton {
     done
 }
 
+
 #  FIXME: In conf file.
 engine_cache=file
 engine_question=dumb
@@ -1498,24 +1548,24 @@ else
 fi
 
 if test $OPTCNT_VERBOSE -ge $PWIZ_VERBOSE_COUNT ; then
-	echo
-	echo "Engines..."
+	eecho
+	eecho "Engines..."
 fi
 for pwiz_file in cache question pkgdb ; do
     if test $OPTCNT_VERBOSE -ge $((PWIZ_VERBOSE_COUNT+2)) ; then
-	echo
+	eecho
     fi
     if test $OPTCNT_VERBOSE -ge $PWIZ_VERBOSE_COUNT ; then
 	if $OPTARG_LIST_MODULES ; then
-	    echo -n "Engine"
+	    eecho -n "Engine"
 	else
-	    echo -n "Loading engine"
+	    eecho -n "Loading engine"
 	fi
-	eval "echo -n \" $pwiz_file: \$engine_$pwiz_file\""
+	eval "eecho -n \" $pwiz_file: \$engine_$pwiz_file\""
 	if test $OPTCNT_VERBOSE -ge $((PWIZ_VERBOSE_COUNT+1)) ; then
-	    eval "echo -n \" (\$(pwiz_engine_desc $pwiz_file \${engine_$pwiz_file:-\$engine_$pwiz_file}))\""
+	    eval "eecho -n \" (\$(pwiz_engine_desc $pwiz_file \${engine_$pwiz_file:-\$engine_$pwiz_file}))\""
 	fi
-	echo "..."
+	eecho "..."
     fi
     if test $OPTCNT_VERBOSE -ge $((PWIZ_VERBOSE_COUNT+2)) ; then
 	eval "pwiz_engine_longdesc $pwiz_file \${engine_$pwiz_file:-\$engine_$pwiz_file}"
@@ -1526,24 +1576,24 @@ for pwiz_file in cache question pkgdb ; do
 done
 
 if test $OPTCNT_VERBOSE -ge $PWIZ_VERBOSE_COUNT ; then
-    echo
-    echo "Modules..."
+    eecho
+    eecho "Modules..."
 fi
 if $OPTARG_LIST_MODULES ; then
     for pwiz_file in $(pwiz_modules_list) ; do
 	if test $OPTCNT_VERBOSE -ge 2 ; then
-	    echo
+	    eecho
 	fi
-	echo -n "Module: $pwiz_file"
+	eecho -n "Module: $pwiz_file"
 	if test $OPTCNT_VERBOSE -ge 1 ; then
-	    echo -n " ($(pwiz_module_desc $pwiz_file))"
+	    eecho -n " ($(pwiz_module_desc $pwiz_file))"
 	fi
-	echo "..."
+	eecho "..."
 	if test $OPTCNT_VERBOSE -ge 2 ; then
 	    pwiz_module_longdesc $pwiz_file
 	fi
     done
-    echo
+    eecho
     exit
 fi
 
@@ -1552,42 +1602,84 @@ unset debug_option engine_cache engine_question engine_pkgdb pwiz_file PWIZ_VERB
 
 init_phase_skeleton
 
-#@ Debug features.
-function pwiz_debug_feature {
-    local feature
-    for feature in "$@" ; do
-	pwiz_array_add pwiz_debug_features $feature
-    done
-}
-declare -a pwiz_debug_features
-
 pwiz_modules_load
-vecho
 
 # FIXME: feature list and all
+# FIXME: Report unknown features.
 #@ Debug messages (cannot appear in module init phase).
 IFS="${IFS}:,"
+pwiz_debug_list=false
 for pwiz_debug_feature in ${pwiz_debug_features[@]} ; do
-    alias decho_$pwiz_debug_feature=:
+    pwiz_feature_active=false
     for pwiz_debug_option in $OPTVAL_DEBUG ; do
-	if test "$pwiz_debug_option" = "$pwiz_debug_feature" ; then
-	    alias decho_$pwiz_debug_feature="echo '*** $pwiz_debug_feature: '"
+	if test "$pwiz_debug_option" = list ; then
+	    pwiz_debug_list=true
+	else
+	    if test "$pwiz_debug_option" = "$pwiz_debug_feature" ; then
+		pwiz_feature_active=true
+	    fi
 	fi
     done
+    if $pwiz_feature_active ; then
+	eval pwiz_debug_$pwiz_debug_feature\=true
+	eval "function decho_$pwiz_debug_feature {
+    echo >&2 \"\$@\"
+}"
+    else
+	eval pwiz_debug_$pwiz_debug_feature\=false
+	eval "function decho_$pwiz_debug_feature {
+    :
+}"
+    fi
 done
 IFS=${IFS%??}
-unset pwiz_debug_option pwiz_debug_feature
 
 
-# FIXME: probably remove this:
-#pwiz_projectdirs_init
+if $pwiz_debug_list ; then
+    PWIZ_VERBOSE_COUNT=0
+else
+    PWIZ_VERBOSE_COUNT=1
+fi
+
+if test $OPTCNT_VERBOSE -ge $PWIZ_VERBOSE_COUNT ; then
+	eecho
+	eecho "Debug features..."
+fi
+pwiz_debug_on="on"
+pwiz_debug_off="off"
+for pwiz_debug_feature in ${pwiz_debug_features[@]} ; do
+    if test $OPTCNT_VERBOSE -ge $((PWIZ_VERBOSE_COUNT+2)) ; then
+	eecho
+    fi
+    if test $OPTCNT_VERBOSE -ge $PWIZ_VERBOSE_COUNT ; then
+	eecho -n ""
+	eval "eecho -n \"Debug feature $pwiz_debug_feature \""
+	eval "if \$pwiz_debug_$pwiz_debug_feature ; then eecho -n \"$pwiz_debug_on\" ; else eecho -n \"$pwiz_debug_off\" ; fi"
+	if test $OPTCNT_VERBOSE -ge $((PWIZ_VERBOSE_COUNT+1)) ; then
+	    eval "eecho -n \" (\$pwiz_debug_desc_$pwiz_debug_feature)\""
+	fi
+	eecho ""
+    fi
+    if test $OPTCNT_VERBOSE -ge $((PWIZ_VERBOSE_COUNT+2)) ; then
+	eval "eecho \" \$pwiz_debug_longdesc_$pwiz_debug_feature\""
+    fi
+done
+vecho
+if $pwiz_debug_list ; then
+    exit
+fi
+unset pwiz_debug_option pwiz_debug_feature pwiz_feature_active PWIZ_VERBOSE_COUNT pwiz_debug_list pwiz_debug_on pwiz_debug_off
+
+
+
+pwiz_projectdirs_init
 
 while pwiz_step run ; do
     :
 done
 
-echo ""
-echo "* Finished. Build summary:"
+eecho ""
+eecho "* Finished. Build summary:"
 
 # BIG FIXME
 rm -f $PWIZ_RESULTDIR/$pwiz_project_project.spec
@@ -1619,10 +1711,12 @@ while pwiz_step query ; do
 	    echo "${pwiz_result#pwiz_rem }"
 	    ;;
 	"pwiz_run_eval "* | "pwiz_rem_eval "* )
+# FIXME: Remove debug
 	    echo "*** To be evaluated ${pwiz_result}" >&2
 	    eval echo \"\${PWIZ_STAGE_EVAL_$PWIZ_PHASE_CURRENT\[$PWIZ_STAGE_CURRENT\]}\"
 	    ;;
 	* )
+# FIXME: Remove debug
 	    echo "*** internal $pwiz_tmp" >&2
 	    ;;
     esac

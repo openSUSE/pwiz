@@ -21,6 +21,7 @@ case $1 in
 #	pwiz_phase_new filelist_split after filelist_fix
 # FIXME: do not register twice for subsequent packages
         pwiz_run_wrapper_register installwatch_run_wrapper
+	pwiz_debug_feature unowned "unowned files and directories" "This feature lists owner packages of files and directories installed in the same tree."
 	;;
     version )
 	echo "0.1"
@@ -93,14 +94,16 @@ function filelist_raw_clean_2 {
 	if test $filelist_tag_type = dir ; then
 # FIXME: remove redirection
 # FIXME: implement and ask more files at once
-	    pwiz_pkgdb_what_owns "$filelist_tag_name" >&2
+	    pwiz_pkgdb_what_owns "$filelist_tag_name"
 # FIXME check for both package and package-devel
 # FIXME: For non install root installation, we should generate ofile, too (but can be based on mtime).
 	    # If directory is owned by any installed package except this one and sub candidates, it is unowned.
 	    owned=true
+	    decho_unowned -n "$filelist_tag_name owned by"
 	    for pkg in "${pwiz_result[@]}" ; do
 # FIXME: This is questionable, whether dir owned by our package and other one is OK.
 # FIXME: By default, we consider, that it is a mistake of currently installed package.
+		decho_unowned -n " $pkg"
 		if test "$pkg" != "$pwiz_project_project" ; then
 		    owned=false
 		    for sub in "${filelist_split_candidates[@]}" ; do
@@ -116,8 +119,10 @@ function filelist_raw_clean_2 {
 	    done
 # FIXME: Ignores tagext.
 	    if $owned ; then
+		decho_unowned "... owned"
 		echo "$filelist_tag_name dir"
 	    else
+		decho_unowned "... unowned"
 		echo "$filelist_tag_name odir"
 	    fi
 	else
