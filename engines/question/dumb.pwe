@@ -53,6 +53,7 @@ function pwiz_engine_question_dumb_string {
 	done
 	if $pwiz_tag_allow_new ; then
 	    echo "m) enter manually"
+	    echo "e[number]) edit manually (start with answer number)"
 	fi
 	echo "h) help"
 	read
@@ -84,6 +85,26 @@ function pwiz_engine_question_dumb_string {
 		    else
 			$pwiz_tag_callback "$@"
 		    fi
+		    break
+		else
+		    echo "Invalid choice!"
+		fi
+		;;
+	    e* )
+		if $pwiz_tag_allow_new ; then
+		    selection="${REPLY#?}"
+		    if ! test -z "$selection" ; then
+# FIXME: integer checker, remove initial file, if exists.
+			if test "$selection" -ge ${#pwiz_guesses[*]} ; then
+			    echo "Invalid guess number!"
+			    continue
+			fi
+			echo -n "${pwiz_guesses[$selection]}" >$PWIZ_TMPDIR/dumb_answer
+		    fi
+		    ${EDITOR:-vi} $PWIZ_TMPDIR/dumb_answer
+		    pwiz_answer="$(<$PWIZ_TMPDIR/dumb_answer)"
+		    rm $PWIZ_TMPDIR/dumb_answer
+		    pwiz_answer="${pwiz_guesses[$REPLY]}"
 		    break
 		else
 		    echo "Invalid choice!"
