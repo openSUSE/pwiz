@@ -86,7 +86,8 @@ function gnome_filelist_install {
 	    pwiz_phase_add_run gnome_gconf_install 'export GCONF_CONFIG_SOURCE=`gconftool-2 --get-default-source`'
 	    for file in $gnome_gconf_schemas_list ; do
 # FIXME: real_uninstall, maybe add path
-		pwiz_phase_add_run gnome_gconf_install "gconftool --makefile-install-rule $file"
+# FIXME: gnome prefix without leading /
+		pwiz_phase_add_run gnome_gconf_install "gconftool-2 --makefile-install-rule $file >/dev/null 2>/dev/null"
 	    done
 	fi
     fi
