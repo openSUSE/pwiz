@@ -57,6 +57,7 @@ case $1 in
 	    done
 	    exec 3<&-
 	    if ! test -z "$gnome_gconf_schemas_list" ; then
+		pwiz_phase_add_run gnome_gconf_install 'export GCONF_CONFIG_SOURCE=`gconftool-2 --get-default-source`'
 		for gnome_file in $gnome_gconf_schemas_list ; do
 # FIXME: real_uninstall, maybe add path
 		    pwiz_phase_add_run gnome_gconf_install "gconftool --makefile-install-rule $gnome_file"
