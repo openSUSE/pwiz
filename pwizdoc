@@ -231,11 +231,12 @@ echo "</html>"
 
 }
 
-mkdir -p doc/modules
-docfile "pwiz.gopts" "PWIZ Core" "PWIZ core contains functions for core functionality. No guesses and knowledges are here, only engine skeleton, initialization and main loop." <pwiz.gopts >doc/pwiz.html
+DOCDEST=$PWD/doc
+mkdir -p "$DOCDEST/modules"
+docfile "pwiz.gopts" "PWIZ Core" "PWIZ core contains functions for core functionality. No guesses and knowledges are here, only engine skeleton, initialization and main loop." <pwiz.gopts >"$DOCDEST"/pwiz.html
 
 # FIXME: call it from PWIZ, implement such query to PWIZ
-cd modules
-for file in *.pwm ; do
-    docfile "$file" "Module ${file%.pwm}: $(bash $file desc)" "$(bash $file longdesc)" <$file >../doc/modules/${file%.pwm}.html
+cd "$1/modules"
+for file in *.pwm *.pwm.in ; do
+    docfile "$file" "Module ${file%.pwm*}: $(bash $file desc)" "$(bash $file longdesc)" <$file >"$DOCDEST"/modules/${file%.pwm*}.html
 done

@@ -3,34 +3,23 @@ PWIZ - A Packaging WIZard
 Purpose:
 
 PWIZ is a software tool, which should simplify packaging work in
-semi-automatic manner.
+semi-automatic way.
 
 STATE
 
 In current state, it basically works. Primarilly it is tested on GNOME
 related stuff.
 
-INSTALL
+RUNNING
 
-Before installation, please install a package installwatch.
-
-Copy pwiz and all related files into ~/pwiz.
-
-Run ./build.sh.
-
-Then do:
-
-cd pwiz
-./pwiz
-
-That's all.
+Simply run "pwiz" without arguments from command line. PWIZ is self
+descriptive.
 
 LIMITATIONS
 
 Current implementation has following limitations. I am working on its
 fixing:
 
-- Only FTP parsing support. No support for build from local files.
 - No error processing.
 - No support for neededforbuild, Requires etc.
 - No support for %pre, %post, %postun, %preun phase splitting to
@@ -43,4 +32,4 @@ fixing:
 
 WARNING
 
-Code is subject to changes.
+Code is still subject of changes.

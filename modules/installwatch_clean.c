@@ -3,9 +3,6 @@
 
 /* BUGS: failed/failedpath splitting can fail in multi task and multi thread environment. */
 
-/* for mempcpy() and getline() */
-#define _GNU_SOURCE
-
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>

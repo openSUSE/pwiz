@@ -35,7 +35,7 @@ function installwatch_SETUP {
 # Creates raw filelist from collected information. (internal)
 function installwatch_filelist_raw {
     # FIXME: Path.
-    cat $PWIZ_TMPDIR/installwatch/* | PWIZ_TMPDIR="$PWIZ_TMPDIR" ~/pwiz/watch/clean
+    cat $PWIZ_TMPDIR/installwatch/* | PWIZ_TMPDIR="$PWIZ_TMPDIR" @PW_HELPERDIR@/installwatch_clean
     # no callback needed, default echo does the right thing
 # installwatch works incorrectly for SUID and statically linked binaries (e. g. ldconfig).
 # we will combine it with simple find
@@ -58,7 +58,7 @@ function installwatch_run_wrapper {
     LD_PRELOAD_save="$LD_PRELOAD"
     export INSTW_LOGFILE=$PWIZ_TMPDIR/installwatch/$PWIZ_PHASE_CURRENT$PWIZ_STAGE_CURRENT
 # FIXME: path
-    export LD_PRELOAD="$LD_PRELOAD $HOME/pwiz/watch/installwatch.so"
+    export LD_PRELOAD="$LD_PRELOAD @PW_WRAPPERDIR@/pwizwatch.so"
     pwiz_run_wrap "$@"
     export LD_PRELOAD="$LD_PRELOAD_save"
 }

@@ -1,4 +1,3 @@
-/* FIXME: Finish exec wrappers */
 /*
  * Copyright (C) 1998-9 Pancrazio `Ezio' de Mauro <p@demauro.net>
  *
@@ -16,7 +15,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * $Id: installwatch.c,v 1.1 2004/06/10 13:41:54 sbrabec Exp $
+ * $Id: installwatch.c,v 0.7.0.4 2003/12/14 07:36:22 izto Exp $
  * 
  * april-15-2001 - Modifications by Felipe Eduardo Sanchez Diaz Duran
  *                                  <izto@asic-linux.com.mx>
@@ -24,9 +23,6 @@
  *
  * november-25-2002 - Modifications by Olivier Fleurigeon
  *                                  <olivier.fleurigeon@cegedim.fr>
- *
- * May-18-2004 Adapted for read support for Packaging Wizard by
- * Stanislav Brabec <sbrabec@suse.cz>
  */
 
 #include <sys/param.h>
@@ -94,13 +90,6 @@ static int (*true_symlink)(const char *, const char *);
 static int (*true_truncate)(const char *, TRUNCATE_T);
 static int (*true_unlink)(const char *);
 static int (*true_utime)(const char *,const struct utimbuf *);
-
-static int (*true_execv)(const char *,char *const []);
-static int (*true_execl)(const char *, const char *, ...);
-static int (*true_execve)(const char *,const char **,const char **);
-static int (*true_execle)(const char *, const char *, char *const [], ...);
-static int (*true_execvp)(const char *,const char **);
-static int (*true_execlp)(const char *, const char *, ...);
 
 #if(GLIBC_MINOR >= 1)
 
@@ -330,10 +319,6 @@ static void myinit(void) {
 	true_truncate    = dlsym(libc_handle, "truncate");
 	true_unlink      = dlsym(libc_handle, "unlink");
 	true_utime       = dlsym(libc_handle, "utime");
-
-	true_execv       = dlsym(libc_handle, "execv");
-/*	true_execve      = dlsym(libc_handle, "exece");
-	true_execvp      = dlsym(libc_handle, "execp"); */
 
 #if(GLIBC_MINOR >= 1)
 	true_creat64     = dlsym(libc_handle, "creat64");
@@ -2618,8 +2603,10 @@ int open(const char *pathname, int flags, ...) {
 	instw_print(&instw);
 #endif
 
-	backup(instw.truepath);
-	instw_apply(&instw);
+	if(flags & (O_WRONLY | O_RDWR)) {
+		backup(instw.truepath);
+		instw_apply(&instw);
+	}
 
 	instw_getstatus(&instw,&status);
 
@@ -2630,8 +2617,6 @@ int open(const char *pathname, int flags, ...) {
 	
 	if(flags & (O_WRONLY | O_RDWR)) 
 		log("%d\topen\t%s\t#%s\n",result,instw.reslvpath,error(result));
-	else
-		log("%d\tread\t%s\t#%s\n",result,instw.reslvpath,error(result));
 
 	instw_delete(&instw);
 
@@ -3084,37 +3069,6 @@ int utime (const char *pathname, const struct utimbuf *newtimes) {
 	instw_delete(&instw);
 
 	return result;
-}
-
-int execv (const char *filename, char *const argv[]) {
-	int result;
-	instw_t instw;
-
-	RLSYMS
-	
-#if DEBUG
-	debug(2,"execv(%s,)\n",filename);
-#endif
-
-	instw_new(&instw);
-	instw_setpath(&instw,filename);
-
-#if DEBUG
-	instw_print(&instw);
-#endif
-
-	backup(instw.truepath);
-	instw_apply(&instw);
-
-	/* Exec normally does not return, so we cannot log success. */
-	log("?\texec\t%s\t#unknown\n",result,instw.reslvpath,error(result));
-
-	instw_delete(&instw);
-
-	result=true_execv(filename,argv);
-	log("%d\texecfail\t%s\t#unknown\n",result,error(result));
-	return result;
-
 }
 
 #if(GLIBC_MINOR >= 1)

@@ -1,0 +1,9 @@
+This is a snapshot of installwatch package from checkinstall project.
+
+For actual source code, go to:
+http://asic-linux.com.mx/~izto/checkinstall/
+
+This version is modified to support read files watching.
+
+All changes done in sources are stored in readwatch.diff file.
+Makefile.am does not come from installwatch.

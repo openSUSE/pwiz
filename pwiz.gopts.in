@@ -1,4 +1,4 @@
-#! /bin/bash
+#! @PW_PATH_BASH@
 
 #%# FIXME: Should be removed everywhere. local variables are inherited
 #%# to functions called from function, where variable is local. It
@@ -17,7 +17,7 @@ shopt -s nullglob
 
 @program pwiz
 
-@version 0.01
+@version @PW_VERSION@
 
 @year 2004
 
@@ -167,7 +167,8 @@ pwiz_project_build=0
 # Debug prompt.
 function pwiz_prompt {
     local REPLY
-    local HISTFILE=~/.pwiz_history
+    mkdir -p ~/.pwiz
+    local HISTFILE=~/.pwiz/history
     echo
     vecho "Shell prompt. Empty line for exit. Mult-line strings are not allowed."
 # FIXME: Maybe global and trap
@@ -690,7 +691,7 @@ not_implemented=6
 #
 # Show description of engine implementation.
 function pwiz_engine_desc {
-    . ~/pwiz/engines/$1/$2.pwe desc
+    . @PW_DATADIR@/engines/$1/$2.pwe desc
 }
 
 #@ pwiz_engine_longdesc engine_class engine_name
@@ -699,7 +700,7 @@ function pwiz_engine_desc {
 #
 # Show long description of engine implementation.
 function pwiz_engine_longdesc {
-    . ~/pwiz/engines/$1/$2.pwe longdesc
+    . @PW_DATADIR@/engines/$1/$2.pwe longdesc
 }
 
 #@ pwiz_engine_load engine_class engine_name
@@ -710,7 +711,7 @@ function pwiz_engine_longdesc {
 #functions to use this engine.
 function pwiz_engine_load {
     local interface i
-    . ~/pwiz/engines/$1/$2.pwe
+    . @PW_DATADIR@/engines/$1/$2.pwe
     pwiz_engine_${1}_${2}_init
     pwiz_add_exit pwiz_engine_${1}_${2}_quit
     eval interface\=\"\$PWIZ_ENGINE_INTERFACE_$1\"
@@ -737,7 +738,7 @@ function pwiz_engine_load {
 # List all available engines of defined class.
 function pwiz_engine_list {
     (
-	cd ~/pwiz/engines/$1
+	cd @PW_DATADIR@/engines/$1
 # FIXME not sed, use pwiz_result instead of redirection
 	ls -1 | sed 's/\.pwe$//'
     )
@@ -2651,13 +2652,9 @@ function pwiz_phase_restore {
 function pwiz_modules_list {
     local file
     (
-	cd ~/pwiz/modules
+	cd @PW_DATADIR@/modules
 # FIXME: Use pwiz_result instead of redirection
 	for file in *.pwm ; do
-#FIXME for debugging only
-	    if [ "${file:$((${#file}-1))}" = "~" ] ; then
-		continue
-	    fi
 	    echo ${file%.pwm}
 	done
     )
@@ -2688,7 +2685,7 @@ function pwiz_modules_load {
 #
 # Prints module description.
 function pwiz_module_desc {
-    . ~/pwiz/modules/$1.pwm desc
+    . @PW_DATADIR@/modules/$1.pwm desc
 }
 
 #@ pwiz_module_longdesc module
@@ -2696,7 +2693,7 @@ function pwiz_module_desc {
 #
 # Prints module long description.
 function pwiz_module_longdesc {
-    . ~/pwiz/modules/$1.pwm longdesc
+    . @PW_DATADIR@/modules/$1.pwm longdesc
 }
 
 pwiz_module_current="ERROR"
@@ -2725,11 +2722,11 @@ function pwiz_module_source {
     local pwiz_module_current_save
     pwiz_module_current_save="$pwiz_module_current"
     pwiz_module_current=$1
-    if ! test -f ~/pwiz/modules/$1.pwm ; then
+    if ! test -f @PW_DATADIR@/modules/$1.pwm ; then
 	pwiz_fatal "module $1 not found"
     fi
     shift
-    . ~/pwiz/modules/$pwiz_module_current.pwm "$@"
+    . @PW_DATADIR@/modules/$pwiz_module_current.pwm "$@"
     pwiz_module_current="$pwiz_module_current_save"
 }
 

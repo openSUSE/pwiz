@@ -1,0 +1,55 @@
+#                                               -*- Autoconf -*-
+# Process this file with autoconf to produce a configure script.
+
+AC_INIT([pwiz], [0.01], [sbrabec@suse.cz])
+AC_CONFIG_SRCDIR([pwiz.gopts.in])
+AM_CONFIG_HEADER([config.h])
+AM_INIT_AUTOMAKE([dist-bzip2])
+AC_ARG_WITH([docdir], [path for documentation],
+  [docdir="$ac_arg_with"], [docdir='${datadir}/doc'])
+AC_SUBST([docdir], ["${docdir}"])
+
+# Static wrappers are impossible and pwiz does not contain any other libraries.
+AC_DISABLE_STATIC
+
+# Checks for programs.
+AC_PROG_CC
+AM_PROG_LIBTOOL
+AC_PATH_PROG([PATH_BASH], [bash])
+
+# Checks for libraries.
+
+# Checks for header files.
+AC_HEADER_DIRENT
+AC_HEADER_STDC
+AC_CHECK_HEADERS([fcntl.h stdlib.h string.h sys/param.h syslog.h unistd.h utime.h])
+
+# Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+AC_TYPE_UID_T
+AC_C_INLINE
+AC_TYPE_MODE_T
+AC_TYPE_PID_T
+AC_TYPE_SIZE_T
+AC_CHECK_MEMBERS([struct stat.st_rdev])
+
+# Checks for library functions.
+AC_FUNC_CHOWN
+AC_FUNC_CLOSEDIR_VOID
+AC_FUNC_ERROR_AT_LINE
+AC_FUNC_MALLOC
+AC_FUNC_REALLOC
+AC_FUNC_UTIME_NULL
+AC_CHECK_FUNCS([ftruncate getcwd lchown mkdir realpath rmdir strdup strerror strstr utime])
+AC_CONFIG_FILES([
+genopts/Makefile
+modules/Makefile
+engines/Makefile
+engines/cache/Makefile
+engines/pkgdb/Makefile
+engines/question/Makefile
+engines/storage/Makefile
+installwatch-0.7.0beta3/Makefile
+Makefile
+])
+AC_OUTPUT

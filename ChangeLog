@@ -1,3 +1,28 @@
+2004-07-09  Stanislav Brabec  <sbrabec@unicorn.suse.cz>
+
+	* watch/clean.c, watch/installwatch.c, modules/Makefile.am,
+	modules/installwatch.pwm, modules/installwatch.pwm.in,
+	modules/installwatch_clean.c, installwatch-0.7.0beta3/TODO,
+	installwatch-0.7.0beta3/VERSION,
+	installwatch-0.7.0beta3/create-localdecls,
+	installwatch-0.7.0beta3/description-pak,
+	installwatch-0.7.0beta3/installwatch.c,
+	installwatch-0.7.0beta3/installwatch.sh,
+	installwatch-0.7.0beta3/libctest.c,
+	installwatch-0.7.0beta3/readwatch.diff,
+	installwatch-0.7.0beta3/test-installwatch.c,
+	installwatch-0.7.0beta3/BUGS, installwatch-0.7.0beta3/CHANGELOG,
+	installwatch-0.7.0beta3/COPYING, installwatch-0.7.0beta3/INSTALL,
+	installwatch-0.7.0beta3/Makefile.am,
+	installwatch-0.7.0beta3/README,
+	installwatch-0.7.0beta3/README.PWIZ, genopts/Makefile.am,
+	genopts/genopts, engines/storage/Makefile.am,
+	engines/question/Makefile.am, engines/pkgdb/Makefile.am,
+	engines/cache/Makefile.am, engines/cache/file.pwe,
+	engines/Makefile.am, Makefile.am, NEWS, README, autogen.sh,
+	build.sh, configure.in, pwiz.gopts, pwiz.gopts.in, pwizdoc,
+	AUTHORS, ChangeLog, INSTALL: Prepared for packaging.
+
 2004-07-02  Stanislav Brabec  <sbrabec@suse.cz>
 
 	* pwiz.gopts: Options only.
