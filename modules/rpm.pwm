@@ -45,15 +45,32 @@ case $1 in
 	rpm_files_args=
 	;;
     rpmsetup )
+	# FIXME: Extract these attributes from spec file, if it exists, either old one or bundled.
 	rpm_add_preamble Name         $pwiz_project_project
 	rpm_add_preamble Version      $pwiz_project_version
-	rpm_add_preamble Group        FIXME
-	rpm_add_preamble License      FIXME
+	pwiz_ask_string "Enter RPM group for this package." \
+	    "RPM requires assigning group attribute for any package created. You should select one of the list." \
+	    q=rpm_group__ default=Other p=0
+	rpm_group="$pwiz_answer"
+	rpm_add_preamble Group        "$rpm_group"
+	pwiz_ask_string "Enter RPM license for this package." \
+	    "RPM requires assigning license attribute for any package created. You should select one of the list." \
+	    q=rpm_license default=GPL p=0
+	rpm_license="$pwiz_answer"
+	rpm_add_preamble License      "$rpm_license"
 	rpm_add_preamble Release      0
 	rpm_add_preamble Source       $package_uri
 	rpm_add_preamble BuildRoot    %{_tmppath}/%{name}-%{version}-build
-	rpm_add_preamble Summary      FIXME
-	rpm_add_description           FIXME
+	pwiz_ask_string "Enter RPM summary for this package." \
+	    "RPM requires assigning one-line summary attribute for any package created. You should now write any." \
+	    q=rpm_summary__ default= p=0
+	rpm_summary__="$pwiz_answer"
+	rpm_add_preamble Summary      "$rpm_summary__"
+	pwiz_ask_string "Enter RPM description for this package." \
+	    "RPM requires assigning multiple line summary attribute for any package created. You should now write any." \
+	    q=rpm_description__ default= p=0
+	rpm_description__="$pwiz_answer"
+	rpm_add_description           "$rpm_description__"
 	return
 	;;
     rpm_files_finish )
@@ -251,8 +268,18 @@ function rpm_subpackage_add {
     rpm_subpackage_list="$rpm_subpackage_list $1"
     eval rpm_description__$1\=FIXME
 # FIXME:
-    rpm_add_preamble Group        FIXME $1
-    rpm_add_preamble Summary      FIXME $1
+    pwiz_ask_string "Enter RPM group for subpackage $1." \
+	"PWIZ decided to split binary RPM. It requires assigning group attribute for subpackage $1. You should select one of the list." \
+	q=rpm_group__$1 default="$rpm_group__" p=20
+    rpm_add_preamble Group        "$pwiz_answer" $1
+    pwiz_ask_string "Enter RPM summary for subpackage $1." \
+	"PWIZ decided to split binary RPM. It requires assigning one-line summary for subpackage $1. You should now write any." \
+	q=rpm_summary__$1 default="$rpm_summary__" p=20
+    rpm_add_preamble Summary      "$pwiz_answer" $1
+    pwiz_ask_string "Enter RPM description for this package." \
+	"RPM requires assigning multiple line summary attribute for any package created. You should now write any." \
+	q=rpm_description__ default="$rpm_description__" p=0
+    rpm_add_description           "$pwiz_answer" $1
 }
 declare -a rpm_preamble__
 rpm_subpackage_list=
@@ -270,7 +297,6 @@ function rpm_add_preamble {
 
 # rpm_add_description description subpackage
 function rpm_add_description {
-    rpm_add_preamble_line "" $2
     eval 'rpm_description__'$2'="$1"'
 }
 

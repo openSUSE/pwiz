@@ -300,6 +300,7 @@ function filelist_simplify_compare_file_pattern_use {
     return $rc
 }
 
+# FIXME: Those should be in platform part.
 filelist_simplify_add_pattern "man?/*.*"
 filelist_simplify_add_pattern "*.*a" "*.so.*" "*.so"
 
