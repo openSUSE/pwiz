@@ -11,8 +11,7 @@ case $1 in
 	;;
     init )
 	pwiz_module_needs filelist
-	pwiz_phase_new filelist_simplify before filelist_finish
-	pwiz_phase_add_callme filelist_simplify
+	pwiz_phase_new_callme filelist_simplify before filelist_finish
 	;;
     filelist_simplify )
 	unset filelist_simplify_files
@@ -21,18 +20,17 @@ case $1 in
 	unset filelist_simplify_oattr
 	unset filelist_simplify_globs
 
-set -x
 	# Read file list to memory
 	filelist_simplify_count=0
 	filelist_simplify_ocount=0
 	exec 3<$filelist_file
 	while read -u3 find_lang_file ; do
 	    case "${find_lang_file##* }" in
-		file | dir )
+		file* | dir* )
 		    filelist_simplify_files[filelist_simplify_count]="${find_lang_file% *}"
 		    filelist_simplify_attr[filelist_simplify_count++]="${find_lang_file##* }"
 		    ;;
-		ofile | odir )
+		ofile* | odir* )
 		    filelist_simplify_ofiles[filelist_simplify_ocount]="${find_lang_file% *}"
 		    filelist_simplify_oattr[filelist_simplify_ocount++]="${find_lang_file##* }"
 		    ;;
@@ -88,6 +86,7 @@ echo "*** removing globbed ${filelist_simplify_files[filelist_simplify_count2]}"
 
 	done
 
+# FIXME:
 set >$filelist_file_tmp.set
 	pwiz_redirect_stdout $filelist_file_tmp
 	# Output result
@@ -100,6 +99,7 @@ set >$filelist_file_tmp.set
 	    echo "${filelist_simplify_ofiles[filelist_simplify_count]} ${filelist_simplify_oattr[filelist_simplify_count]}"
 	done
 	for (( filelist_simplify_count=0 ; filelist_simplify_count < ${#filelist_simplify_globs[@]} ; filelist_simplify_count++ )) ; do
+# FIXME: attributes after glob: glob@sub=package-devel@doc
 	    echo "${filelist_simplify_globs[filelist_simplify_count]} glob"
 	done
 	unset filelist_simplify_files
@@ -108,10 +108,10 @@ set >$filelist_file_tmp.set
 	unset filelist_simplify_oattr
 	unset filelist_simplify_globs
 	pwiz_redirect_stdout_close
+# FIXME:
 cp -a $filelist_file $filelist_file_tmp.sim1
 cp -a $filelist_file_tmp $filelist_file_tmp.sim2
 	LC_ALL=C sort <$filelist_file_tmp | uniq >$filelist_file
-set +x
 	return
 	;;
     version )

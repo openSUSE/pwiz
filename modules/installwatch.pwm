@@ -24,7 +24,7 @@ case $1 in
 	IFS=$'\t\n'
 	for installwatch_stage in $PWIZ_TMPDIR/installwatch/* ; do
 	    exec 3<$installwatch_stage
-	    while read -u3 installwatch_a1 installwatch_a2 installwatch_a3 installwatch_a4 ; do
+	    while read -u3 installwatch_a1 installwatch_a2 installwatch_a3 installwatch_a4 installwatch_a5 ; do
 		case "$installwatch_a2" in
 		    open )
 			echo "$installwatch_a3" file
@@ -39,13 +39,16 @@ case $1 in
 		esac
 	    done
 	    exec 3<&-
-# installwatch works incorrectly for SUID and statically linked binaries (e. g. ldconfig).
-# we need to combine it with simple find
 	done
 	IFS="$installwatch_IFS_save"
 	# no callback needed, default echo does the right thing
+# installwatch works incorrectly for SUID and statically linked binaries (e. g. ldconfig).
+# we will combine it with simple find
+echo $pwiz_callback >/tmp/pwc
 	pwiz_find_d $PWIZ_INSTALLROOT
 	filelist_raw_close
+# FIXME: remove this line
+	cp -a $filelist_raw_file $filelist_raw_file.iw
 	return
 	;;
     version )

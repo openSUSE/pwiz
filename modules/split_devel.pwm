@@ -1,0 +1,44 @@
+#! /bin/bash
+
+case $1 in
+    desc )
+	echo "split devel sub-package"
+	return
+	;;
+    longdesc )
+	echo "This module provides splitting -devel files from base package. It is useful for ordinary users, who do not need to install all development files."
+	return
+	;;
+    init )
+	pwiz_module_needs filelist
+	filelist_inspect_provider
+	;;
+    filelist_inspect )
+	exec 3<$filelist_file
+	pwiz_redirect_stdout $filelist_file_tmp
+	while read -u3 find_lang_file ; do
+	    case "${find_lang_file% *}" in
+# FIXME: lib64 - biarch must be run before
+# FIXME: allow file list modification
+# FIXME: allow manual additions
+		$libdir/*.so | $libdir/*.la | $includedir/* | $libdir/pkgconfig/*.pc )
+		    echo "$find_lang_file@sub=devel"
+		    ;;
+		* )
+		    echo "$find_lang_file"
+		    ;;
+	    esac
+	done
+	exec 3<&-
+	pwiz_redirect_stdout_close
+	mv $filelist_file_tmp $filelist_file
+	return
+	;;
+    version )
+	echo "0.1"
+	return
+	;;
+    * )
+	return
+	;;
+esac

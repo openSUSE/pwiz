@@ -142,3 +142,38 @@ function filelist_generate {
     pwiz_module_exec filelist filelist_raw
     pwiz_module_exec filelist filelist_clean
 }
+
+# FIXME: can be alias?
+# FIXME: tag oriented?
+#@ filelist_read_item line
+#@ Input: filelist line
+#@ Returns:
+#@ $filelist_name
+#@ $filelist_filetype
+#@ $filelist_subtype
+#@ $filelist_attr
+#@ $filelist_sub
+function filelist_read_item {
+    filelist_name="${1% *}"
+    local tagline="${1##* }"
+    filelist_type="${tagline%%@*}"
+    filelist_category=
+    filelist_attr=
+    filelist_sub=
+    local IFS="${IFS}@"
+    local tag val
+    for tag in ${tagline#*@} ; do
+	val="${tag#*=}"
+	case "${tag%%=*}" in
+	    cat )
+		filelist_category="$val"
+		;;
+	    attr )
+		filelist_attr="$val"
+		;;
+	    sub )
+		filelist_sub="$val"
+		;;
+	esac		
+    done
+}

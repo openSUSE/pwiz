@@ -65,25 +65,32 @@ case $1 in
     rpm_files_list )
 # FIXME: move to globals or other section, do not create final list, but replace dir -> systemdir
 	exec 3<$filelist_file
-	while read -u3 rpm_file ; do
-	    case "${rpm_file##* }" in
-		file )
-		    pwiz_phase_add_rem rpm_files_list "${rpm_file% *}"
-		    ;;
-		dir )
-		    pwiz_phase_add_rem rpm_files_list "%dir ${rpm_file% *}"
-		    ;;
-		odir | ofile )
-		    ;;
-		glob )
-		    pwiz_phase_add_rem rpm_files_list "${rpm_file% *}"
-		    ;;
-		* )
-		    pwiz_fatal "unknown item attribute ${rpm_file##* }"
-		    ;;
-	    esac
+	exec 4>$PWIZ_TMPDIR/rpm_sub_tmp
+	while read -u3 rpm_item ; do
+	    filelist_read_item "$rpm_item"
+	    if test "$filelist_sub" = "" ; then
+		rpm_files_create
+	    else
+		echo "$filelist_sub" >&4
+	    fi
 	done
 	exec 3<&-
+	exec 4>&-
+# FIXME: This should be in general part.
+	uniq <$PWIZ_TMPDIR/rpm_sub_tmp | LC_ALL=C sort | uniq >$PWIZ_TMPDIR/rpm_sub
+	for rpm_supbackage in $(<$PWIZ_TMPDIR/rpm_sub) ; do
+	    pwiz_phase_add_rem rpm_files_list ""
+# FIXME: support rpm_files_args
+	    pwiz_phase_add_rem rpm_files_list "%files $rpm_supbackage"
+	    exec 3<$filelist_file
+	    while read -u3 rpm_item ; do
+		filelist_read_item "$rpm_item"
+		if test "$filelist_sub" = "$rpm_supbackage" ; then
+		    rpm_files_create
+		fi
+	    done
+	    exec 3<&-
+	done
 	return
 	;;
     version )
@@ -213,4 +220,29 @@ function rpm_subst_names {
     pwiz_result="$1"
     pwiz_result=${pwiz_result//$pwiz_project_project/%\{name\}}
     pwiz_result=${pwiz_result//$pwiz_project_version/%\{version\}}
+}
+
+#@ rpm_files_create (no args) (internal)
+function rpm_files_create {
+    if test "$filelist_category" = doc ; then
+	rpm_item_prefix="%doc "
+    else
+	rpm_item_prefix=""
+    fi
+    case $filelist_type in
+	file )
+	    pwiz_phase_add_rem rpm_files_list "$rpm_item_prefix$filelist_name"
+	    ;;
+	dir )
+	    pwiz_phase_add_rem rpm_files_list "$rpm_item_prefix%dir $filelist_name"
+	    ;;
+	odir | ofile )
+	    ;;
+	glob )
+	    pwiz_phase_add_rem rpm_files_list "$rpm_item_prefix$filelist_name"
+	    ;;
+	* )
+	    pwiz_fatal "unknown item attribute $filelist_type"
+	    ;;
+    esac
 }
