@@ -486,8 +486,12 @@ eval "$HELP"
 echo "$DEFAULTS_TXT$BUGSTO\"
 ${TAB[1]}exit 0
 ${TAB[0]}}
+"
 
-${TAB[0]}declare -a ARGV$DEFVARS"
+if ! $OPTIONS_ONLY
+then
+    echo "${TAB[0]}declare -a ARGV$DEFVARS"
+fi
 
 echo "
 ${TAB[0]}${FUNCKEY1}optarg_parse$FUNCKEY2${LINEUP_BRACE:-
