@@ -41,7 +41,7 @@ function rpm_doc_check {
 		case $md5sum in
 # FIXME: Make it configurable
 # Default GNU install files. No useful per-package information.
-		    0d6be33865b76025c20b48bcac87adb7 )
+		    0d6be33865b76025c20b48bcac87adb7 | 9f3e20fdff9c78aa8e3f9b42be166769 | d7adbcf07c5c813693ddf958be9c40e3 )
 			;;
 		    * )
 			pwiz_array_add rpm_doc_files "$file"
