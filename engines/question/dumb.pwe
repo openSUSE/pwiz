@@ -59,16 +59,15 @@ function pwiz_engine_question_dumb_quit {
     :
 }
 
-# pwiz_question_yesno desc longdesc #%#[ tags ... ]
+# pwiz_question_yesno desc longdesc
 # FIXME: Probably obsolete - replaced by special case of ask_string
-# pwiz_question_string desc longdesc #%#[ tags ... ]
+# pwiz_question_string desc longdesc
 function pwiz_engine_question_dumb_string {
     local desc longdesc guesses_count selection bdefault edefault default REPLY
 
     desc="$1"
     longdesc="$2"
     shift 2
-#%#    pwiz_read_tags
     while : ; do
 	echo "$pwiz_engine_question_dumb_desc_begin$desc$pwiz_engine_question_dumb_desc_end"
 	for (( guesses_count=0 ; guesses_count < ${#pwiz_guesses[*]} ; guesses_count++ )) ; do
@@ -177,7 +176,7 @@ function pwiz_engine_question_dumb_string {
     done
 }
 
-# pwiz_question_radio desc longdesc #%#[ tags ... ]
+# pwiz_question_radio desc longdesc
 # FIXME: obsolete, should be removed
 function pwiz_engine_question_dumb_radio_remove_me {
     local desc longdesc guesses_count bdefault edefault default REPLY
@@ -243,7 +242,6 @@ function pwiz_engine_question_dumb_list {
     desc="$1"
     longdesc="$2"
     shift 2
-#%#    pwiz_read_tags
     if test "$pwiz_guess_best_value" = @@PWIZ_UNDEFINED@@ ; then
 	pwiz_answer=" "
     else

@@ -1,9 +1,5 @@
 #! @PW_PATH_BASH@
 
-#%# FIXME: Should be removed everywhere. local variables are inherited
-#%# to functions called from function, where variable is local. It
-#%# changes this code.
-
 unalias -a
 shopt -s expand_aliases
 # FIXME: Set it on for debugging purposes. Otherwise strange globbing problems can occur in real life.
@@ -1190,7 +1186,6 @@ pwiz_debug_feature guess "internals of guessing" "This feature turns on displayi
 #increase or decrease default credibility of answer done in other
 #version.
 function pwiz_guess_credit_version {
-#%#    pwiz_read_tags
     if test "$pwiz_project_version" = "$pwiz_item_version" ; then
 	pwiz_credit=100
     else
@@ -1251,18 +1246,6 @@ function pwiz_guess_credit {
 #internally by @pwiz_ask_core.
 function pwiz_guess {
     local key_found is_new tags count v_total v_default v_c v_p v_string v_hotkey callback
-
-#%#    pwiz_read_tags
-#%#    pwiz_keys_set
-#%#    local pwiz_key
-#%@### Moved to pwiz_ask_core
-#%#    # Add '*' to pattern for keys, where credit inheritance function exists.
-#%#    for pwiz_key in $pwiz_key_list ; do
-#%#	if test "$(type -t "pwiz_guess_credit_$pwiz_key")" = function ; then
-#%#	    eval $pwiz_key\=\'\*\'
-#%#	fi
-#%#    done
-#%#    pwiz_cache_validity_apply
 
     # Imported local variables:
     # pwiz_guesses pwiz_credits pwiz_p pwiz_pc pwiz_strings pwiz_hotkeys pwiz_p_other
@@ -1334,7 +1317,7 @@ function pwiz_guess {
 		pwiz_cache_key_credit="$pwiz_vtag_credit"
 	    fi
 	    # FIXME: Probably ignore cached probability.
-	    pwiz_guess_credit #%#"$tags"
+	    pwiz_guess_credit
 # FIXME: Maybe parse tags to find string and hotkey.
 # FIXME: Maybe implement allow_inherited_tags=true to allow to parse tags in old values.
 	    # FIXME: Ignore cached probability or use something better than pwiz_p?
@@ -1648,7 +1631,7 @@ function pwiz_ask_core {
     pwiz_reset_tags
     pwiz_read_tags
     pwiz_answer="$pwiz_answer_save"
-    pwiz_guess #%#"$@"
+    pwiz_guess
 
     if $pwiz_tag_no_default ; then
 	pwiz_guess_best_value=@@PWIZ_UNDEFINED@@

@@ -1,5 +1,8 @@
 2004-07-13  Stanislav Brabec  <sbrabec@suse.cz>
 
+	* engines/question/dumb.pwe, pwiz.gopts.in: Removed old tags
+	reading commands.
+
 	* modules/gnu_configure.pwm: GNU path checks rewritten.
 
 2004-07-09  Stanislav Brabec  <sbrabec@suse.cz>
