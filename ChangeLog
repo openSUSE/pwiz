@@ -5,7 +5,7 @@
 	modules/installwatch.pwm.in, modules/ldconfig.pwm,
 	modules/manual.pwm, modules/rpm.pwm, modules/version.pwm,
 	ChangeLog, configure.in, pwiz.gopts.in: Typo fixes. Added
-	html.pwm.
+	html.pwm and html_printurls.
 
 	* develdoc.txt, userdoc.txt: Updated documentation.
 
