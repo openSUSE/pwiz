@@ -1,3 +1,18 @@
+2005-03-30  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/Makefile.am: Typo fix in pwizhelper_SCRIPTS.
+
+	* modules/package.pwm: Reimplemented package_collect_uri.
+
+	* modules/uri.pwm: Implemented uri_callback.
+
+	* modules/ftp.pwm, modules/http.pwm.in, modules/sourceforge.pwm:
+	Use uri_callback.
+
+	* modules/unpack.pwm, genopts/genopts_example.gopts: Typo fix.
+
+	* NEWS: Update.
+
 2004-12-22  Stanislav Brabec  <sbrabec@suse.cz>
 
 	* modules/Makefile.am, modules/freshmeat.pwm.in,
