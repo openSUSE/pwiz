@@ -1,0 +1,64 @@
+#! /bin/bash
+
+case $1 in
+    desc )
+	echo "simple file cache engine"
+	return
+	;;
+    longdesc )
+	echo "This engine stores all answers to ~/pwiz/cache."
+	return
+	;;
+esac
+
+# pwiz_cache_init
+function pwiz_engine_cache_file_init {
+    mkdir -p ~/pwiz/cache
+}
+
+# pwiz_cache_quit
+function pwiz_engine_cache_file_quit {
+    :
+}
+
+#@ pwiz_cache_read key
+function pwiz_engine_cache_file_read {
+    pwiz_result="$(cat ~/pwiz/cache/$1/CONTENTS)"
+}
+
+#@ pwiz_cache_read key
+function pwiz_engine_cache_file_read_tags {
+    pwiz_result="$(cat ~/pwiz/cache/$1/TAGS)"
+}
+
+# pwiz_cache_write key value [tags]
+function pwiz_engine_cache_file_write {
+    local key=$1 tag tags=""
+    mkdir -p ~/pwiz/cache/$key
+    echo "$2" >~/pwiz/cache/$key/CONTENTS
+    shift 2
+    for tag in "$@" ; do
+	tag=${tag/\'/\'\\\'\'}\'
+        tag=${tag/=/=\'}
+	tags="$tags $tag"
+    done
+    echo "${tags# }" >~/pwiz/cache/$key/TAGS
+}
+
+# pwiz_cache_delete key
+function pwiz_engine_cache_file_delete {
+    rm -f ~/pwiz/cache/$1/CONTENTS
+    rm -f ~/pwiz/cache/$1/TAGS
+    rmdir -p ~/pwiz/cache/$1
+}
+
+#@ pwiz_cache_list pattern
+function pwiz_engine_cache_file_list {
+    pwiz_result="$(
+	shopt -s nullglob
+	cd ~/pwiz/cache
+	for i in $1 ; do
+	    echo $i
+	done
+    )"
+}

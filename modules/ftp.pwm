@@ -1,0 +1,63 @@
+#! /bin/bash
+
+case $1 in
+    desc )
+	echo "anonymous FTP downloading and listing module"
+	return
+	;;
+    longdesc )
+	echo "This module provides functions for anonymous FTP listings and downloads."
+	return
+	;;
+    init )
+	;;
+    version )
+	echo "0.1"
+	return
+	;;
+    * )
+	return
+	;;
+esac
+
+#@ ftp_list URL callback
+# FIXME: Check, whether works for atypical characters in URL
+function ftp_list_recursive {
+    local REPLY pwiz_callback_save
+    mkdir -p $PWIZ_CACHEDIR/ftp
+    if ! wget -P $PWIZ_CACHEDIR/ftp -N -nr -r -R '*' $1 ; then
+	echo "*** $1 not found"
+	return 1
+    fi
+    shopt -s dotglob
+    pwiz_callback_save=$pwiz_callback
+    pwiz_callback=ftp_list_recursive_callback
+    pwiz_find "${1#ftp://}" $PWIZ_CACHEDIR/ftp/ "$pwiz_callback_save"
+    pwiz_callback=$pwiz_callback_save
+    shopt -u dotglob
+}
+
+#@ ftp_list_recursive_callback (internal function)
+#@ FIXME: symlinks in listings
+function ftp_list_recursive_callback {
+    local flags links user group size mount day yearhour name
+    if test "$1" != "${1%/.listing}" ; then
+	exec 3<"$PWIZ_CACHEDIR/ftp/$1"
+	while read -u3 flags links user group size mount day yearhour name ; do
+	    eval name=$'"${name%%\r}"'
+	    $2 "ftp://${1%/.listing}/$name"
+	done
+	exec 3<&-
+    fi
+}
+
+# FIXME: storage location and storage engine
+#@ ftp_get URL
+function ftp_get {
+    local rc
+    cd $PWIZ_CACHEDIR
+    wget -N "$1"
+    rc=$?
+    cd -
+    return $rc
+}

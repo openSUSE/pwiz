@@ -1,0 +1,88 @@
+#! /bin/bash
+
+case $1 in
+    desc )
+	echo "archive unpacking"
+	return
+	;;
+    longdesc )
+	echo "This module analyzes filename and tries to unpack it."
+	return
+	;;
+    init )
+	pwiz_module_uses archive
+	pwiz_phase_new unpack after setup
+	pwiz_phase_add_callme_arg unpack prepare
+	pwiz_phase_add_callme package
+	;;
+    version )
+	echo "0.1"
+	return
+	;;
+    package )
+	# FIXME: More archives.
+	unpack_prepare
+	return
+	;;
+    prepare )
+# FIXME: URI / name .tar.gz can be .tar.bz2. More archives to unpack.
+set -x
+	cp -a "$PWIZ_CACHEDIR/${package_uri##*/}" $PWIZ_SRCDIR
+	cd $PWIZ_UNPACKDIR
+set +x
+	return
+	;;
+# FIXME: Make a function
+    search_dirname )
+	unpack_dirname=
+	for unpack_name in * ; do
+	    if test -d "$unpack_name" ; then
+		if test -z "$unpack_dirname" ; then
+		    unpack_dirname="$unpack_name"
+		else
+		    pwiz_fatal "FIXME: unpacking without topdir is not yet implemented"
+		fi
+	    else
+		pwiz_fatal "FIXME: unpacking without topdir is not yet implemented"
+	    fi
+	done
+	return
+	;;
+    * )
+	return
+	;;
+esac
+
+#@ Output: pwiz_result:
+# FIXME: is ugly, has no callback
+function unpack_check_extension {
+    local ext
+    case "$1" in
+	*.tar.gz )
+	    ext=.tar.gz
+	    unpack_seq="tar -z -x -f"
+	    ;;
+	*.tgz )
+	    ext=.tgz
+	    unpack_seq="tar -z -x -f"
+	    ;;
+	*.tar.bz2 )
+	    ext=.tar.bz2
+	    unpack_seq="tar -j -x -f"
+	    ;;
+	*.tbz2 )
+	    ext=.tbz2
+	    unpack_seq="tar -j -x -f"
+	    ;;
+	* )
+	    return 1
+	    ;;
+    esac
+    pwiz_result="${1%$ext}"
+}
+
+function unpack_prepare {
+	pwiz_phase_add_run_eval unpack '$unpack_seq "$PWIZ_SRCDIR/${package_uri##*/}"'
+	pwiz_phase_add_callme_arg unpack search_dirname
+	pwiz_phase_add_run_eval unpack 'cd "$unpack_dirname"'
+}

@@ -1,0 +1,35 @@
+#! /bin/bash
+
+case $1 in
+    desc )
+	echo "RPM database engine"
+	return
+	;;
+    longdesc )
+	echo "This engine contacts RPM database for answering package-related questions."
+	return
+	;;
+esac
+
+# pwiz_pkgdb_init
+function pwiz_engine_pkgdb_rpm_init {
+    :
+}
+
+# pwiz_pkgdb_quit
+function pwiz_engine_pkgdb_rpm_quit {
+    :
+}
+
+# pwiz_pkgdb_what_owns file
+function pwiz_engine_pkgdb_rpm_what_owns {
+    local package package_count=0
+    unset pwiz_result
+    shopt -s extglob
+    for package in $(rpm 2>/dev/null -qf "$@") ; do
+	pwiz_result[$package_count]=${package%-*([^-])-*([^-])}
+	echo "****** $* owns ${package%-*([^-])-*([^-])}"
+	let package_count++
+    done
+    shopt -u extglob
+}

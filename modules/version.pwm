@@ -1,0 +1,131 @@
+#! /bin/bash
+
+case $1 in
+    desc )
+	echo "version compare functions"
+	return
+	;;
+    longdesc )
+	echo "This module compares versions. It also defines version policies (i. e. which versions are considered as usable)."
+	return
+	;;
+    init )
+	;;
+    version )
+	echo "0.1"
+	return
+	;;
+    * )
+	return
+	;;
+esac
+
+#@ version_parse version_string dest
+# Returns: ${pwiz_result[@]}
+#
+function version_parse {
+    local vstr substr count=0
+    unset pwiz_result
+    vstr="$1"
+    shopt -s extglob
+    while ! test -z "$vstr" ; do
+	substr="${vstr#+([0-9])}"
+	pwiz_result[$count]="${vstr%$substr}"
+	if test "$vstr" != "$substr" ; then
+# known version element separators
+	    vstr="${substr#[._-]}"
+	    let count++
+	else
+	    echo "FIXME: unparsable version substring $vstr"
+	    break
+	fi
+    done
+    shopt -u extglob
+}
+
+# FIXME: comparison and strings of alpha/beta
+#@ version_compare p1 p2
+# WARNING: p1 and p2 are used without $
+# Returns: 0: p1 newer than p2
+# Returns: 1: p1 older than p2
+# Returns: 2: p1 equal to p2
+function version_compare {
+    local -a p1 p2 count
+    eval p1='( "${'$1'[@]}" )'
+    eval p2='( "${'$2'[@]}" )'
+    if test ${#p1[@]} -gt ${#p2[@]} ; then
+	local max=${#p1[@]}
+    else
+	local max=${#p2[@]}
+    fi
+    for (( count=0 ; count < $max ; count++ )) ; do
+	if [[ "${p1[$count]}" > "${p2[$count]}" ]] ; then
+	    return 0
+	else
+	    if [[ "${p1[$count]}" < "${p2[$count]}" ]] ; then
+		return 1
+	    fi
+	fi
+    done
+    return 2
+}
+
+#@ version_policy_register name string
+# name is function name without leading version_policy_
+# Register version policy to version policy registry.
+function version_policy_register {
+    local str
+    if test -z "$2" ; then
+	version_policy_register_string="${version_policy_register_string}default[$version_policy_register_counter]=$1 p[$version_policy_register_counter]=0 "
+    else
+	tmp=${2/\'/\'\\\'\'}
+	version_policy_register_string="${version_policy_register_string}default[$version_policy_register_counter]=$1 string[$version_policy_register_counter]='$tmp' p[$version_policy_register_counter]=0 "
+    fi
+}
+version_policy_register_string=""
+version_policy_register_counter=0
+
+#@ version_policy_{type} version_array
+# WARNING: version_array is used without $
+# Returns: 0: is considered stable
+# Returns: 1: is considered unstable
+# FIXME: higher return codes should be available.
+
+function version_policy_even_subversion_is_stable {
+    local -a version_array
+    eval version_array='( "${'$1'[@]}" )'
+# FIXME: situation, if subversion is not number, no-test etc.
+    if test -z "${version_array[1]}" ; then
+	return 1
+    fi
+    test $(( ${version_array[1]} / 2 * 2 )) = "${version_array[1]}"
+}
+version_policy_register even_subversion_is_stable "even minor version means stable version"
+
+#@ version_ask_policy
+# WARNING: Call it after setting $pwiz_project_project!
+function version_ask_policy {
+	eval pwiz_ask_string '"Select package version policy." \
+	    "You should now define version policy of selected project your product, i. e. which versions are stable and which unstable. To define new one, you must create a module."' \
+	    q=version_policy "${version_policy_register_string}"valid=project allow_new=false
+	if test "$(type -t "version_policy_$pwiz_answer")" != function ; then
+	    pwiz_fatal "invalid version policy $version_project_policy (probably removed some modules from PWIZ)"
+	fi
+	version_project_policy=$pwiz_answer
+}
+
+# FIXME: higher return codes should be available.
+function version_ask_product_policy {
+	pwiz_ask_string "Select project version policy for your product." \
+	    "Project version policy of your product, means, which version will qualify to your product." \
+	    q=version_product_policy_threshold \
+	    string[0]="all versions will qualify" default[0]=1 p[0]=0 \
+	    string[1]="only stable versions will qualify" default[1]=0 p[1]=30 \
+	    valid=product allow_new=false
+	version_policy_product_threshold=$pwiz_answer
+}
+
+function version_policy_check {
+    version_policy_$version_project_policy "$@"
+    test $? -le $version_policy_product_threshold
+}

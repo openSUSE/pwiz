@@ -1,0 +1,92 @@
+#! /bin/bash
+
+case $1 in
+    desc )
+	echo "installwatch module"
+	return
+	;;
+    longdesc )
+	echo "This module is able to collect file list information collected by installwatch during install process."
+	return
+	;;
+    init )
+	pwiz_module_needs package
+	pwiz_phase_new installwatch after post
+	pwiz_phase_add_callme installwatch
+	pwiz_phase_add_callme package
+	;;
+    package )
+# FIXME: do not register twice, but mkdir for each package
+	pwiz_phase_add package "mkdir -p $PWIZ_TMPDIR/installwatch"
+	pwiz_run_wrapper_register installwatch_run_wrapper
+	return
+	;;
+    installwatch )
+	installwatch_raw_file=$PWIZ_TMPDIR/installwatch_raw.lst
+	installwatch_file=$PWIZ_TMPDIR/installwatch.lst
+	for installwatch_stage in $PWIZ_TMPDIR/installwatch/* ; do
+	    exec 3<$installwatch_stage
+	    installwatch_IFS_save="$IFS"
+	    IFS=$'\t\n'
+	    while read -u3 installwatch_a1 installwatch_a2 installwatch_a3 installwatch_a4 ; do
+		case "$installwatch_a2" in
+		    open )
+			installwatch_add "$installwatch_a3" file
+			;;
+		    symlink | link )
+			installwatch_add "$installwatch_a4" file
+			;;
+		    mkdir )
+			installwatch_add "$installwatch_a3" dir
+			;;
+		esac
+	    done
+	    exec 3<&-
+	done
+	IFS="$installwatch_IFS_save"
+	LANG=C sort <$installwatch_raw_file | uniq >$installwatch_file
+	return
+	;;
+    version )
+	echo "0.1"
+	return
+	;;
+    * )
+	return
+	;;
+esac
+
+# FIXME: implement no install root
+function installwatch_add {
+    case $1 in
+# FIXME: not fixed list
+	$PWIZ_UNPACKDIR/* | $PWIZ_BUILDDIR/* | $PWIZ_SRCDIR/* | $PWIZ_TMPDIR/* )
+	    ;;
+	$PWIZ_INSTALLROOT/* )
+	    if test -e "$1" ; then
+# FIXME faster redirection
+		pwiz_canonize "${1##$PWIZ_INSTALLROOT}"
+		if test "$2" = dir ; then
+		    echo "$pwiz_result dir" >>$installwatch_raw_file
+		else
+		    echo "$pwiz_result file" >>$installwatch_raw_file
+		fi
+	    fi
+	    ;;
+	/tmp/* | /dev/null | /dev/tty* | /var/tmp/* )
+	    ;;
+	* )
+	    echo "ERROR: FIXME: access violation $1"
+	    ;;
+    esac
+}
+
+function installwatch_run_wrapper {
+    local LD_PRELOAD_save
+#    installwatch -o $PWIZ_TMPDIR/installwatch/$PWIZ_PHASE_CURRENT$PWIZ_STAGE_CURRENT "$@"
+    LD_PRELOAD_save="$LD_PRELOAD"
+    export INSTW_LOGFILE=$PWIZ_TMPDIR/installwatch/$PWIZ_PHASE_CURRENT$PWIZ_STAGE_CURRENT
+    export LD_PRELOAD="$LD_PRELOAD /usr/lib/installwatch.so"
+    pwiz_run_wrap "$@"
+    export LD_PRELOAD="$LD_PRELOAD_save"
+}

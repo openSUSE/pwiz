@@ -1,0 +1,23 @@
+#! /bin/bash
+
+case $1 in
+    desc )
+	echo "URI provider functions"
+	return
+	;;
+    longdesc )
+	echo "This module provides framework for URI providers."
+	return
+	;;
+    init )
+	;;
+    version )
+	echo "0.1"
+	return
+	;;
+    * )
+	return
+	;;
+esac
+
+# FIXME
