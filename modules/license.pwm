@@ -55,5 +55,7 @@ function license_PREPARE_CHECK {
 	    esac
 	fi
     done
-    pwiz_guess_add rpm_license "$license_found" 50
+    if test "$license_found" ; then
+	pwiz_guess_add rpm_license "$license_found" 50
+    fi
 }
