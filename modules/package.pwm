@@ -54,7 +54,7 @@ function package_basename_set {
 # FIXME: setting valid=product is not perfect, but in this moment we do not know version.
     pwiz_ask_string "Global project source base file name." \
 	"Now you should enter project base file name (i. e. name without prefix, suffix and version). This can be a string or extended pattern (see extglob in bash(1))." \
-	q=package_basename default="$pwiz_project_project" valid=product importance=40 c=25
+	q=package_basename default="$pwiz_project_project" valid=product importance=40 c=10
 }
 
 function package_home_page_prepare {
@@ -86,6 +86,7 @@ function package_home_page_set {
 	"Package home page is URI, where home WWW (or FTP) page resides.
 Supported URI types: ${uri_providers[*]}" \
 	q=package_home_page valid=project default="" string=unknown
+    # FIXME: If home page is manually set to unknown, do not search web next time.
 }
 
 function package_search_uri_prepare {
@@ -204,12 +205,18 @@ function package_collect_uri {
 		name="${name#$package_basename}"
 		shopt -u extglob
 		# package-version separators
-		decho_uri " is archive of ${name##*/}"
 		name="${name#[-_]}"
-		let unpack_credit=90+unpack_priority
-		pwiz_guess_add package_uri_${name//[.-]/_} "$1" $unpack_credit
-		pwiz_guess_add package_version "$name" 0 "force $name"
-		return 0
+		# FIXME: do it more configurable (probably use something like version_provider)
+		# allow only versions like 1.0, a1, b1 (only one letter before numbers allowed)
+		if test "$name" != "${name#[a-zA-Z0-9][0-9.]}" ; then
+		    decho_uri " is archive of $name"
+		    let unpack_credit=90+unpack_priority
+		    pwiz_guess_add package_uri_${name//[.-]/_} "$1" $unpack_credit
+		    pwiz_guess_add package_version "$name" 0 "force $name"
+		    return 0
+		else
+		    decho_uri " is not archive of required package or has strange version string $name"
+		fi
 	    fi
 	fi
     fi

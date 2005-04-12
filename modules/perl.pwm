@@ -1,0 +1,104 @@
+#! /bin/bash
+
+case $1 in
+    desc )
+	echo "PERL PWIZ framework"
+	return
+	;;
+    longdesc )
+	echo "This module adds intelligent guesses for PERL modules. It means, for example: searching for source at CPAN, proper configuration and installation of PERL modules."
+	return
+	;;
+    init )
+# FIXME: biarch contains ugly hack to expand perl dirs before biarch.
+	pwiz_module_needs prefix ldconfig package filelist_simplify
+	package_basename_provider
+	package_search_uri_provider
+	pwiz_phase_add_callme BUILD_CONF
+	filelist_inspect_provider
+	;;
+    version )
+	echo "0.1"
+	return
+	;;
+    * )
+	return
+	;;
+esac
+
+# FIXME: implement perl_package_home_page
+
+# FIXME: Implement automatic Requires.
+
+# FIXME: SuSE specific rule:
+
+#@ perl_package_basename
+function perl_package_basename {
+# FIXME: It can be perl-module | module once everything will accept extglobs
+    pwiz_guess_add package_basename "${pwiz_project_project#perl-}" 10
+}
+
+#@ perl_package_search_uri
+#
+# Provides an URI guess for searching packages in PERL FTP. (internal)
+function perl_package_search_uri {
+# FIXME: Allow globbing
+    if uri_exists "http://cpan.org/modules/by-module/$package_basename/" ; then
+	package_search_uri_guess "http://cpan.org/modules/by-module/$package_basename/" 10
+    fi
+}
+
+# FIXME: maybe define own phase instead of using BUILD_CONF to make code more flexible.
+# FIXME: SuSE or RPM specific:
+
+#@ perl_BUILD_CONF
+#
+# Test for Makefile.PL and turn perl mode on. (internal)
+function perl_BUILD_CONF {
+    if test -f Makefile.PL ; then
+	pwiz_phase_add_run BUILD_CONF "perl Makefile.PL"
+	pwiz_phase_add_run BUILD_COMPILE "make"
+# FIXME: Add or ask.
+#	pwiz_phase_add_run BUILD_POSTCOMPILE "make test"
+	pwiz_phase_add_run INSTALL_ACTION "%perl_make_install"
+	pwiz_phase_add_run INSTALL_POSTACTION "%perl_process_packlist"
+	pwiz_guess_add rpm_group__ Development/Libraries/Perl 8
+	# FIXME: RPM specific. Can be done better.
+	rpm_add_preamble ext    Requires     "perl = %{perl_version}"
+    fi
+}
+
+function perl_filelist_inspect {
+    filelist_read_open
+    pwiz_redirect_stdout $filelist_file_tmp
+    while filelist_read_item ; do
+	case "$filelist_tag_name" in
+# FIXME: hardcoded path
+	    $perl_vendorarch* )
+		rpm_subst_names "%{perl_vendorarch}${filelist_tag_name#$perl_vendorarch}"
+		echo "$pwiz_result $filelist_tagline"
+		;;
+	    $perl_vendorlib* )
+		rpm_subst_names "%{perl_vendorlib}${filelist_tag_name#$perl_vendorlib}"
+		echo "$pwiz_result $filelist_tagline"
+		;;
+	    * )
+		echo "$filelist_tag_name $filelist_tagline"
+		;;
+	esac
+    done
+    filelist_read_close
+    pwiz_redirect_stdout_close
+    mv $filelist_file_tmp $filelist_file
+}
+
+# Values needed for file list simplification
+# Use temporary function to not use global namespace.
+function perl_init {
+    local vendorlib vendorarch
+    eval "$(perl -V:vendorlib -V:vendorarch)"
+    perl_vendorlib=$vendorlib
+    perl_vendorarch=$vendorarch
+}
+perl_init
+unset perl_init

@@ -36,6 +36,8 @@ function prefix_prepare {
     prefix=@none@
 }
 
+# FIXME: Ask, only if it is needed (GNU autoconf, Makefile with prefix string)
+
 function prefix_set {
     if test "$prefix" = @none@ ; then
 	pwiz_ask_string "Select prefix for your package." \

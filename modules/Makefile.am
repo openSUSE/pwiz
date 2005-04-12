@@ -18,6 +18,7 @@ pwizmodules_DATA=\
 	license.pwm\
 	manual.pwm\
 	package.pwm\
+	perl.pwm\
 	prefix.pwm\
 	rpm_doc.pwm\
 	rpm.pwm\
@@ -69,6 +70,7 @@ EXTRA_DIST=\
 	license.pwm\
 	manual.pwm\
 	package.pwm\
+	perl.pwm\
 	prefix.pwm\
 	rpm_doc.pwm\
 	rpm.pwm\

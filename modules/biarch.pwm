@@ -10,7 +10,8 @@ case $1 in
 	return
 	;;
     init )
-	pwiz_module_needs prefix rpm filelist
+# FIXME: perl: This is an ugly hack - expand perl dirs before biarch.
+	pwiz_module_needs prefix rpm filelist perl
 	pwiz_phase_add_callme prefix_set
 	filelist_inspect_provider
 	;;
