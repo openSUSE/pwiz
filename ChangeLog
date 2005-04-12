@@ -1,3 +1,23 @@
+2005-04-12  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* configure.in: Version 0.04.
+
+	* pwiz.gopts.in: Started implementation of Extras menu.
+
+	* modules/Makefile.am, modules/biarch.pwm, modules/package.pwm,
+	modules/perl.pwm, modules/prefix.pwm: Added support for perl
+	modules.
+
+	* NEWS, README, TODO, pwiz.gopts.in: Updated information.
+
+	* modules/rpm_doc.pwm: Added GNU INSTALL 2005.
+
+	* modules/license.pwm: Fixed behavior for unknown license.
+
+	* modules/filelist.pwm: Accept /var and /var/tmp.
+
+	* develdoc.txt, modules/gnome.pwm: Typo fixes.
+
 2005-03-30  Stanislav Brabec  <sbrabec@suse.cz>
 
 	* modules/Makefile.am: Typo fix in pwizhelper_SCRIPTS.
