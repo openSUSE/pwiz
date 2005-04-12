@@ -1,4 +1,5 @@
 #! @PW_PATH_BASH@
+# -*- sh -*-
 
 unalias -a
 shopt -s expand_aliases
@@ -330,6 +331,16 @@ function pwiz_canonize {
     shopt -u extglob
 }
 
+#@ pwiz_array_add array_name item
+# item: value to be added to the array
+#
+# Add an item as last element of non-sparse array.
+# This is only simplification of array[@${#array[@@]}]=item
+# NOTE: array_name is without leading '@$' sign.
+function pwiz_array_add {
+    eval $1'[${#'$1'[@]}]="$2"'
+}
+
 #@@ File searching
 
 #@ pwiz_find path [ path_prefix ] [ callback_argument_2 ]
@@ -457,16 +468,6 @@ function pwiz_projectdirs_init {
 	mkdir -p $PWIZ_INSTALLROOT
 	mkdir -p $PWIZ_RESULTDIR
     fi
-}
-
-#@ pwiz_array_add array_name item
-# item: value to be added to the array
-#
-# Add an item as last element of non-sparse array.
-# This is only simplification of array[@${#array[@@]}]=item
-# NOTE: array_name is without leading '@$' sign.
-function pwiz_array_add {
-    eval $1'[${#'$1'[@]}]="$2"'
 }
 
 
@@ -1621,24 +1622,6 @@ function pwiz_key_parse {
 #@@ Askmenu
 # Askmenu is a structure between question interface and question
 #backend. It helps with menu construction and processing answer.
-# Expanation of variables:
-# @${pwiz_askmenu_callbacks[@@]}: Callbacks, called when menu item is
-#selected. Used internally. Must be defined.
-# @${pwiz_askmenu_ids[@@]}: id for preselection and postselection
-#callbacks (can be empty string)
-# @${pwiz_askmenu_strings[@@]}: Strings to be displayed by question
-#back-end. Should not be empty.
-# @${pwiz_askmenu_hotkeys[@@]}: Hotkeys. Displayed by question
-#back-end. Used by @pwiz_preselection_callback_default for hotkey
-#(abbreviation) recognition. Other preselection callbacks can use it
-#in other way (or not at all), but string contents can be still
-#displayed by question back-end.
-# @${pwiz_askmenu_preselection_callbacks[@@]}: Callback called to
-#decide, whether user selected this menu item. Default is
-# @${pwiz_askmenu_preselection_numbers[@@]}: Order numbers for ordered
-#items.
-# @${pwiz_askmenu_preselection_number_indexes[@@]}: Reverse index,
-#which maps ordered list index to askmenu index.
 # Minimal example of building menu with menu hook and processing
 #answer:
 #@<
@@ -1660,6 +1643,7 @@ function pwiz_key_parse {
 #pwiz_askmenu_add echo reply_was_3        Strange  cc ""     head no_number
 #pwiz_askmenu_complete
 #
+# This part can be replaced by call of question back-end
 #for (( count=0 ; count < ${#pwiz_askmenu_callbacks[@]} ; count++ )) ; do
 #    echo -n "$count, ${pwiz_askmenu_hotkeys[count]}: ${pwiz_askmenu_strings[count]}"
 #    if test $count = $pwiz_askmenu_default ; then
@@ -1668,6 +1652,7 @@ function pwiz_key_parse {
 #    echo
 #done
 #read -p "Please answer: "
+#
 #pwiz_askmenu_process "$REPLY"
 #case $? in
 #    0 )
@@ -1680,6 +1665,25 @@ function pwiz_key_parse {
 #	echo failed
 #esac
 #@>
+# Description of variables (variables are needed by back-ends and by
+#more sophisticated callbacks):
+# @"${pwiz_askmenu_callbacks[@@]}": Callbacks, called when menu item is
+#selected. Used internally. Must be defined.
+# @"${pwiz_askmenu_ids[@@]}": id for preselection and postselection
+#callbacks (can be empty string)
+# @"${pwiz_askmenu_strings[@@]}": Strings to be displayed by question
+#back-end. Should not be empty.
+# @"${pwiz_askmenu_hotkeys[@@]}": Hotkeys. Displayed by question
+#back-end. Used by @pwiz_preselection_callback_default for hotkey
+#(abbreviation) recognition. Other preselection callbacks can use it
+#in other way (or not at all), but string contents can be still
+#displayed by question back-end.
+# @"${pwiz_askmenu_preselection_callbacks[@@]}": Callback called to
+#decide, whether user selected this menu item. Default is
+# @"${pwiz_askmenu_preselection_numbers[@@]}": Order numbers for ordered
+#items.
+# @"${pwiz_askmenu_preselection_number_indexes[@@]}": Reverse index,
+#which maps ordered list index to askmenu index.
 
 declare -a pwiz_askmenu_build_callbacks
 declare -a pwiz_askmenu_build_ids
@@ -1727,7 +1731,7 @@ declare -a pwiz_askmenu_number_indexes
 #@ {preselection_callback} id index answer
 # id: identification of askmenu item from @pwiz_askmenu_add (can be
 #empty string)
-# index: current index in following arrays: @${pwiz_askmenu_callbacks[@@]}, @${pwiz_askmenu_ids[@@]}, @${pwiz_askmenu_strings[@@]}, @${pwiz_askmenu_hotkeys[@@]}, @${pwiz_askmenu_numbers[@@]}, @${pwiz_askmenu_preselection_callbacks[@@]}
+# index: current index in following arrays: @"${pwiz_askmenu_callbacks[@@]}", @"${pwiz_askmenu_ids[@@]}", @"${pwiz_askmenu_strings[@@]}", @"${pwiz_askmenu_hotkeys[@@]}", @"${pwiz_askmenu_numbers[@@]}", @"${pwiz_askmenu_preselection_callbacks[@@]}"
 # answer: user's answer
 # returns: 0: it is item selected by user, 1: it is not item selected by user
 #
@@ -1766,15 +1770,17 @@ function pwiz_askmenu_add {
 # Add hook function, which is called every time pwiz wants to create
 #ask menu.
 
+# NOTE: This functions is intended for permanent ask menu entries. For
+#entries intended only for one question, it is better to use
+#tag @askmenu_hook for @pwiz_ask_core.
+
 #@ {pwiz_askmenu_hook}
-#
 # uses: $pwiz_tags_{tag}: tags are already read to variables
 #using @pwiz_read_tags.
 #
 # This function is called every time ask menu is created. Hook
 #function can look at tags and decide, whether to display any menu
 #item and call @pwiz_askmenu_add.
-
 function pwiz_askmenu_add_hook {
     pwiz_array_add pwiz_askmenu_build_hooks "$1"
 }
@@ -1785,16 +1791,28 @@ function pwiz_askmenu_add_hook {
 #appropriate @pwiz_askmenu_add are called. Process is finished
 #by @pwiz_askmenu_complete.
 function pwiz_askmenu_reset {
-    unset pwiz_askmenu_build_callbacks
-    unset pwiz_askmenu_build_ids
-    unset pwiz_askmenu_build_strings
-    unset pwiz_askmenu_build_hotkeys
-    unset pwiz_askmenu_build_flags
-    unset pwiz_askmenu_build_preselection_callbacks
+    pwiz_askmenu_build_callbacks=()
+    pwiz_askmenu_build_ids=()
+    pwiz_askmenu_build_strings=()
+    pwiz_askmenu_build_hotkeys=()
+    pwiz_askmenu_build_flags=()
+    pwiz_askmenu_build_preselection_callbacks=()
 }
 
+#@ pwiz_askmenu_local
+#
+# Sometimes you need to create new ask menu inside callback of
+#existing askmenu. This declares needed variables as local and makes
+#this available. Once function, where @pwiz_askmenu_local is exited,
+#original ask menu contents is restored.
+# WARNING: You can save only completed ask menu. You cannot
+#use @pwiz_askmenu_add and extend original menu after return to caller
+#function.
+alias pwiz_askmenu_local='local -a pwiz_askmenu_callbacks pwiz_askmenu_ids pwiz_askmenu_strings pwiz_askmenu_hotkeys pwiz_askmenu_numbers pwiz_askmenu_number_indexes pwiz_askmenu_preselection_callbacks'
+
 #@ pwiz_askmenu_complete [ "no_hooks" ]
-# "no_hooks": set if hooks should not be executed
+# "no_hooks": set if hooks should not be executed (NOTE:
+#Explicit @askmenu_hook tag for @pwiz_ask_core is not affected.)
 # returns ${pwiz_askmenu_strings[@@]}: array of ask menu strings
 # returns ${pwiz_askmenu_hotkeys[@@]}: array of ask menu hotkeys
 # returns ${pwiz_askmenu_callbacks[@@]}: array of ask menu callbacks (internal)
@@ -1820,7 +1838,7 @@ function pwiz_askmenu_complete {
     pwiz_askmenu_count=0
 
     if test "$1" != "no_hooks" ; then
-	for (( count=0 ; count < ${#pwiz_askmenu_build_callbacks[@]} ; count++ )) ; do
+	for (( count=0 ; count < ${#pwiz_askmenu_build_hooks[@]} ; count++ )) ; do
 	    ${pwiz_askmenu_build_hooks[count]}
 	done
     fi
@@ -1888,11 +1906,18 @@ function pwiz_askmenu_complete {
 	fi
     done
 }
+unset pwiz_askmenu_callbacks
+unset pwiz_askmenu_ids
+unset pwiz_askmenu_strings
+unset pwiz_askmenu_hotkeys
+unset pwiz_askmenu_numbers
+unset pwiz_askmenu_number_indexes
+unset pwiz_askmenu_preselection_callbacks
 
 #@ pwiz_preselection_callback_default id index answer
 # id: identification of askmenu item from @pwiz_askmenu_add (can be
 #empty string, usused)
-# index: current index in following arrays: @${pwiz_askmenu_callbacks[@@]}, @${pwiz_askmenu_ids[@@]}, @${pwiz_askmenu_strings[@@]}, @${pwiz_askmenu_hotkeys[@@]}, @${pwiz_askmenu_numbers[@@]}, @${pwiz_askmenu_preselection_callbacks[@@]}
+# index: current index in following arrays: @"${pwiz_askmenu_callbacks[@@]}", @"${pwiz_askmenu_ids[@@]}", @"${pwiz_askmenu_strings[@@]}", @"${pwiz_askmenu_hotkeys[@@]}", @"${pwiz_askmenu_numbers[@@]}", @"${pwiz_askmenu_preselection_callbacks[@@]}"
 # answer: user's answer
 # returns: 0: it is item selected by user, 1: it is not item selected by user
 #
@@ -1921,7 +1946,7 @@ function pwiz_preselection_callback_default {
 #@ pwiz_preselection_callback_cnumber id index answer
 # id: identification of askmenu item from @pwiz_askmenu_add (can be
 #empty string)
-# index: current index in following arrays: @${pwiz_askmenu_callbacks[@@]}, @${pwiz_askmenu_ids[@@]}, @${pwiz_askmenu_strings[@@]}, @${pwiz_askmenu_hotkeys[@@]}, @${pwiz_askmenu_numbers[@@]}, @${pwiz_askmenu_preselection_callbacks[@@]}
+# index: current index in following arrays: @"${pwiz_askmenu_callbacks[@@]}", @"${pwiz_askmenu_ids[@@]}", @"${pwiz_askmenu_strings[@@]}", @"${pwiz_askmenu_hotkeys[@@]}", @"${pwiz_askmenu_numbers[@@]}", @"${pwiz_askmenu_preselection_callbacks[@@]}"
 #(unused)
 # answer: user's answer
 # id: identification of askmenu item from @pwiz_askmenu_add (can be
@@ -1953,7 +1978,7 @@ function pwiz_preselection_callback_cnumber {
 pwiz_preselection_callback_cnumber_maxval=-1
 
 #@ pwiz_preselection_callback_fallback_default index answer
-# index: current index in following arrays: @${pwiz_askmenu_callbacks[@@]}, @${pwiz_askmenu_ids[@@]}, @${pwiz_askmenu_strings[@@]}, @${pwiz_askmenu_hotkeys[@@]}, @${pwiz_askmenu_numbers[@@]}, @${pwiz_askmenu_preselection_callbacks[@@]}
+# index: current index in following arrays: @"${pwiz_askmenu_callbacks[@@]}", @"${pwiz_askmenu_ids[@@]}", @"${pwiz_askmenu_strings[@@]}", @"${pwiz_askmenu_hotkeys[@@]}", @"${pwiz_askmenu_numbers[@@]}", @"${pwiz_askmenu_preselection_callbacks[@@]}"
 # answer: user's answer
 # returns: 0: it is item selected by user
 #
@@ -2171,6 +2196,7 @@ function pwiz_ask_core {
 	    # FIXME: Implement tag quick_enter (any unknown reply is considered as string for "enter manually").
 	    pwiz_askmenu_add pwiz_ask_core_enter_manually "" "enter manually" m "" no_number
 	    pwiz_askmenu_add pwiz_ask_core_edit_manually "" "edit manually" 'e{number}' pwiz_preselection_callback_cnumber no_number
+	    pwiz_askmenu_add pwiz_ask_core_extras "" "extras" 'x' "" no_number tail
 	fi
 	$pwiz_tag_askmenu_hook
 
@@ -2197,10 +2223,13 @@ function pwiz_ask_core {
 	rc=1
 	until test $rc -eq 0 ; do
 	    pwiz_fallback_answer=false
-	    # Use arguments for question_function, to be able to ask inside ant revert tags.
+	    # Use arguments for question_function, to be able to ask inside (which means reverting tags).
 	    $question_function "$desc" "$longdesc" "$@"
 	    pwiz_askmenu_process "$pwiz_answer"
 	    rc=$?
+	    # Re-read tags - $question_function can destroy them.
+	    pwiz_reset_tags
+	    pwiz_read_tags
 	    # FIXME: Unknown selection back-end
 #	    if test $rc -gt 1 ; then
 #		pwiz_fatal "Unknown selection"
@@ -2299,7 +2328,7 @@ function pwiz_ask_core {
 
 #@ pwiz_ask_core_askmenu_reply id answer (internal)
 # id: identification of askmenu item from @pwiz_askmenu_add
-#(@${pwiz_guesses[@@]})
+#(@"${pwiz_guesses[@@]}")
 # answer: user's answer (unused)
 # returns: 0
 #
@@ -2339,6 +2368,64 @@ function pwiz_ask_core_edit_manually {
     index=${pwiz_askmenu_ids[index]}
     $pwiz_tag_callback "${pwiz_guesses[index]}"
 }
+
+#@ pwiz_ask_core_extras id answer (internal)
+# id: identification of askmenu item from @pwiz_askmenu_add (unused)
+# answer: user's answer (unused)
+# returns $pwiz_answer: user's answer
+# returns: 1
+#
+# Call question function for Extras submenu.
+function pwiz_ask_core_extras {
+set -x
+    local rc=0 count
+# BIG FIXME: it inherits items from parent menu
+    pwiz_askmenu_local
+    pwiz_askmenu_reset
+    for (( count=0 ; count < ${#pwiz_askmenu_extras_hooks[@]} ; count++ )) ; do
+	${pwiz_askmenu_extras_hooks[count]}
+    done
+    pwiz_askmenu_add pwiz_extras_return "" "return to main stream" x "" is_default no_number tail
+    pwiz_askmenu_add pwiz_extras_quit "" "quit pwiz" q "" no_number tail
+    pwiz_askmenu_complete no_hooks
+
+	until test $rc -eq 0 ; do
+	    pwiz_question_string "Extras menu." "This menu contains special actions, not related to actual question."
+	    pwiz_askmenu_process "$pwiz_answer"
+	    rc=$?
+	    # FIXME: Unknown selection back-end
+#	    if test $rc -gt 1 ; then
+#		pwiz_fatal "Unknown selection"
+#	    fi
+	done
+
+    return 1
+set +x
+}
+# FIXME: documentation
+function pwiz_extras_return {
+    return 0
+}
+function pwiz_extras_quit {
+    exit
+}
+
+#@ pwiz_extras_add {pwiz_extras_hook}
+# {pwiz_extras_hook}: hook function, which calls @pwiz_askmenu_add on its own
+#
+# Add hook function, which is called every time pwiz wants to create
+#extras menu.
+
+#@ {pwiz_extras_hook}
+#
+# This function is called every time extras menu is created. Hook
+#function should create required extras menu items
+#using @pwiz_askmenu_add.
+
+function pwiz_extras_add {
+    pwiz_array_add pwiz_askmenu_extras_hooks "$1"
+}
+declare -a pwiz_askmenu_extras_hooks
 
 #@ pwiz_patchlevel_set [ incr ]
 # incr: patchlevel increment
