@@ -441,7 +441,9 @@ Documentation in code::
  #
  # Description of function terminated by line started by non-comment.
  #Function @names are started by @. @"Multi words" are available.
+ #Variables marked as $variable are in italic, too.For complicated
+ #variables use @"${variable[@@]}".
  #@<
  # You can also define preformatted comments.
  #@>
- # You can use @@ and @$ to cance special meaning of at sign.
+ # You can use @@ and @$ to cancel special meaning of at sign.

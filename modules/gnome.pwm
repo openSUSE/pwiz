@@ -6,7 +6,7 @@ case $1 in
 	return
 	;;
     longdesc )
-	echo "This module adds intelligent guesses for GNOME related packages. It means, for example: searching for source in GNOME FTP, working with gnome paths, proper installing of GNOME packages."
+	echo "This module adds intelligent guesses for GNOME related packages. It means, for example: searching for source in GNOME FTP, working with gnome paths, proper installation of GNOME packages."
 	return
 	;;
     init )
