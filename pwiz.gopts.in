@@ -161,7 +161,7 @@ trap "echo \"PWIZ must be error-less\" ; exit 1" ERR
 #pwiz_project_version_policy=even_subversion_is_stable
 pwiz_project_subproject=-
 #pwiz_project_version=2.4.0
-pwiz_project_vendor=SuSE-Linux-9.1
+pwiz_project_vendor=SuSE-Linux-9.3
 pwiz_project_build=0
 
 # Debug prompt.

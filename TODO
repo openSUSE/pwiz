@@ -1,7 +1,7 @@
-Support for other version lookups than FTP.
+Support for local files using file://.
 (work-around: copy required files to ~/pwiz/tmpcache)
 
-Improve patch manager.
+Improve patch manager and manual action points.
 (partial work-around: copy required files to ~/pwiz/results/{package})
 
 Error processing and phase engine backstepping.
@@ -20,7 +20,10 @@ RPM CXXFLAGS are now hardwired, even if they are unused.
 
 Support for RPM %ghost and standalone %dir.
 
-Support for not GNU configure based programs.
+More compilation paradigms (python module, apache module, xmkmf, plain
+make...)
+
+Support for not unknown build paradigm projects.
 
 Support for more cache sources (remote cache) and force-overwrite in local cache.
 
@@ -33,9 +36,6 @@ Better manual control over packaging process.
 Action logging and analysis.
 
 Make some debugging optional and clean after build.
-
-More compilation paradigms (perl module, python module, apache module,
-xmkmf, plain make...)
 
 Checking for devel package dependences (.la and .pc files).
 

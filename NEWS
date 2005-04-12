@@ -3,6 +3,7 @@ Version 0.04
     Support for URI providers.
     Support for parsing HTTP.
     Sourceforge support module.
+    Perl modules build.
     Freshmeat and top level domain URI lookups.
     Bug fixes.
 
