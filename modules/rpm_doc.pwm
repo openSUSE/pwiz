@@ -49,7 +49,7 @@ function rpm_doc_check {
 		case $md5sum in
 # FIXME: Make it configurable
 # Default GNU install files. No useful per-package information.
-		    0d6be33865b76025c20b48bcac87adb7 | 9f3e20fdff9c78aa8e3f9b42be166769 | d7adbcf07c5c813693ddf958be9c40e3 )
+		    0d6be33865b76025c20b48bcac87adb7 | 82f1c865a4e12f5ed1d744473c878a29 | 9f3e20fdff9c78aa8e3f9b42be166769 | d7adbcf07c5c813693ddf958be9c40e3 )
 			;;
 		    * )
 			pwiz_array_add rpm_doc_files "$file"
@@ -58,7 +58,8 @@ function rpm_doc_check {
 		esac
 		;;
 # ChangeLog and uppercase named files are probably basic documentation.
-	    ChangeLog | *([-._A-Z]) )
+# FIXME: Changes should be in perl module once it will be configurable.
+	    Changes | ChangeLog | *([-._A-Z]) )
 		pwiz_array_add rpm_doc_files "$file"
 		doc_active=true
 		;;
