@@ -6,6 +6,12 @@
 
 use XML::Parser;
 
+sub handle_start
+{
+  print "begin\n";
+  $gelement = "";
+}
+
 sub handle_char
 {
   my ($expat, $element) = @_;
@@ -21,5 +27,5 @@ sub handle_end
 }
 
 $p1 = new XML::Parser();
-$p1->setHandlers(Char => \&handle_char, End => \&handle_end);
+$p1->setHandlers(Char => \&handle_char, Start => \&handle_start, End => \&handle_end);
 $p1->parsefile($ARGV[0]);
