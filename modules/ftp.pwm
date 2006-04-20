@@ -76,7 +76,7 @@ function ftp_get {
 function ftp_list {
     mkdir -p $PWIZ_CACHEDIR/ftp
     # Fetch only a directory listing.
-    $ftp_WGET -P $PWIZ_CACHEDIR/ftp -N  -nr -r -l 1 -R '*' "$1/"
+    $ftp_WGET -P $PWIZ_CACHEDIR/ftp -N --no-remove-listing -r -l 1 -R '*' "$1/"
     if ! test -f "$PWIZ_CACHEDIR/ftp/${1#ftp://}/.listing" ; then
 	echo "*** $1 not found"
 	return 1
@@ -98,7 +98,7 @@ function ftp_list {
 #function ftp_list_recursive {
 #    local callback_save callback_sub
 #    mkdir -p $PWIZ_CACHEDIR/ftp
-#    $ftp_WGET -P $PWIZ_CACHEDIR/ftp -N  -nr -r -R '*' "$1/"
+#    $ftp_WGET -P $PWIZ_CACHEDIR/ftp -N --no-remove-listing -r -R '*' "$1/"
 #    if ! test -f "$PWIZ_CACHEDIR/ftp/${1#ftp://}/.listing" ; then
 #	echo "*** $1 not found"
 #	return 1
