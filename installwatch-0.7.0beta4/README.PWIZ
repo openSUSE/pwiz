@@ -1,5 +1,6 @@
 This is a snapshot of installwatch package from checkinstall project
-using all available patches for SuSE Linux 10.1.
+using all available patches for SuSE Linux 10.1 plus undefinition of
+FORTIFY_SOURCES.
 
 For actual source code, go to:
 http://asic-linux.com.mx/~izto/checkinstall/

@@ -25,6 +25,9 @@
  *                                  <olivier.fleurigeon@cegedim.fr>
  */
 
+/* Disable FORTIFY_SOURCE even if it is part of user provided CFLAGS.
+ * It redefines functions we want to wrap. */
+#undef _FORTIFY_SOURCE
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
