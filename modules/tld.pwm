@@ -30,7 +30,7 @@ function tld_package_home_page {
     local tldname tld
     tldname=${package_basename//_/-}
     tldname=${package_basename//+}
-    for tld in org net com ; do
+    for tld in org net com info ; do
 	if uri_exists "http://www.$tldname.$tld/" ; then
 	    package_home_page_guess "http://www.$tldname.$tld/" 1
 	fi
