@@ -15,7 +15,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * $Id: installwatch.c,v 0.7.0.4 2003/12/14 07:36:22 izto Exp $
+ * $Id: installwatch.c,v 0.7.0.5 2004/06/13 22:26:36 izto Exp $
  * 
  * april-15-2001 - Modifications by Felipe Eduardo Sanchez Diaz Duran
  *                                  <izto@asic-linux.com.mx>
@@ -77,7 +77,7 @@ static int (*true_xmknod)(int ver,const char *, mode_t, dev_t *);
 static int (*true_open)(const char *, int, ...);
 static DIR *(*true_opendir)(const char *);
 static struct dirent *(*true_readdir)(DIR *dir);
-static int (*true_readlink)(const char*,char *,size_t);
+static ssize_t (*true_readlink)(const char*,char *,size_t);
 static char *(*true_realpath)(const char *,char *);
 static int (*true_rename)(const char *, const char *);
 static int (*true_rmdir)(const char *);
@@ -251,7 +251,7 @@ static int lambda_log(const char *logname,const char *format,...)
 ;
 */
 
-static inline int log(const char *format,...)
+static inline int logg(const char *format,...)
 #ifdef __GNUC__
 	/* Tell gcc that this function behaves like printf()
 	 * for parameters 1 and 2                            */
@@ -273,15 +273,10 @@ static inline int debug(int dbglvl,const char *format,...)
  */
 
 static void *libc_handle=NULL;
+static void initialize(void) {
+	if (libc_handle)
+		return;
 
-static void myinit(void);
-#define RLSYMS if(!true_time) myinit();
-
-void _init(void) {
-	myinit();
-}
-
-static void myinit(void) {
 	#ifdef BROKEN_RTLD_NEXT
 //        	printf ("RTLD_LAZY");
         	libc_handle = dlopen(LIBC_VERSION, RTLD_LAZY);
@@ -335,6 +330,10 @@ static void myinit(void) {
 	if(instw_init()) exit(-1);
 }
 
+void _init(void) {
+	initialize();
+}
+
 void _fini(void) {
 	instw_fini();	
 }
@@ -354,8 +353,6 @@ static int vlambda_log(const char *logname,const char *format,va_list ap) {
 	int logfd;
 	int rcod=0;
 
-	RLSYMS
-	
 	count=vsnprintf(buffer,BUFSIZE,format,ap);
 	if(count == -1) {
 		  /* The buffer was not big enough */
@@ -415,7 +412,7 @@ static int lambda_log(const char *logname,const char *format, ...) {
 }
 */
 
-static inline int log(const char *format,...) {
+static inline int logg(const char *format,...) {
 	char *logname;
 	va_list ap;
 	int rcod; 
@@ -459,8 +456,6 @@ static inline int debug(int dbglvl,const char *format,...) {
  */
 static int canonicalize(const char *path, char *resolved_path) {
 
-	RLSYMS
-	
 	unset_okwrap();
 
 	if(!realpath(path,resolved_path)) {
@@ -491,8 +486,6 @@ static int make_path (const char *path) {
 
 	int i = 0;
 
-	RLSYMS
-	
 #if DEBUG
 	debug(2,"===== make_path: %s\n", path);
 #endif
@@ -542,8 +535,6 @@ static int copy_path(const char *truepath,const char *translroot) {
 	char linkpath[PATH_MAX+1];
 	size_t linksz;
 
-	RLSYMS
-	
 #if DEBUG
 	debug(2,"copy_path(%s,%s)\n",truepath,translroot);
 #endif
@@ -678,8 +669,6 @@ static int unlink_recursive(const char *truepath) {
 	char wpath[PATH_MAX+1];
 	struct stat winfo;
 
-	RLSYMS
-	
 #if DEBUG
 	debug(2,"unlink_recursive(%s)\n",truepath);
 #endif
@@ -753,8 +742,6 @@ int expand_path(string_t **list,const char *prefix,const char *suffix) {
 	char pns[PATH_MAX+1];
 	size_t len;
 
-	RLSYMS
-	
 #if DEBUG
 	debug(4,"expand_path(%p,%s,%s)\n",list,prefix,suffix);
 #endif
@@ -878,8 +865,8 @@ static int __instw_printdirent64(struct dirent64 *entry) {
 			"\td_type    : %d\n"
 			"\td_name    : \"%.*s\"\n",
 			entry,
-			entry->d_ino,
-			entry->d_off,
+			(long long)entry->d_ino,
+			(long long)entry->d_off,
 			entry->d_reclen,
 			(int)entry->d_type,
 			(int)entry->d_reclen,(char*)(entry->d_name)
@@ -994,8 +981,6 @@ static int instw_init(void) {
 	int oktransl;
 	int okwrap;
 
-	RLSYMS
-	
 #if DEBUG
 	  /*
 	   * We set the requested dynamic debug level
@@ -1328,8 +1313,6 @@ static int instw_setmetatransl(instw_t *instw) {
 	int i=0;
 	string_t *pthis;
 
-	RLSYMS
-	
 #if DEBUG
 	debug(3,"instw_setmetatransl(%p)\n",instw);
 	instw_print(instw);
@@ -1395,11 +1378,9 @@ static int instw_setmetatransl(instw_t *instw) {
  */
 static int instw_setpath(instw_t *instw,const char *path) {
 	size_t relen;
-	size_t trlen;
+	size_t trlen = 0;
 	size_t melen;
 
-	RLSYMS
-	
 #if DEBUG
 	debug(2,"instw_setpath(%p,%s)\n",instw,path);
 #endif
@@ -1500,8 +1481,6 @@ static int instw_getstatus(instw_t *instw,int *status) {
 	struct stat rinode;
 	struct stat tinode;
 
-	RLSYMS
-	
 #if DEBUG
 	debug(2,"instw_getstatus(%p,%p)\n",instw,status);
 #endif
@@ -1593,8 +1572,7 @@ static int instw_apply(instw_t *instw) {
 	size_t wsz=0;
 	char linkpath[PATH_MAX+1];
 
-	RLSYMS
-	
+
 #if DEBUG
 	debug(2,"instw_apply(%p)\n",instw);
 	instw_print(instw);
@@ -1691,8 +1669,6 @@ static int instw_filldirls(instw_t *instw) {
 	instw_t iw_entry;
 	int status=0;
 
-	RLSYMS
-	
 #if DEBUG
 	debug(2,"instw_filldirls(%p)\n",instw);
 #endif
@@ -1890,8 +1866,6 @@ static int instw_makedirls(instw_t *instw) {
 	struct stat dirlsinfo;
 	char wdirname[NAME_MAX+1];
 
-	RLSYMS
-	
 #if DEBUG
 	debug(2,"instw_makedirls(%p)\n",instw);
 #endif
@@ -1961,8 +1935,6 @@ static int backup(const char *path) {
 	struct stat inode,backup_inode;
 	struct utimbuf timbuf;
 
-	RLSYMS
-	
 #if DEBUG
 	debug(2,"========= backup () =========  path: %s\n", path); 
 #endif
@@ -2075,9 +2047,10 @@ static int backup(const char *path) {
 }
 
 time_t time (time_t *timer) {
-	RLSYMS
-	
 	TIMECOUNT;
+
+	if (!libc_handle)
+		initialize();
 
 #if DEBUG
 	debug(2,"time\n");
@@ -2095,8 +2068,9 @@ int chdir(const char *pathname) {
 	instw_t instw;
 	int status;
 
-	RLSYMS
-	
+	if (!libc_handle)
+		initialize();
+
 #if DEBUG
 	debug(2,"chdir(%s)n",pathname);
 #endif
@@ -2129,10 +2103,11 @@ int chmod(const char *path, mode_t mode) {
 	int result;
 	instw_t instw;
 
-	RLSYMS
-	
 	REFCOUNT;
 	
+	if (!libc_handle)
+		initialize();
+
 #if DEBUG
 	debug(2,"chmod(%s,mode)\n",path);
 #endif
@@ -2155,7 +2130,7 @@ int chmod(const char *path, mode_t mode) {
 	instw_apply(&instw);
 
 	result = true_chmod(instw.translpath, mode);
-	log("%d\tchmod\t%s\t0%04o\t#%s\n",result,
+	logg("%d\tchmod\t%s\t0%04o\t#%s\n",result,
 	    instw.reslvpath,mode,error(result));
 
 	instw_delete(&instw);
@@ -2167,9 +2142,10 @@ int chown(const char *path, uid_t owner, gid_t group) {
 	int result;
 	instw_t instw;
 
-	RLSYMS
-	
 	REFCOUNT;
+
+	if (!libc_handle)
+		initialize();
 
 #if DEBUG
 	debug(2,"chown(%s,owner,group)\n",path);
@@ -2193,7 +2169,7 @@ int chown(const char *path, uid_t owner, gid_t group) {
 	instw_apply(&instw);
 
 	result=true_chown(instw.translpath,owner,group);
-	log("%d\tchown\t%s\t%d\t%d\t#%s\n",result,
+	logg("%d\tchown\t%s\t%d\t%d\t#%s\n",result,
 	    instw.reslvpath,owner,group,error(result));
 
 	instw_delete(&instw);
@@ -2205,9 +2181,10 @@ int chroot(const char *path) {
 	int result;
 	char canonic[MAXPATHLEN];
 
-	RLSYMS
-	
 	REFCOUNT;
+
+	if (!libc_handle)
+		initialize();
 
 #if DEBUG
 	debug(2,"chroot(%s)\n",path);
@@ -2219,7 +2196,7 @@ int chroot(const char *path) {
 	   * From now on, another log file will be written if 
 	   * INSTW_LOGFILE is set                          
 	   */
-	log("%d\tchroot\t%s\t#%s\n", result, canonic, error(result));
+	logg("%d\tchroot\t%s\t#%s\n", result, canonic, error(result));
 	return result;
 }
 
@@ -2228,9 +2205,10 @@ int creat(const char *pathname, mode_t mode) {
 	int result;
 	instw_t instw;
 	
-	RLSYMS
-	
 	REFCOUNT;
+
+	if (!libc_handle)
+		initialize();
 
 #if DEBUG
 	debug(2,"creat(%s,mode)\n",pathname);
@@ -2254,7 +2232,7 @@ int creat(const char *pathname, mode_t mode) {
 	instw_apply(&instw);
 
 	result = true_open(instw.translpath,O_CREAT|O_WRONLY|O_TRUNC,mode);
-	log("%d\tcreat\t%s\t#%s\n",result,instw.reslvpath,error(result));
+	logg("%d\tcreat\t%s\t#%s\n",result,instw.reslvpath,error(result));
 
 	instw_delete(&instw);
 
@@ -2264,43 +2242,47 @@ int creat(const char *pathname, mode_t mode) {
 int fchmod(int filedes, mode_t mode) {
 	int result;
 
-	RLSYMS
-	
 	REFCOUNT;
+
+	if (!libc_handle)
+		initialize();
 
 #if DEBUG
 	debug(2,"fchmod\n");
 #endif
 
 	result = true_fchmod(filedes, mode);
-	log("%d\tfchmod\t%d\t0%04o\t#%s\n",result,filedes,mode,error(result));
+	logg("%d\tfchmod\t%d\t0%04o\t#%s\n",result,filedes,mode,error(result));
 	return result;
 }
 
 int fchown(int fd, uid_t owner, gid_t group) {
 	int result;
 
-	RLSYMS
-	
 	REFCOUNT;
+
+	if (!libc_handle)
+		initialize();
 
 #if DEBUG
 	debug(2,"fchown\n");
 #endif
 
 	result = true_fchown(fd, owner, group);
-	log("%d\tfchown\t%d\t%d\t%d\t#%s\n",result,fd,owner,group,error(result));
+	logg("%d\tfchown\t%d\t%d\t%d\t#%s\n",result,fd,owner,group,error(result));
 	return result;
 }
 
 #if !defined(__s390_glibc_bug_) && !defined(__powerpc_glibc_bug_) 
 FILE *fopen(const char *pathname, const char *mode) {
-	FILE *result;
+	FILE *result = (FILE *)0;
 	instw_t instw;
 	int status=0;
 
-	RLSYMS
-	
+
+	if (!libc_handle)
+		initialize();
+
 #if DEBUG
 	debug(2,"fopen(%s,%s)\n",pathname,mode);
 #endif
@@ -2323,7 +2305,7 @@ FILE *fopen(const char *pathname, const char *mode) {
 		REFCOUNT;
 		backup(instw.truepath);
 		instw_apply(&instw);
-		log("%d\tfopen\t%s\t#%s\n",(int)result,
+		logg("%ld\tfopen\t%s\t#%s\n",(long)result,
 		    instw.reslvpath,error(result));
 	}
 
@@ -2338,7 +2320,7 @@ FILE *fopen(const char *pathname, const char *mode) {
 	}
 	
 	if(mode[0]=='w'||mode[0]=='a'||mode[1]=='+') 
-		log("%d\tfopen\t%s\t#%s\n",(int)result,
+		logg("%ld\tfopen\t%s\t#%s\n",(long)result,
 		    instw.reslvpath,error(result));
 
 	instw_delete(&instw);
@@ -2350,16 +2332,17 @@ FILE *fopen(const char *pathname, const char *mode) {
 int ftruncate(int fd, TRUNCATE_T length) {
 	int result;
 
-	RLSYMS
-	
 	REFCOUNT;
+
+	if (!libc_handle)
+		initialize();
 
 #if DEBUG
 	debug(2,"ftruncate\n");
 #endif
 
 	result = true_ftruncate(fd, length);
-	log("%d\tftruncate\t%d\t%d\t#%s\n",result,fd,(int)length,error(result));
+	logg("%d\tftruncate\t%d\t%d\t#%s\n",result,fd,(int)length,error(result));
 	return result;
 }
 
@@ -2369,8 +2352,9 @@ char *getcwd(char *buffer,size_t size) {
 	char *wptr;
 	size_t wsize;
 
-	RLSYMS
-	
+	if (!libc_handle)
+		initialize();
+
 #if DEBUG
 	debug(2,"getcwd(%p,%ld)\n",buffer,(long int)size);
 #endif
@@ -2418,9 +2402,10 @@ int lchown(const char *path, uid_t owner, gid_t group) {
 	int result;
 	instw_t instw;
 
-	RLSYMS
-	
 	REFCOUNT;
+
+	if (!libc_handle)
+		initialize();
 
 #if DEBUG
 	debug(2,"lchown(%s,owner,group)\n",path);
@@ -2444,7 +2429,7 @@ int lchown(const char *path, uid_t owner, gid_t group) {
 	instw_apply(&instw);
 
 	result=true_lchown(instw.translpath,owner,group);
-	log("%d\tlchown\t%s\t%d\t%d\t#%s\n",result,
+	logg("%d\tlchown\t%s\t%d\t%d\t#%s\n",result,
 	    instw.reslvpath,owner,group,error(result));
 	    
 	instw_delete(&instw);
@@ -2457,9 +2442,10 @@ int link(const char *oldpath, const char *newpath) {
 	instw_t instw_o;
 	instw_t instw_n;
 
-	RLSYMS
-	
 	REFCOUNT;
+
+	if (!libc_handle)
+		initialize();
 
 #if DEBUG
 	debug(2,"link(%s,%s)\n",oldpath,newpath);
@@ -2487,7 +2473,7 @@ int link(const char *oldpath, const char *newpath) {
 	instw_apply(&instw_n);
 	
 	result=true_link(instw_o.translpath,instw_n.translpath);
-	log("%d\tlink\t%s\t%s\t#%s\n",result,
+	logg("%d\tlink\t%s\t%s\t#%s\n",result,
 	    instw_o.reslvpath,instw_n.reslvpath,error(result));
 	    
 	instw_delete(&instw_o);
@@ -2500,9 +2486,10 @@ int mkdir(const char *pathname, mode_t mode) {
 	int result;
 	instw_t instw;
 
-	RLSYMS
-	
 	REFCOUNT;
+
+	if (!libc_handle)
+		initialize();
 
 #if DEBUG
 	debug(2,"mkdir(%s,mode)\n",pathname);
@@ -2525,7 +2512,7 @@ int mkdir(const char *pathname, mode_t mode) {
 	instw_apply(&instw);
 
 	result=true_mkdir(instw.translpath,mode);
-	log("%d\tmkdir\t%s\t#%s\n",result,instw.reslvpath,error(result));
+	logg("%d\tmkdir\t%s\t#%s\n",result,instw.reslvpath,error(result));
 
 	instw_delete(&instw);
 
@@ -2536,9 +2523,10 @@ int __xmknod(int version,const char *pathname, mode_t mode,dev_t *dev) {
 	int result;
 	instw_t instw;
 	
-	RLSYMS
-	
 	REFCOUNT;
+
+	if (!libc_handle)
+		initialize();
 
 #if DEBUG
 	debug(2,"mknod(%s,mode,dev)\n",pathname);
@@ -2562,7 +2550,7 @@ int __xmknod(int version,const char *pathname, mode_t mode,dev_t *dev) {
 	backup(instw.truepath);
 
 	result=true_xmknod(version,instw.translpath,mode,dev);
-	log("%d\tmknod\t%s\t#%s\n",result,instw.reslvpath,error(result));
+	logg("%d\tmknod\t%s\t#%s\n",result,instw.reslvpath,error(result));
 
 	instw_delete(&instw);
 	
@@ -2577,9 +2565,10 @@ int open(const char *pathname, int flags, ...) {
 	instw_t instw;
 	int status;
 
-	RLSYMS
-	
 	REFCOUNT;
+
+	if (!libc_handle)
+		initialize();
 
 #if DEBUG
 	debug(2,"open(%s,%d,mode)\n",pathname,flags);
@@ -2616,7 +2605,7 @@ int open(const char *pathname, int flags, ...) {
 		result=true_open(instw.path,flags,mode);
 	
 	if(flags & (O_WRONLY | O_RDWR)) 
-		log("%d\topen\t%s\t#%s\n",result,instw.reslvpath,error(result));
+		logg("%d\topen\t%s\t#%s\n",result,instw.reslvpath,error(result));
 
 	instw_delete(&instw);
 
@@ -2630,8 +2619,9 @@ DIR *opendir(const char *dirname) {
 	DIR *result;
 	instw_t instw;
 
-	RLSYMS
-	
+	if (!libc_handle)
+		initialize();
+
 #if DEBUG
 	debug(2,"opendir(%s)\n",dirname);
 #endif
@@ -2661,8 +2651,9 @@ DIR *opendir(const char *dirname) {
 struct dirent *readdir(DIR *dir) {
 	struct dirent *result;
 
-	RLSYMS
-	
+	if (!libc_handle)
+		initialize();
+
 #if DEBUG
 	debug(3,"readdir(%p)\n",dir);
 #endif
@@ -2683,13 +2674,14 @@ struct dirent *readdir(DIR *dir) {
 	return result;
 }
 
-int readlink(const char *path,char *buf,size_t bufsiz) {
+ssize_t readlink(const char *path,char *buf,size_t bufsiz) {
 	int result;
 	instw_t instw;
 	int status;
 
-	RLSYMS
-	
+	if (!libc_handle)
+		initialize();
+
 #if DEBUG
 	debug(2,"readlink(\"%s\",%p,%ld)\n",path,buf,(long int)bufsiz);
 #endif
@@ -2722,8 +2714,9 @@ int readlink(const char *path,char *buf,size_t bufsiz) {
 char *realpath(const char *file_name,char *resolved_name) {
 	char *result;
 
-	RLSYMS
-	
+	if (!libc_handle)
+		initialize();
+
 	  /* We were asked to work in "real" mode */
 	if( !(__instw.gstatus & INSTW_INITIALIZED) ||
 	    !(__instw.gstatus & INSTW_OKWRAP) ) {
@@ -2741,10 +2734,11 @@ int rename(const char *oldpath, const char *newpath) {
 	instw_t oldinstw;
 	instw_t newinstw;
 
-	RLSYMS
-	
 	REFCOUNT;
 	
+	if (!libc_handle)
+		initialize();
+
 #if DEBUG
 	debug(2,"rename(\"%s\",\"%s\")\n",oldpath,newpath);	
 #endif
@@ -2771,7 +2765,7 @@ int rename(const char *oldpath, const char *newpath) {
 	instw_apply(&newinstw);
 
 	result=true_rename(oldinstw.translpath,newinstw.translpath);
-	log("%d\trename\t%s\t%s\t#%s\n",result,
+	logg("%d\trename\t%s\t%s\t#%s\n",result,
 	    oldinstw.reslvpath,newinstw.reslvpath,error(result));
 
 	instw_delete(&oldinstw);
@@ -2784,9 +2778,10 @@ int rmdir(const char *pathname) {
 	int result;
 	instw_t instw;
 
-	RLSYMS
-	
 	REFCOUNT;
+
+	if (!libc_handle)
+		initialize();
 
 #if DEBUG
 	debug(2,"rmdir(%s)\n",pathname);
@@ -2806,7 +2801,7 @@ int rmdir(const char *pathname) {
 	instw_apply(&instw);
 
 	result=true_rmdir(instw.translpath);
-	log("%d\trmdir\t%s\t#%s\n",result,instw.reslvpath,error(result));
+	logg("%d\trmdir\t%s\t#%s\n",result,instw.reslvpath,error(result));
 	
 	instw_delete(&instw);
 	
@@ -2818,8 +2813,9 @@ int scandir(	const char *dir,struct dirent ***namelist,
 		int (*compar)(const void *,const void *)	) {
 	int result;
 
-	RLSYMS
-	
+	if (!libc_handle)
+		initialize();
+
 #if DEBUG
 	debug(2,"scandir(%s,%p,%p,%p)\n",dir,namelist,select,compar);
 #endif
@@ -2841,8 +2837,9 @@ int __xstat(int version,const char *pathname,struct stat *info) {
 	instw_t instw;
 	int status;
 
-	RLSYMS
-	
+	if (!libc_handle)
+		initialize();
+
 #if DEBUG
 	debug(2,"stat(%s,%p)\n",pathname,info);
 #endif
@@ -2882,8 +2879,9 @@ int __lxstat(int version,const char *pathname,struct stat *info) {
 	instw_t instw;
 	int status;
 
-	RLSYMS
-	
+	if (!libc_handle)
+		initialize();
+
 #if DEBUG
 	debug(2,"lstat(%s,%p)\n",pathname,info);
 #endif
@@ -2923,9 +2921,10 @@ int symlink(const char *pathname, const char *slink) {
 	instw_t instw;
 	instw_t instw_slink;
 
-	RLSYMS
-	
 	REFCOUNT;
+
+	if (!libc_handle)
+		initialize();
 
 #if DEBUG
 	debug(2,"symlink(%s,%s)\n",pathname,slink);
@@ -2951,7 +2950,7 @@ int symlink(const char *pathname, const char *slink) {
 	instw_apply(&instw_slink);
 	
 	result=true_symlink(pathname,instw_slink.translpath);
-	log("%d\tsymlink\t%s\t%s\t#%s\n",
+	logg("%d\tsymlink\t%s\t%s\t#%s\n",
            result,instw.path,instw_slink.reslvpath,error(result));
 
 	    
@@ -2965,9 +2964,10 @@ int truncate(const char *path, TRUNCATE_T length) {
 	int result;
 	instw_t instw;
 
-	RLSYMS
-	
 	REFCOUNT;
+
+	if (!libc_handle)
+		initialize();
 
 #if DEBUG
 	debug(2,"truncate(%s,length)\n",path);
@@ -2991,7 +2991,7 @@ int truncate(const char *path, TRUNCATE_T length) {
 	instw_apply(&instw);
 
 	result=true_truncate(instw.translpath,length);
-	log("%d\ttruncate\t%s\t%d\t#%s\n",result,
+	logg("%d\ttruncate\t%s\t%d\t#%s\n",result,
 	    instw.reslvpath,(int)length,error(result));
 
 	instw_delete(&instw);
@@ -3003,9 +3003,10 @@ int unlink(const char *pathname) {
 	int result;
 	instw_t instw;
 
-	RLSYMS
-	
 	REFCOUNT;
+
+	if (!libc_handle)
+		initialize();
 
 #if DEBUG
 	debug(2,"unlink(%s)\n",pathname);
@@ -3029,7 +3030,7 @@ int unlink(const char *pathname) {
 	instw_apply(&instw);
 
 	result=true_unlink(instw.translpath);
-	log("%d\tunlink\t%s\t#%s\n",result,instw.reslvpath,error(result));
+	logg("%d\tunlink\t%s\t#%s\n",result,instw.reslvpath,error(result));
 
 	instw_delete(&instw);
 
@@ -3040,8 +3041,9 @@ int utime (const char *pathname, const struct utimbuf *newtimes) {
 	int result;
 	instw_t instw;
 
-	RLSYMS
-	
+	if (!libc_handle)
+		initialize();
+
 #if DEBUG
 	debug(2,"utime(%s,newtimes)\n",pathname);
 #endif
@@ -3064,7 +3066,7 @@ int utime (const char *pathname, const struct utimbuf *newtimes) {
 	instw_apply(&instw);
 
 	result=true_utime(instw.translpath,newtimes);
-	log("%d\tutime\t%s\t#%s\n",result,instw.reslvpath,error(result));
+	logg("%d\tutime\t%s\t#%s\n",result,instw.reslvpath,error(result));
 
 	instw_delete(&instw);
 
@@ -3078,9 +3080,10 @@ int creat64(const char *pathname, __mode_t mode) {
 	int result;
 	instw_t instw;
 
-	RLSYMS
-	
 	REFCOUNT;
+
+	if (!libc_handle)
+		initialize();
 
 #if DEBUG
 	debug(2,"creat64(%s,mode)\n",pathname);
@@ -3104,7 +3107,7 @@ int creat64(const char *pathname, __mode_t mode) {
 	instw_apply(&instw);
 
 	result=true_open64(instw.translpath,O_CREAT | O_WRONLY | O_TRUNC, mode);
-	log("%d\tcreat\t%s\t#%s\n",result,instw.reslvpath,error(result));
+	logg("%d\tcreat\t%s\t#%s\n",result,instw.reslvpath,error(result));
 
 	instw_delete(&instw);
 
@@ -3114,16 +3117,17 @@ int creat64(const char *pathname, __mode_t mode) {
 int ftruncate64(int fd, __off64_t length) {
 	int result;
 
-	RLSYMS
-	
 	REFCOUNT;
+
+	if (!libc_handle)
+		initialize();
 
 #if DEBUG
 	debug(2,"ftruncate64\n");
 #endif
 
 	result = true_ftruncate64(fd, length);
-	log("%d\tftruncate\t%d\t%d\t#%s\n",result,fd,(int)length,error(result));
+	logg("%d\tftruncate\t%d\t%d\t#%s\n",result,fd,(int)length,error(result));
 	return result;
 }
 
@@ -3133,8 +3137,9 @@ FILE *fopen64(const char *pathname, const char *mode) {
 	instw_t instw;
 	int status;
 
-	RLSYMS
-	
+	if (!libc_handle)
+		initialize();
+
 #if DEBUG
 	debug(2,"fopen64(%s,%s)\n",pathname,mode);
 #endif
@@ -3170,7 +3175,7 @@ FILE *fopen64(const char *pathname, const char *mode) {
 	}
 
 	if(mode[0]=='w'||mode[0]=='a'||mode[1]=='+') 
-		log("%d\tfopen64\t%s\t#%s\n",(int)result,
+		logg("%ld\tfopen64\t%s\t#%s\n",(long)result,
 		    instw.reslvpath,error(result));
 
 	instw_delete(&instw);
@@ -3187,9 +3192,10 @@ int open64(const char *pathname, int flags, ...) {
 	instw_t instw;
 	int status;
 
-	RLSYMS
-	
 	REFCOUNT;
+
+	if (!libc_handle)
+		initialize();
 
 #if DEBUG
 	debug(2,"open64(%s,%d,mode)\n",pathname,flags);
@@ -3229,7 +3235,7 @@ int open64(const char *pathname, int flags, ...) {
 	}
 	
 	if(flags & (O_WRONLY | O_RDWR)) 
-		log("%d\topen\t%s\t#%s\n",result,
+		logg("%d\topen\t%s\t#%s\n",result,
 		    instw.reslvpath,error(result));
 
 	instw_delete(&instw);
@@ -3240,8 +3246,9 @@ int open64(const char *pathname, int flags, ...) {
 struct dirent64 *readdir64(DIR *dir) {
 	struct dirent64 *result;
 
-	RLSYMS
-	
+	if (!libc_handle)
+		initialize();
+
 #if DEBUG
 	debug(3,"readdir64(%p)\n",dir);
 #endif
@@ -3267,8 +3274,9 @@ int scandir64(	const char *dir,struct dirent64 ***namelist,
 		int (*compar)(const void *,const void *)	) {
 	int result;
 
-	RLSYMS
-	
+	if (!libc_handle)
+		initialize();
+
 #if DEBUG
 	debug(2,"scandir64(%s,%p,%p,%p)\n",dir,namelist,select,compar);
 #endif
@@ -3290,8 +3298,6 @@ int __xstat64(int version,const char *pathname,struct stat64 *info) {
 	instw_t instw;
 	int status;
 
-	RLSYMS
-	
 #if DEBUG
 	debug(2,"stat64(%s,%p)\n",pathname,info);
 #endif
@@ -3331,8 +3337,6 @@ int __lxstat64(int version,const char *pathname,struct stat64 *info) {
 	instw_t instw;
 	int status;
 
-	RLSYMS
-	
 #if DEBUG
 	debug(2,"lstat64(%s,%p)\n",pathname,info);
 #endif
@@ -3371,9 +3375,13 @@ int truncate64(const char *path, __off64_t length) {
 	int result;
 	instw_t instw;
 
-	RLSYMS
-	
+	if (!libc_handle)
+		initialize();
+
 	REFCOUNT;
+
+	if (!libc_handle)
+		initialize();
 
 #if DEBUG
 	debug(2,"truncate64(%s,length)\n",path);
@@ -3398,7 +3406,7 @@ int truncate64(const char *path, __off64_t length) {
 
 	result=true_truncate64(instw.translpath,length);
 	
-	log("%d\ttruncate\t%s\t%d\t#%s\n",result,
+	logg("%d\ttruncate\t%s\t%d\t#%s\n",result,
 	    instw.reslvpath,(int)length,error(result));
 
 	instw_delete(&instw);

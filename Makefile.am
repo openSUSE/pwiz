@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 
-SUBDIRS = genopts modules engines installwatch-0.7.0beta3
+SUBDIRS = genopts modules engines installwatch-0.7.0beta4
 
 .gopts:
 	$(PATH_BASH) $(top_srcdir)/genopts/genopts $@

@@ -54,7 +54,7 @@ engines/cache/Makefile
 engines/pkgdb/Makefile
 engines/question/Makefile
 engines/storage/Makefile
-installwatch-0.7.0beta3/Makefile
+installwatch-0.7.0beta4/Makefile
 Makefile
 ])
 AC_OUTPUT

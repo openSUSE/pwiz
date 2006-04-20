@@ -11,7 +11,7 @@ The short story:
    * Installwatch is no longer mantained by Pancrazio, you should now contact
       me with any issues relating to it:
 
-      Felipe Eduardo Sanchez Diaz Duran <izto@asic-linux.com.mx>
+      Felipe Eduardo Sanchez Diaz Duran <izto at asic-linux.com.mx>
       http://asic-linux.com.mx/~izto
 
    This package is distributed under the GPL license. Have a look at
@@ -96,7 +96,7 @@ RPMS:
    Ok, so you've done a "installwatch -o logfile make install", but how do
    you tell the RPM database about this? You use CheckInstall.
 
-   http://asic-linux.com.mx/~izto/checkinstall-en.html
+   http://asic-linux.com.mx/~izto/checkinstall
 
    The inst2rpm script that used to be distributed along with installwatch
    is not supported by me, it has been superseeded by CheckInstall.

@@ -9,8 +9,8 @@
  VERSION=`ldd libctest | grep libc\\.so | awk '{print $1}'`
  rm libctest
  echo $VERSION
---- pwizwatch.c	2004-05-18 16:43:08.000000000 +0200
-+++ pwizwatch.c	2004-06-10 15:41:54.000000000 +0200
+--- pwizwatch.c	2006-04-20 13:09:27.000000000 +0200
++++ pwizwatch.c	2006-04-20 13:20:45.000000000 +0200
 @@ -23,6 +23,9 @@
   *
   * november-25-2002 - Modifications by Olivier Fleurigeon
@@ -21,7 +21,7 @@
   */
  
  #include <sys/param.h>
-@@ -2603,10 +2606,8 @@
+@@ -2592,10 +2595,8 @@
  	instw_print(&instw);
  #endif
  
@@ -34,12 +34,12 @@
  
  	instw_getstatus(&instw,&status);
  
-@@ -2617,6 +2618,8 @@
+@@ -2606,6 +2607,8 @@
  	
  	if(flags & (O_WRONLY | O_RDWR)) 
- 		log("%d\topen\t%s\t#%s\n",result,instw.reslvpath,error(result));
+ 		logg("%d\topen\t%s\t#%s\n",result,instw.reslvpath,error(result));
 +	else
-+		log("%d\tread\t%s\t#%s\n",result,instw.reslvpath,error(result));
++		logg("%d\tread\t%s\t#%s\n",result,instw.reslvpath,error(result));
  
  	instw_delete(&instw);
  

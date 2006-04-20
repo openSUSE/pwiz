@@ -1,5 +1,5 @@
 #!/bin/sh
-#$Id: installwatch,v 0.7.0.3 2003/12/26 07:27:42 izto Exp $
+#$Id: installwatch,v 0.7.0.4 2005/06/17 21:54:40 izto Exp $
 
 #set -x
 
@@ -14,7 +14,17 @@ if test "$PREFIX" = "$HACK" ; then
 	exit 1
 fi
 
-LIBDIR=$PREFIX/lib
+LIB64_PLATFORM=false
+case `uname -m` in
+    x86_64|ppc64|s390x)
+	LIB64_PLATFORM=true
+	;;
+esac
+if test -d $PREFIX/lib64 && test "$LIB64_PLATFORM" = "true" ; then
+	LIBDIR=$PREFIX/lib64
+else
+	LIBDIR=$PREFIX/lib
+fi
 
 BASE_TMP_DIR=/var/tmp
 
@@ -228,7 +238,7 @@ if [ "$1" = "" ]; then
 	exit 1
 fi
 
-if [ -u $1 ]; then
+if [ -u "$1" ]; then
 	echo "Warning: `basename $0` may not work with suid programs" 
 fi
   # we must have a root path defined
@@ -238,7 +248,7 @@ if [ "${INSTW_ROOTPATH}_" = "_" ]; then
 	echo "INFO : Using a default root directory : ${INSTW_ROOTPATH}"
 	echo
 fi
-if [ ! -d ${INSTW_ROOTPATH} ]; then
+if [ ! -d "${INSTW_ROOTPATH}" ]; then
 	echo
 	echo "The root directory is mandatory ."
 	echo
@@ -246,7 +256,7 @@ if [ ! -d ${INSTW_ROOTPATH} ]; then
 	exit 1
 fi
 if [ "${INSTW_ROOTPATH:((${#INSTW_ROOTPATH}-1)):1}" = "/" ]; then
-	INSTW_ROOTPATH=${INSTW_ROOTPATH%/}
+	INSTW_ROOTPATH="${INSTW_ROOTPATH%/}"
 fi
 
 export INSTW_ROOTPATH
@@ -262,12 +272,12 @@ fi
 export INSTW_TRANSL
 
 if [ "${INSTW_LOGFILE}_" = "_" ]; then
-	INSTW_LOGFILE=${INSTW_ROOTPATH}/logfile
+	INSTW_LOGFILE="${INSTW_ROOTPATH}/logfile"
 fi
 export INSTW_LOGFILE
 
 if [ "${INSTW_DBGFILE}_" = "_" ]; then
-	INSTW_DBGFILE=${INSTW_ROOTPATH}/dbgfile
+	INSTW_DBGFILE="${INSTW_ROOTPATH}/dbgfile"
 fi
 export INSTW_DBGFILE
 
@@ -292,11 +302,11 @@ IFS="$OIFS"
 if [ "${INSTW_LOGFILE}_" != "_" ]; then
 	  # If INSTW_LOGFILE is a relative path, it must become absolute
 	if echo ${INSTW_LOGFILE} | grep -qv '^/' ; then
-		INSTW_LOGFILE=`pwd`/${INSTW_LOGFILE}
+		INSTW_LOGFILE="$(pwd)/${INSTW_LOGFILE}"
 	fi
 
 	export INSTW_LOGFILE
-	if cat /dev/null >${INSTW_LOGFILE}; then
+	if cat /dev/null >"${INSTW_LOGFILE}"; then
 		true
 	else
 		echo
@@ -309,11 +319,11 @@ fi
 if [ "${INSTW_DBGFILE}_" != "_" ]; then
 	  # If INSTW_DBGFILE is a relative path, it must become absolute
 	if echo ${INSTW_DBGFILE} | grep -qv '^/' ; then
-		INSTW_DBGFILE=`pwd`/${INSTW_DBGFILE}
+		INSTW_DBGFILE="$(pwd)/${INSTW_DBGFILE}"
 	fi
 
 	export INSTW_DBGFILE
-	if cat /dev/null >${INSTW_DBGFILE}; then
+	if cat /dev/null >"${INSTW_DBGFILE}"; then
 		true
 	else
 		echo
@@ -331,7 +341,7 @@ fi
 # ##############################################################################
 #
 
-LD_PRELOAD=$LIBDIR/installwatch.so
+LD_PRELOAD="$LIBDIR/installwatch.so"
 export LD_PRELOAD
 
 if [ $INSTW_DBGLVL -gt 0 ]; then 
@@ -342,7 +352,7 @@ if [ $INSTW_DBGLVL -gt 0 ]; then
    echo "debug: INSTW_DBGLVL=${INSTW_DBGLVL}"
 fi
 
-$@
+"$@"
 
 if [ $? -eq 0 ]; then
    FAIL=0
