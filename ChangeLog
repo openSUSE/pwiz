@@ -1,3 +1,30 @@
+2006-04-21  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* configure.in: Version 0.04.1.
+
+	* modules/sourceforge.pwm: Ported to the new Sourceforge engine.
+
+2006-04-20  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* acinclude.m4, configure.in: Check for required perl modules.
+
+	* installwatch-0.7.0beta4/README.PWIZ,
+	installwatch-0.7.0beta4/installwatch.c: Force undefine
+	_FORTIFY_SOURCE.
+
+	* installwatch-0.7.0beta*, Makefile.am, configure.in: Migrated to
+	installwatch-0.7.0beta4.
+
+	* modules/ftp.pwm: Use --no-remove-listing instead of -nr.
+
+	* modules/tld.pwm: Added .info TLD.
+
+	* modules/rpm_doc.pwm: Added andother INSTALL md5sum.
+
+2005-04-13  Stanislav Brabec  <sbrabec@suse.cz>
+
+	* modules/freshmeat_xml_parse: Handle empty elements correctly.
+
 2005-04-12  Stanislav Brabec  <sbrabec@suse.cz>
 
 	* configure.in: Version 0.04.
