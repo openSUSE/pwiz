@@ -75,6 +75,8 @@ function sourceforge_exists {
 # Get a file from Sourceforge.net.
 # NOTE: Code is little tricky: sourceforge://project is supported only
 #in uri_list and sourceforge://project/file only in uri_get.
+
+# FIXME: Add global preferences
 function sourceforge_get {
     local -a mirror mirror_location a1 a2 a3 i uri PWD_save
     mkdir -p $PWIZ_TMPDIR/sourceforge_get
@@ -83,7 +85,7 @@ function sourceforge_get {
     uri_get "http://prdownloads.sourceforge.net/$3/$4"
 
     # mirror list
-    sed -n $'s/<\\/*[Tt][Rr]/\\\n/gp' <"$4" | sed -n 's/^.*use_mirror="*\([a-zA-Z0-9_-]*\).*$/\1/gp' >mirrorlist
+    sed -n 's/.*use_mirror=\([^"]*\).*/\1/p' <"$4" >mirrorlist
     exec 3<mirrorlist
     while read -u3 ; do
 	pwiz_array_add mirror "$REPLY"
@@ -91,10 +93,10 @@ function sourceforge_get {
     exec 3<&-
 
     # mirror names
-    sed -n $'s/<\\/*[Tt][Rr]/\\\n/gp' <"$4" | sed ';s/^[^>]*>//;s/<[^>]*>/%/g' | sed -n 's/%%%%%%//p' | sed 's/%%*/%/g' >mirrornames
+    sed <"$4" >mirrornames '1,/Continent/d;1,/Download/d;/td colspan="2"/,$d;s/^[^>]*>//;s/<[^>]*>//g;/^[\t ]*$/d;/^Download$/{s/.*//;H;x;s/\n/, /g;s/^, //;s/, $//;p;d};H;d'
     exec 3<mirrornames
-    while IFS='%' read -u3 a1 a2 a3 ; do
-	pwiz_array_add mirror_location "$a1 ($a2)"
+    while IFS='%' read -u3 ; do
+	pwiz_array_add mirror_location "$REPLY"
     done
     exec 3<&-
 
